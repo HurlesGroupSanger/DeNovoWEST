@@ -1,5 +1,5 @@
 
-# DNEtest
+# DeNovoWEST: enrichment test  
 Conduct gene enrichment test for de novo mutations.
 
 Usage:
