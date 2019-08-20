@@ -1,5 +1,12 @@
 
-# DeNovoWEST: enrichment test  
+# DeNovoWEST
+
+There are three steps to running DeNovoWEST:
+1. Run enrichment test on DNMs
+2. Run clustering test on DNMs
+3. Combine results from both tests and apply IHW
+
+## 1. Enrichment Test
 Conduct gene enrichment test for de novo mutations.
 
 Usage:
@@ -48,4 +55,21 @@ The number of males and females in our cohort. For the total cohort this was 174
 To run enrichment test on all de novo mutations in our joint cohort, the following prints the necessary commands to run:
 
 ```python submit_DNE_test.py --ratespath <directory of rates> --weightspath input/weights_ppv_2019_01_09.tab --denovospath  DDD_RUMC_GDX_denovos_2019_05_15__wweights.txt.gz --outpath <output directory> --nmale 17422 --nfemale 13636```
+
+
+## 2. Clustering test
+
+This is done by running DeNovoNear, this can be found here.
+
+## 3. Combine tests and apply IHW
+
+This is done by running the R script as follows:
+
+``` Rscript combine_IHWcorrect.R [dne_file] [dnn_file] [out_file] ```
+
+Where the dne_file is the results from the enrichment test, the dnn_file is the results from the clustering test and the out_file is the filename to save it into. To replicate this step for the data from the paper without running the previous step, this can be run as follows:
+
+PUT IN ACTUAL PATHS HERE
+``` Rscript combine_IHWcorrect.R [dne_file] [dnn_file] [out_file] ```
+
 
