@@ -1,0 +1,123 @@
+---
+title: "Figure3"
+author: "Joanna Kaplanis and Kaitlin Samocha"
+date: "22/08/2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r, message=FALSE}
+# load required libraries
+library(data.table)
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+library(rateratio.test)
+
+# filepaths
+resfile <- "../input/extended_denovoWEST_results.tab"
+gnomad_constraint_file <- '../input/gnomad.v2.1.1.lof_metrics.by_gene.txt.bgz'
+hgnc_file <- '../input/protein-coding_gene.txt'
+```
+
+```{r}
+# load results file
+res_mup <- fread(resfile,sep = "\t")
+```
+
+#Figure 3(a)  
+
+#Figure 3(b)   
+
+#Figure 3(c)  
+
+#Figure 3(d)  
+
+```{r}
+# load gnomAD constraint data
+gnomad_constraint <- read.table(gnomad_constraint_file, header = T, sep = '\t', stringsAsFactors = F)
+
+# load HGNC genes
+# HGNC
+hgnc_genes <- fread(hgnc_file, sep = "\t", header = T, stringsAsFactors = F)
+# to get rid of the HGNC: part of the hgnc_id column
+hgnc_genes$num_hgnc_id <- apply(hgnc_genes, 1, function(row) strsplit(row[1], ':')[[1]][2])
+hgnc_genes$chrh <-  sapply(strsplit(sapply(strsplit(hgnc_genes$location,split = "q"), "[", 1),"p"),"[",1)
+
+# previous symbols
+prevnames <- unlist(strsplit(hgnc_genes$prev_symbol,split = "|",fixed = T))
+prevnames <- strsplit(hgnc_genes$prev_symbol,split = "|",fixed = T)
+plen <- unlist(lapply(prevnames,length))
+myl <- rep(hgnc_genes$symbol[plen >0],plen[plen>0])
+names(myl) <- unlist(prevnames)
+myl <- myl[!names(myl) %in% myl]
+
+# map gnomad to HGNC
+gnomad_constraint$matchedhgnc <- apply(gnomad_constraint, 1, function(row) if(row[1] %in% hgnc_genes$symbol) { row[1] } else { NA } )
+
+gnomad_constraint$newsymbol <- gnomad_constraint$gene
+gnomad_constraint$newsymbol[gnomad_constraint$gene%in%names(myl)] <- myl[gnomad_constraint$gene[gnomad_constraint$gene%in%names(myl)]]
+# use matchedhgnc (row[78])
+# if NA, use newsymbol (row[79])
+gnomad_constraint$replacementsymbol <- apply(gnomad_constraint, 1, function(row) if(is.na(row[78])){ row[79] } else { row[78] })
+
+gnomad_constraint$symbol <- gnomad_constraint$replacementsymbol
+gnomad_constraint$matchedhgnc <- NULL
+gnomad_constraint$newsymbol <- NULL
+gnomad_constraint$replacementsymbol <- NULL
+
+gnomad_constraint <- merge(gnomad_constraint, hgnc_genes[,c('symbol', 'num_hgnc_id')], by='symbol', all.x = T)
+
+# add gnomAD data to res_mup
+res_mup_gnomad <- res_mup %>% left_join(gnomad_constraint[,c('symbol', 'constraint_flag', 'obs_lof', 'obs_syn')], by='symbol', all.x=T) %>% distinct(symbol, .keep_all=T)
+```
+
+```{r}
+# determine bins
+res_mup_gnomad %>%
+  filter(lofe < 1e-6 & constraint_flag=='' & !(symbol %in% c('DNMT3A', 'ASXL1', 'PPM1D', 'TET2'))) %>%
+  summarize(max = max(log10(lofratio)), min = min(log10(lofratio)), diff = max(log10(lofratio))-min(log10(lofratio)), steps = (max(log10(lofratio))-min(log10(lofratio)))/5)
+```
+
+```{r}
+# find ptv and syn counts per bin
+ptv_syn_gnomad <- res_mup_gnomad %>%
+  filter(lofe < 1e-6 & constraint_flag=='' & !(symbol %in% c('DNMT3A', 'ASXL1', 'PPM1D', 'TET2'))) %>%
+  mutate(lofbin = case_when(log10(lofratio) < 0.9618719+(1*0.3442909) ~ 1,
+                            log10(lofratio) < 0.9618719+(2*0.3442909) & log10(lofratio) >= 0.9618719+(1*0.3442909) ~ 2,
+                            log10(lofratio) < 0.9618719+(3*0.3442909) & log10(lofratio) >= 0.9618719+(2*0.3442909) ~ 3,
+                            log10(lofratio) < 0.9618719+(4*0.3442909) & log10(lofratio) >= 0.9618719+(3*0.3442909) ~ 4,
+                            log10(lofratio) >= 0.9618719+(4*0.3442909) ~ 5)) %>%
+  group_by(lofbin) %>%
+  summarise(genes = n(), ptv = sum(obs_lof), syn = sum(obs_syn), ptv_syn = sum(obs_lof)/sum(obs_syn)) %>%
+  ungroup()
+
+ptv_syn_gnomad$lower_bound <- apply(ptv_syn_gnomad, 1, function(row) rateratio.test(c(as.numeric(row[3]), as.numeric(row[4])), c(as.numeric(row[2]), as.numeric(row[2])))$conf[1])
+ptv_syn_gnomad$upper_bound <- apply(ptv_syn_gnomad, 1, function(row) rateratio.test(c(as.numeric(row[3]), as.numeric(row[4])), c(as.numeric(row[2]), as.numeric(row[2])))$conf[2])
+
+ptv_syn_gnomad
+```
+
+```{r}
+# weighted regression
+fit_weighted_lofbin_ptvsyn <- glm(ptv_syn ~ lofbin, data=ptv_syn_gnomad, weights = genes)
+weighted_intercept <- fit_weighted_lofbin_ptvsyn$coefficients[[1]]
+weighted_slope <- fit_weighted_lofbin_ptvsyn$coefficients[[2]]
+
+summary(fit_weighted_lofbin_ptvsyn)
+```
+
+```{r, fig.align='center'}
+ggplot(ptv_syn_gnomad, aes(x = lofbin, y = ptv_syn)) +
+  geom_point(size=5) +
+  theme_classic() +
+  ylim(c(0,0.021)) +
+  geom_errorbar(aes(ymin=lower_bound, ymax=upper_bound), width=.1) +
+  labs(x='PTV enrichment bin', y = 'PTV/syn in gnomAD') +
+  geom_abline(intercept = weighted_intercept, slope = weighted_slope, col='darkgray', linetype=2) +
+  theme(axis.text.x  = element_text(size=14), axis.text.y = element_text(size=14), axis.title = element_text(size=16)) +
+  scale_x_continuous(name = 'PTV enrichment bin', breaks = seq(1,5,1), labels = c('0.96-1.30\n(n=21)', '1.30-1.65\n(n=63)', '1.65-2.00\n(n=40)', '2.00-2.34\n(n=23)', '2.34-2.68\n(n=9)'))
+```
