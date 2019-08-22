@@ -33,7 +33,7 @@ Ngdx <- 18783
 N_all <- Nddd + Ngdx + Nnjm
 ```
 
-#Figure 1(a)
+#Figure 1(a)  
 
 ```{r, fig.align='center'}
 #compare mupit to denovo WEST
@@ -100,7 +100,7 @@ ggplot(pval_2.5bins_gene_category_diagnostic_lists, aes(x=pvalbin, y=n, fill=dia
   scale_y_continuous('Number of genes',breaks=seq(0,125,25), labels=seq(0,125,25))
 ```
 
-#Figure 1(b)
+#Figure 1(b)  
 
 ```{r}
 # load de novo mutations
@@ -146,7 +146,7 @@ theme(legend.title = element_blank(), axis.text.x  = element_blank(), axis.text.
   scale_fill_manual(values = rev(c("black", '#56B4E9', "#E69F00", "#009E73", 'lightgray')))
 ```
 
-#Figure 1(c)
+#Figure 1(c)  
 
 ```{r, fig.align='center'}
 # need to load sex metadata
