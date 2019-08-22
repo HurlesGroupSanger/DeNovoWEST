@@ -8,40 +8,52 @@ output: html_document
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
+
 ```{r}
+# load required libraries
 library(data.table)
+library(ggplot2)
+library(dplyr)
+library(tidyr)
 
 #color palette 
 myColors <- c("black", '#56B4E9', "gray", "#E69F00")
-names(myColors) <- levels(res$diag_group)
+names(myColors) <- c('consensus', 'discordant', 'none', 'novel')
 colScale <- scale_colour_manual(name = "diag_group",values = myColors)
 
-resfile <- "/Users/jk18/Documents/PhD/DeNovoWEST/input/extended_denovoWEST_results.tab"
+# filepaths
+resfile <- "../input/extended_denovoWEST_results.tab"
+dnmfile <- '../input/DDD_RUMC_GDX_denovos_2019_05_15__wweights.txt.gz'
+
+# counts per study
+Nddd <- 9858
+Nnjm <- 2417
+Ngdx <- 18783
+N_all <- Nddd + Ngdx + Nnjm
 ```
 
 #Figure 1(a)
 
-```{r}
-
+```{r, fig.align='center'}
 #compare mupit to denovo WEST
 th <- -log10(0.025)
 
 res_mup <- fread(resfile,sep = "\t")
-res_mup <- res_mup[!is.na(res_mup$padj_shetres),]
-res_mup$lg10padj <- -log10(res_mup$padj_shetres)
+res_mup <- res_mup[!is.na(res_mup$denovoWEST_p),]
+res_mup$lg10denovoWEST <- -log10(res_mup$denovoWEST_p)
 res_mup$mup_pval_bonf <- p.adjust(res_mup$mup_pval,method = "bonferroni",n=(18500*2))
 res_mup$mup_pval_bonf[res_mup$mup_pval_bonf<10^(-16)] <- 10^(-16)
 res_mup$lg10mup <- -log10(res_mup$mup_pval_bonf)
 
-n_mupit <- sum(res_mup$mup_pval_bonf<=0.025 & res_mup$padj_shetres>0.025 & !is.na(res_mup$mup_pval_bonf) & !is.na(res_mup$padj_shetres))
-n_new <- sum(res_mup$mup_pval_bonf>0.025 & res_mup$padj_shetres<=0.025 & !is.na(res_mup$mup_pval_bonf) & !is.na(res_mup$padj_shetres))
-n_both <- sum(res_mup$mup_pval_bonf<=0.025 & res_mup$padj_shetres<=0.025 & !is.na(res_mup$mup_pval_bonf) & !is.na(res_mup$padj_shetres))
+n_mupit <- sum(res_mup$mup_pval_bonf<=0.025 & res_mup$denovoWEST_p>0.025 & !is.na(res_mup$mup_pval_bonf) & !is.na(res_mup$denovoWEST_p))
+n_new <- sum(res_mup$mup_pval_bonf>0.025 & res_mup$denovoWEST_p<=0.025 & !is.na(res_mup$mup_pval_bonf) & !is.na(res_mup$denovoWEST_p))
+n_both <- sum(res_mup$mup_pval_bonf<=0.025 & res_mup$denovoWEST_p<=0.025 & !is.na(res_mup$mup_pval_bonf) & !is.na(res_mup$denovoWEST_p))
 
 res_mup$nonsyn_count <- res_mup$lofcount + res_mup$missense_variant
 #res_mup <- res_mup[!(res_mup$min_p == 1 & res_mup$mup_pval == 1),]
-p <- ggplot(res_mup, aes(x = lg10mup,y = lg10padj,col = diag_group)) + 
-        geom_point(data = res_mup[!(res_mup$diag_group == "consensus")],aes(x = lg10mup,y = lg10padj,size = nonsyn_count), alpha = 0.9) + 
-        geom_point(data = res_mup[(res_mup$diag_group == "consensus")],aes(x = lg10mup,y = lg10padj,size = nonsyn_count), alpha = 0.55) +
+p <- ggplot(res_mup, aes(x = lg10mup,y = lg10denovoWEST, col = diag_group)) + 
+        geom_point(data = res_mup[!(res_mup$diag_group == "consensus")],aes(x = lg10mup, y = lg10denovoWEST, size = nonsyn_count), alpha = 0.9) + 
+        geom_point(data = res_mup[(res_mup$diag_group == "consensus")],aes(x = lg10mup, y = lg10denovoWEST, size = nonsyn_count), alpha = 0.55) +
         colScale+ geom_hline(yintercept = th, linetype = "dashed",color = "gray43") + 
         geom_vline(xintercept = th,linetype = "dashed",color = "gray43") +
         geom_abline(intercept = 0, slope = 1, color = "gray43",linetype = "dotted")  + 
@@ -51,4 +63,91 @@ p <- ggplot(res_mup, aes(x = lg10mup,y = lg10padj,col = diag_group)) +
   p + annotate(geom = "text",x = 4.5, y = 13, label = toString(n_both),color = "gray43",size = 8) +
       annotate(geom = "text",x = 0.2, y = 13, label = toString(n_new),color = "gray43",size = 8) +
       annotate(geom = "text",x = 5, y = 0.5, label = toString(n_mupit),color = "gray43",size = 8)
+```
+
+```{r, fig.align='center'}
+# denovoWEST p-value bins
+pval_2.5bins_gene_category_diagnostic_lists <- res_mup %>%
+  filter(sig==TRUE) %>%
+  mutate(pvalbin = case_when(denovoWEST_p < 2.5e-2 & denovoWEST_p >2.5e-4 ~ '2.5e-2 to 2.5e-4',
+                             denovoWEST_p < 2.5e-4 & denovoWEST_p >2.5e-6 ~ '2.5e-4 to 2.5e-6',
+                             denovoWEST_p < 2.5e-6 & denovoWEST_p >2.5e-8 ~ '2.5e-6 to 2.5e-8',
+                             denovoWEST_p < 2.5e-8 & denovoWEST_p >2.5e-10 ~ '2.5e-8 to 2.5e-10',
+                             denovoWEST_p < 2.5e-10 & denovoWEST_p >2.5e-12 ~ '2.5e-10 to 2.5e-12',
+                             denovoWEST_p < 2.5e-12 & denovoWEST_p >2.5e-14 ~ '2.5e-12 to 2.5e-14',
+                             denovoWEST_p < 2.5e-14 ~ '< 2.5e-14')) %>%
+  mutate(pvalbin = ifelse(is.na(pvalbin), case_when(undiagnosed_denovoWEST_p < 2.5e-2 & undiagnosed_denovoWEST_p >2.5e-4 ~ '2.5e-2 to 2.5e-4',
+                             undiagnosed_denovoWEST_p < 2.5e-4 & undiagnosed_denovoWEST_p >2.5e-6 ~ '2.5e-4 to 2.5e-6',
+                             undiagnosed_denovoWEST_p < 2.5e-6 & undiagnosed_denovoWEST_p >2.5e-8 ~ '2.5e-6 to 2.5e-8',
+                             undiagnosed_denovoWEST_p < 2.5e-8 & undiagnosed_denovoWEST_p >2.5e-10 ~ '2.5e-8 to 2.5e-10',
+                             undiagnosed_denovoWEST_p < 2.5e-10 & undiagnosed_denovoWEST_p >2.5e-12 ~ '2.5e-10 to 2.5e-12',
+                             undiagnosed_denovoWEST_p < 2.5e-12 & undiagnosed_denovoWEST_p >2.5e-14 ~ '2.5e-12 to 2.5e-14',
+                             undiagnosed_denovoWEST_p < 2.5e-14 ~ '< 2.5e-14'), pvalbin)) %>%
+  group_by(pvalbin, diag_group) %>%
+  tally()
+
+pval_2.5bins_gene_category_diagnostic_lists$pvalbin <- factor(pval_2.5bins_gene_category_diagnostic_lists$pvalbin, levels=c('2.5e-2 to 2.5e-4','2.5e-4 to 2.5e-6','2.5e-6 to 2.5e-8','2.5e-8 to 2.5e-10','2.5e-10 to 2.5e-12', '2.5e-12 to 2.5e-14', '< 2.5e-14'))
+pval_2.5bins_gene_category_diagnostic_lists$diag_group <- factor(pval_2.5bins_gene_category_diagnostic_lists$diag_group, levels=c('novel', 'discordant', 'consensus'))
+
+ggplot(pval_2.5bins_gene_category_diagnostic_lists, aes(x=pvalbin, y=n, fill=diag_group)) +
+  geom_bar(stat = 'identity') +
+  theme_classic() +
+  labs(x='p-value bin', y='Number of genes') +
+  coord_flip() +
+  scale_fill_manual(values=c("#E69F00","#56B4E9","black")) +
+  theme(axis.text.x  = element_text(size=14), axis.text.y = element_text(size=14), axis.title = element_text(size=16), legend.title = element_blank(), legend.text = element_text(size=14)) +
+  scale_y_continuous('Number of genes',breaks=seq(0,125,25), labels=seq(0,125,25))
+```
+
+#Figure 1(b)
+
+```{r}
+# load de novo mutations
+all <- read.table(dnmfile, stringsAsFactors = F, sep = '\t', header = T)
+all <- all %>% mutate(study3 = ifelse(study=='newGDX', 'GDX', study))
+
+# determine fraction of cases with nonsynonymous DNM in each gene category
+# all consensus known, significant discordant known, significant novel
+nodoublecount_fractioncase <- all %>%
+  filter((symbol %in% subset(res_mup, diag_group=='consensus' | sig==TRUE)$symbol) & !(consequence %in% c('coding_sequence_variant', 'stop_retained_variant', 'synonymous_variant'))) %>%
+  mutate(diag_list = case_when(symbol %in% subset(res_mup, diag_group=='consensus')$symbol ~ 'consensus',
+                             symbol %in% subset(res_mup, diag_group=='discordant' & sig==TRUE)$symbol ~ 'discordant',
+                             symbol %in% subset(res_mup, diag_group=='novel')$symbol ~ 'novel')) %>%
+  group_by(id, diag_list) %>%
+  tally() %>%
+  spread(diag_list, n) %>%
+  replace(., is.na(.), 0) %>%
+  mutate(person_cat = ifelse(consensus>0, 'consensus', ifelse(discordant>0, 'discordant', 'novel'))) %>%
+  group_by(person_cat) %>%
+  tally() %>%
+  mutate(fractioncase_all = n/N_all)
+
+nodoublecount_fractioncase
+```
+
+```{r, fig.align='center'}
+# expected fraction of cases with a diagnostic coding de novo mutation -- estimated by Hilary Martin
+fractioncase_all_dnv <- 0.486
+
+# determining the remaining fraction of cases
+nodoublecount_fractioncase <- add_row(nodoublecount_fractioncase,
+                                        person_cat=c('remaining', 'not de novo'),
+                                        n=c(NA, NA),
+                                        fractioncase_all=c(fractioncase_all_dnv-sum(nodoublecount_fractioncase$fractioncase_all), 1-fractioncase_all_dnv))
+nodoublecount_fractioncase$person_cat <- factor(nodoublecount_fractioncase$person_cat, levels = c('not de novo', 'remaining', 'novel', 'discordant', 'consensus'))
+
+# plot the fraction of cases
+ggplot(nodoublecount_fractioncase, aes(x=1, y=fractioncase_all, fill=person_cat))+
+  geom_bar(stat='identity') +
+  labs(y='Fraction of cases', x='', title='') +
+  theme_classic() +
+theme(legend.title = element_blank(), axis.text.x  = element_blank(), axis.text.y = element_text(size=14), axis.title = element_text(size=16), legend.text = element_text(size=14), axis.line.x = element_blank(), axis.ticks.x = element_blank(), axis.line.y = element_blank()) +
+  scale_fill_manual(values = rev(c("black", '#56B4E9', "#E69F00", "#009E73", 'lightgray')))
+```
+
+#Figure 1(c)
+
+```{r}
+# need to load sex metadata
+
 ```
