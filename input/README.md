@@ -6,7 +6,13 @@
 
 45,221 *de novo* mutations (DNMs) from 31,058 developmental disorder patients.
 
-`alt`: Alternative allele of the DNM
+| Column | Description |
+| --- | --- |
+| alt  | Alternative allele of the DNM |
+| altprop_child | Fraction of reads that are from the alternative allele |
+
+
+`alt`: Alternative allele of the DNM  
 `altprop_child`: Fraction of reads that are from the alternative allele
 `chrom`: Chromosome of the DNM
 `consequence`: Mutation consequence of the DNM () ????
