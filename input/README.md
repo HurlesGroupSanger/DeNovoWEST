@@ -11,13 +11,13 @@
 | alt  | Alternative allele of the DNM |
 | altprop_child | Fraction of reads that are from the alternative allele |
 | chrom | Chromosome of the DNM |
-| consequence | Mutation consequence of the DNM () ???? |
-| cq | Mutation consequence of the DNM (e.g. missense, synonymous) |
+| consequence | Mutation consequence of the DNM (e.g. missense_variant, synonymous_variant) |
+| cq | Mutation consequence of the DNM (e.g. missense_variant, synonymous_variant) |
 | hgnc_id | HGNC ID |
 | id | Proband ID |
-| maf | Minor allele frequency in ??? |
+| maf | Minor allele frequency in gnomAD (release 2.0.2) |
 | pos | Position of the DNM |
-| prob | ?? |
+| prob | Empty column for now |
 | raw | CADD version 1.0 raw score |
 | ref | Reference allele of the DNM |
 | score | CADD version 1.0 Phred score |
@@ -30,7 +30,7 @@
 
 `extended_denovoWEST_results.tab`  
 
-Results of applying `DeNovoWEST` to the *de novo* mutations (DNMs) from 31,058 developmental disorder patients. For each gene, the count of DNMs is provided, split by mutation type and by center. This extended results file also includes the results from a previous method ((mupit)[https://github.com/jeremymcrae/mupit]).  
+Results of applying `DeNovoWEST` to the *de novo* mutations (DNMs) from 31,058 developmental disorder patients. For each gene, the count of DNMs is provided, split by mutation type and by center. This extended results file also includes the results from a (previous method)[https://github.com/jeremymcrae/mupit].  
 
 | Column | Description |
 | --- | --- |
@@ -39,47 +39,47 @@ Results of applying `DeNovoWEST` to the *de novo* mutations (DNMs) from 31,058 d
 | chr | Chromosome of the gene |
 | bp |  Number of coding base pairs in the gene |
 | n_exons | Number of exons in the gene |
-| cds_length | ??? |
-| diag_group | |
+| cds_length | Number of coding base pairs |
+| diag_group | Diagnostic gene list memberships (e.g. consensus, novel) |
 | p_all | |
 | p_syn | |
 | p_mis | |
 | p_lof | |
-| consensus_gene | |
-| discordant_gene | |
-| DDD_count | |
-| GDX_count | 
-| RUMC_count | 
-| coding_sequence_variant | 
-| frameshift_variant | 
-| inframe_deletion | 
-| inframe_insertion | 
-| initiator_codon_variant | 
-| missense_variant | 
-| splice_acceptor_variant | 
-| splice_donor_variant | 
-| stop_gained | 
-| stop_lost | 
-| stop_retained_variant | 
-| synonymous_variant | 
-| lofcount | 
-| lofexpected | 
-| lofratio | 
-| misexpected | |
-| misratio | |
-| me | 
-| lofe | 
-| powmed | 
-| s_het | 
-| pLI | 
-| observed | 
-| expected | 
-| wratio | 
-| dne_p | 
-| dnn_p | 
-| com_p | 
-| min_p | 
-| denovoWEST_p | 
+| consensus_gene | Boolean indicator of whether a gene is on the consensus known diagnostic gene list |
+| discordant_gene | Boolean indicator of whether a gene is on the discordant known diagnostic gene list |
+| DDD_count | Number of DNMs in DDD probands |
+| GDX_count | Number of DNMs in GeneDx probands |
+| RUMC_count | Number of DNMs in Radboud University Medical Center probands |
+| coding_sequence_variant | Number of coding_sequence_variant DNMs | 
+| frameshift_variant | Number of frameshift_variant DNMs |
+| inframe_deletion | Number of inframe_deletion DNMs |
+| inframe_insertion | Number of inframe_insertion DNMs |
+| initiator_codon_variant | Number of initiator_codon_variant DNMs |
+| missense_variant | Number of missense_variant DNMs |
+| splice_acceptor_variant | Number of splice_acceptor_variant DNMs |
+| splice_donor_variant | Number of splice_donor_variant DNMs |
+| stop_gained | Number of stop_gained DNMs |
+| stop_lost | Number of stop_lost DNMs |
+| stop_retained_variant | Number of stop_retained_variant DNMs |
+| synonymous_variant | Number of synonymous_variant DNMs |
+| lofcount | Number of loss-of-function DNMs |
+| lofexpected | Expected number of loss-of-function DNMs |
+| lofratio | Observed/expected ratio of loss-of-function DNMs |
+| misexpected | Expected number of missense DNMs |
+| misratio | Observed/expected ration of missense DNMs |
+| me | P-value for the enrichment of missense DNMs |
+| lofe | P-value for the enrichment of loss-of-function DNMs |
+| powmed | |
+| s_het | s_het score |
+| pLI | gnomAD pLI score |
+| observed | |
+| expected | |
+| wratio | | |
+| dne_p | Enrichment p-value generated as part of `DeNovoWEST` |
+| dnn_p | Clustering p-value from `denovonear` |
+| com_p | Combined p-value of `dne_p` and `dnn_p` |
+| min_p | Minimum p-value of `dne_p` and `dnn_p` |
+| denovoWEST_p | P-value from `DeNovoWEST` when applied to the full dataset |
 | undiagnosed_denovoWEST_p | P-value from `DeNovoWEST` when applied to only undiagosed cases |
 | mup_pval | P-value from mupit |
 | sig | Boolean indicator of whether the gene was significant in either the full of undiagnosed analysis |  
