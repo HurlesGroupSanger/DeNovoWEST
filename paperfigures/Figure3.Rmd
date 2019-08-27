@@ -49,54 +49,15 @@ ggplot(respow[!is.na(respow$cat),],aes(x = cat,y = powmed,fill = sig)) + geom_bo
 #Figure 3(d)  
 
 ```{r}
-# load gnomAD constraint data
-gnomad_constraint <- read.table(gnomad_constraint_file, header = T, sep = '\t', stringsAsFactors = F)
-
-# load HGNC genes
-# HGNC
-hgnc_genes <- fread(hgnc_file, sep = "\t", header = T, stringsAsFactors = F)
-# to get rid of the HGNC: part of the hgnc_id column
-hgnc_genes$num_hgnc_id <- apply(hgnc_genes, 1, function(row) strsplit(row[1], ':')[[1]][2])
-hgnc_genes$chrh <-  sapply(strsplit(sapply(strsplit(hgnc_genes$location,split = "q"), "[", 1),"p"),"[",1)
-
-# previous symbols
-prevnames <- unlist(strsplit(hgnc_genes$prev_symbol,split = "|",fixed = T))
-prevnames <- strsplit(hgnc_genes$prev_symbol,split = "|",fixed = T)
-plen <- unlist(lapply(prevnames,length))
-myl <- rep(hgnc_genes$symbol[plen >0],plen[plen>0])
-names(myl) <- unlist(prevnames)
-myl <- myl[!names(myl) %in% myl]
-
-# map gnomad to HGNC
-gnomad_constraint$matchedhgnc <- apply(gnomad_constraint, 1, function(row) if(row[1] %in% hgnc_genes$symbol) { row[1] } else { NA } )
-
-gnomad_constraint$newsymbol <- gnomad_constraint$gene
-gnomad_constraint$newsymbol[gnomad_constraint$gene%in%names(myl)] <- myl[gnomad_constraint$gene[gnomad_constraint$gene%in%names(myl)]]
-# use matchedhgnc (row[78])
-# if NA, use newsymbol (row[79])
-gnomad_constraint$replacementsymbol <- apply(gnomad_constraint, 1, function(row) if(is.na(row[78])){ row[79] } else { row[78] })
-
-gnomad_constraint$symbol <- gnomad_constraint$replacementsymbol
-gnomad_constraint$matchedhgnc <- NULL
-gnomad_constraint$newsymbol <- NULL
-gnomad_constraint$replacementsymbol <- NULL
-
-gnomad_constraint <- merge(gnomad_constraint, hgnc_genes[,c('symbol', 'num_hgnc_id')], by='symbol', all.x = T)
-
-# add gnomAD data to res
-res_gnomad <- res %>% left_join(gnomad_constraint[,c('symbol', 'constraint_flag', 'obs_lof', 'obs_syn')], by='symbol', all.x=T) %>% distinct(symbol, .keep_all=T)
-```
-
-```{r}
 # determine bins
-res_gnomad %>%
+res %>%
   filter(lofe < 1e-6 & constraint_flag=='' & !(symbol %in% c('DNMT3A', 'ASXL1', 'PPM1D', 'TET2'))) %>%
   summarize(max = max(log10(lofratio)), min = min(log10(lofratio)), diff = max(log10(lofratio))-min(log10(lofratio)), steps = (max(log10(lofratio))-min(log10(lofratio)))/5)
 ```
 
 ```{r}
 # find ptv and syn counts per bin
-ptv_syn_gnomad <- res_gnomad %>%
+ptv_syn_gnomad <- res %>%
   filter(lofe < 1e-6 & constraint_flag=='' & !(symbol %in% c('DNMT3A', 'ASXL1', 'PPM1D', 'TET2'))) %>%
   mutate(lofbin = case_when(log10(lofratio) < 0.9618719+(1*0.3442909) ~ 1,
                             log10(lofratio) < 0.9618719+(2*0.3442909) & log10(lofratio) >= 0.9618719+(1*0.3442909) ~ 2,
