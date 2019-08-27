@@ -91,9 +91,8 @@ pval_5bins_gene_category_diagnostic_lists$diag_group <- factor(pval_5bins_gene_c
 ggplot(pval_5bins_gene_category_diagnostic_lists, aes(x=pvalbin, y=n, fill=diag_group)) +
   geom_bar(stat = 'identity') +
   theme_classic() +
-  labs(x='p-value bin', y='Number of genes') +
   scale_fill_manual(values=c("#E69F00","#56B4E9","black")) +
-  theme(axis.text.x  = element_text(size=14), axis.text.y = element_text(size=14), axis.title = element_text(size=16), legend.title = element_blank(), legend.text = element_text(size=14)) +
+  theme(axis.text.x  = element_text(size=14), axis.text.y = element_text(size=14), axis.title = element_text(size=16), legend.title = element_blank(), legend.text = element_text(size=14), axis.line = element_blank(), axis.ticks.x = element_blank()) +
   scale_y_continuous('Number of genes',breaks=seq(0,100,25), labels=seq(0,100,25)) +
   scale_x_discrete('p-value bins', labels=c('2.5e-2 to\n2.5e-5', '2.5e-5 to\n2.5e-8', '2.5e-8 to\n2.5e-11', '2.5e-11 to\n2.5e-14', '< 2.5e-14'))
 ```
@@ -102,6 +101,9 @@ ggplot(pval_5bins_gene_category_diagnostic_lists, aes(x=pvalbin, y=n, fill=diag_
 
 To be inserted by Joanna.  
 
+```{r, fig.align='center'}
+
+```
 
 #Figure 1(d)  
 
