@@ -16,6 +16,7 @@ library(ggplot2)
 library(dplyr)
 library(tidyr)
 library(rateratio.test)
+library(wesanderson)
 
 # filepaths
 resfile <- "../input/extended_denovoWEST_results.tab"
@@ -25,11 +26,22 @@ hgnc_file <- '../input/protein-coding_gene.txt'
 
 ```{r}
 # load results file
-res_mup <- fread(resfile,sep = "\t")
+res <- fread(resfile,sep = "\t")
 ```
 
 #Figure 3(a)  
 
+```{r}
+mypal = wes_palette("Zissou1")
+res$cat <- res$diag_group
+res$cat[res$diag_group == "none" & res$sig] <- "novel"
+res$cat[res$cat == "none"] <- "unassociated"
+respow <- rbind(res[res$sig],res[!res$sig & !res$consensus_gene & !res$discordant_gene])
+
+ggplot(respow[!is.na(respow$cat),],aes(x = cat,y = powmed,fill = sig)) + geom_boxplot() + theme_classic() + labs(x = "",y = "Power (using median enrichment)")  + scale_fill_manual(values=c(mypal[5],mypal[1]),labels = c("not significant","significant")) + geom_boxplot(aes(color = sig),fatten = NULL, fill = NA, coef = 0, outlier.alpha = 0,show.legend = F)+
+  theme(legend.position="top")
+
+```
 #Figure 3(b)   
 
 #Figure 3(c)  
@@ -71,20 +83,20 @@ gnomad_constraint$replacementsymbol <- NULL
 
 gnomad_constraint <- merge(gnomad_constraint, hgnc_genes[,c('symbol', 'num_hgnc_id')], by='symbol', all.x = T)
 
-# add gnomAD data to res_mup
-res_mup_gnomad <- res_mup %>% left_join(gnomad_constraint[,c('symbol', 'constraint_flag', 'obs_lof', 'obs_syn')], by='symbol', all.x=T) %>% distinct(symbol, .keep_all=T)
+# add gnomAD data to res
+res_gnomad <- res %>% left_join(gnomad_constraint[,c('symbol', 'constraint_flag', 'obs_lof', 'obs_syn')], by='symbol', all.x=T) %>% distinct(symbol, .keep_all=T)
 ```
 
 ```{r}
 # determine bins
-res_mup_gnomad %>%
+res_gnomad %>%
   filter(lofe < 1e-6 & constraint_flag=='' & !(symbol %in% c('DNMT3A', 'ASXL1', 'PPM1D', 'TET2'))) %>%
   summarize(max = max(log10(lofratio)), min = min(log10(lofratio)), diff = max(log10(lofratio))-min(log10(lofratio)), steps = (max(log10(lofratio))-min(log10(lofratio)))/5)
 ```
 
 ```{r}
 # find ptv and syn counts per bin
-ptv_syn_gnomad <- res_mup_gnomad %>%
+ptv_syn_gnomad <- res_gnomad %>%
   filter(lofe < 1e-6 & constraint_flag=='' & !(symbol %in% c('DNMT3A', 'ASXL1', 'PPM1D', 'TET2'))) %>%
   mutate(lofbin = case_when(log10(lofratio) < 0.9618719+(1*0.3442909) ~ 1,
                             log10(lofratio) < 0.9618719+(2*0.3442909) & log10(lofratio) >= 0.9618719+(1*0.3442909) ~ 2,
