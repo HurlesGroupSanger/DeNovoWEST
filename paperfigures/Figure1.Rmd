@@ -67,6 +67,8 @@ p <- ggplot(res_mup, aes(x = lg10mup,y = lg10denovoWEST, col = diag_group)) +
       annotate(geom = "text",x = 5, y = 0.5, label = toString(n_mupit),color = "gray43",size = 8)
 ```
 
+#Figure 1(b)  
+
 ```{r, fig.align='center'}
 # denovoWEST p-value bins
 pval_2.5bins_gene_category_diagnostic_lists <- res_mup %>%
@@ -101,7 +103,12 @@ ggplot(pval_2.5bins_gene_category_diagnostic_lists, aes(x=pvalbin, y=n, fill=dia
   scale_y_continuous('Number of genes',breaks=seq(0,125,25), labels=seq(0,125,25))
 ```
 
-#Figure 1(b)  
+#Figure 1(c)
+
+To be inserted by Joanna.  
+
+
+#Figure 1(d)  
 
 ```{r}
 # load de novo mutations
@@ -147,7 +154,7 @@ theme(legend.title = element_blank(), axis.text.x  = element_blank(), axis.text.
   scale_fill_manual(values = rev(c("black", '#56B4E9', "#E69F00", "#009E73", 'lightgray')))
 ```
 
-#Figure 1(c)  
+#Figure 1(e)  
 
 ```{r, fig.align='center'}
 # need to load sex metadata
