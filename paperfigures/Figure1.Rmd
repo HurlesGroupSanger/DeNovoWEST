@@ -41,16 +41,15 @@ th <- -log10(0.025)
 
 res_mup <- fread(resfile,sep = "\t")
 #ignore undiagnosed analysis here
-res_mup$diag_group[res_mup$diag_group == "novel" & res_mup$denovoWEST_p>0.025] <- "none"
-res_mup <- res_mup[!is.na(res_mup$denovoWEST_p),]
-res_mup$lg10denovoWEST <- -log10(res_mup$denovoWEST_p)
+res_mup <- res_mup[!is.na(res_mup$denovoWEST_p_full),]
+res_mup$lg10denovoWEST <- -log10(res_mup$denovoWEST_p_full)
 res_mup$mup_pval_bonf <- p.adjust(res_mup$mup_pval,method = "bonferroni",n=(18500*2))
 res_mup$mup_pval_bonf[res_mup$mup_pval_bonf<10^(-16)] <- 10^(-16)
 res_mup$lg10mup <- -log10(res_mup$mup_pval_bonf)
 
-n_mupit <- sum(res_mup$mup_pval_bonf<=0.025 & res_mup$denovoWEST_p>0.025 & !is.na(res_mup$mup_pval_bonf) & !is.na(res_mup$denovoWEST_p))
-n_new <- sum(res_mup$mup_pval_bonf>0.025 & res_mup$denovoWEST_p<=0.025 & !is.na(res_mup$mup_pval_bonf) & !is.na(res_mup$denovoWEST_p))
-n_both <- sum(res_mup$mup_pval_bonf<=0.025 & res_mup$denovoWEST_p<=0.025 & !is.na(res_mup$mup_pval_bonf) & !is.na(res_mup$denovoWEST_p))
+n_mupit <- sum(res_mup$mup_pval_bonf<=0.025 & res_mup$denovoWEST_p_full>0.025 & !is.na(res_mup$mup_pval_bonf) & !is.na(res_mup$denovoWEST_p_full))
+n_new <- sum(res_mup$mup_pval_bonf>0.025 & res_mup$denovoWEST_p_full<=0.025 & !is.na(res_mup$mup_pval_bonf) & !is.na(res_mup$denovoWEST_p_full))
+n_both <- sum(res_mup$mup_pval_bonf<=0.025 & res_mup$denovoWEST_p_full<=0.025 & !is.na(res_mup$mup_pval_bonf) & !is.na(res_mup$denovoWEST_p_full))
 
 res_mup$nonsyn_count <- res_mup$lofcount + res_mup$missense_variant
 #res_mup <- res_mup[!(res_mup$min_p == 1 & res_mup$mup_pval == 1),]
