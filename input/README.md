@@ -4,9 +4,7 @@ This directory contains the files needed to recreate some of the main text figur
 1. *De novo* mutations from 31,058 individuals with a developmental disorder
 2. Extended `DeNovoWEST` results file
 3. Sex information for probands
-4. gnomAD 2.1.1 constraint file
-5. HGNC file
-6. Positive predictive value weight files
+4. Positive predictive value weight files  
 
 ## *De novo* mutations
 
@@ -103,24 +101,6 @@ Sex for each proband.
 | --- | --- |
 | id | Proband ID |
 | sex | Sex of the proband |
- 
-
-## gnomAD constraint information  
-
-`gnomad.v2.1.1.lof_metrics.by_gene.txt.bgz`
-
-Downloaded from [the gnomAD downloads page](https://gnomad.broadinstitute.org/downloads#gene-constraint).  
-
-See their website for more information.  
-
-
-## HGNC file   
-
-`protein-coding_gene.txt`  
-
-Downloaded from [the HGNC Statistics & download files page](https://www.genenames.org/download/statistics-and-files/).  
-
-See their website for more information.  
 
 
 ## Positive predictive value weights  

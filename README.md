@@ -20,9 +20,7 @@ This directory contains the files needed to recreate some of the main text figur
 1. *De novo* mutations from 31,058 individuals with a developmental disorder
 2. Extended `DeNovoWEST` results file with information about per gene mutation rates  
 3. Sex information for probands in the study  
-4. [gnomAD](https://gnomad.broadinstitute.org/) 2.1.1 constraint file  
-5. [HGNC](https://www.genenames.org/) file  
-6. Positive predictive value weight files that were generated as part of `DeNovoWEST`   
+4. Positive predictive value weight files that were generated as part of `DeNovoWEST`     
 
 
 ## Paper figure code  
