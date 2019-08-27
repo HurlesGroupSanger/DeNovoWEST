@@ -71,36 +71,31 @@ p <- ggplot(res_mup, aes(x = lg10mup,y = lg10denovoWEST, col = diag_group)) +
 
 ```{r, fig.align='center'}
 # denovoWEST p-value bins
-pval_2.5bins_gene_category_diagnostic_lists <- res_mup %>%
+pval_5bins_gene_category_diagnostic_lists <- res_mup %>%
   filter(sig==TRUE) %>%
-  mutate(pvalbin = case_when(denovoWEST_p < 2.5e-2 & denovoWEST_p >2.5e-4 ~ '2.5e-2 to 2.5e-4',
-                             denovoWEST_p < 2.5e-4 & denovoWEST_p >2.5e-6 ~ '2.5e-4 to 2.5e-6',
-                             denovoWEST_p < 2.5e-6 & denovoWEST_p >2.5e-8 ~ '2.5e-6 to 2.5e-8',
-                             denovoWEST_p < 2.5e-8 & denovoWEST_p >2.5e-10 ~ '2.5e-8 to 2.5e-10',
-                             denovoWEST_p < 2.5e-10 & denovoWEST_p >2.5e-12 ~ '2.5e-10 to 2.5e-12',
-                             denovoWEST_p < 2.5e-12 & denovoWEST_p >2.5e-14 ~ '2.5e-12 to 2.5e-14',
-                             denovoWEST_p < 2.5e-14 ~ '< 2.5e-14')) %>%
-  mutate(pvalbin = ifelse(is.na(pvalbin), case_when(undiagnosed_denovoWEST_p < 2.5e-2 & undiagnosed_denovoWEST_p >2.5e-4 ~ '2.5e-2 to 2.5e-4',
-                             undiagnosed_denovoWEST_p < 2.5e-4 & undiagnosed_denovoWEST_p >2.5e-6 ~ '2.5e-4 to 2.5e-6',
-                             undiagnosed_denovoWEST_p < 2.5e-6 & undiagnosed_denovoWEST_p >2.5e-8 ~ '2.5e-6 to 2.5e-8',
-                             undiagnosed_denovoWEST_p < 2.5e-8 & undiagnosed_denovoWEST_p >2.5e-10 ~ '2.5e-8 to 2.5e-10',
-                             undiagnosed_denovoWEST_p < 2.5e-10 & undiagnosed_denovoWEST_p >2.5e-12 ~ '2.5e-10 to 2.5e-12',
-                             undiagnosed_denovoWEST_p < 2.5e-12 & undiagnosed_denovoWEST_p >2.5e-14 ~ '2.5e-12 to 2.5e-14',
-                             undiagnosed_denovoWEST_p < 2.5e-14 ~ '< 2.5e-14'), pvalbin)) %>%
+  mutate(pvalbin = ifelse(diag_group=='consensus', case_when(denovoWEST_p_full < 2.5e-2 & denovoWEST_p_full >2.5e-5 ~ '2.5e-2 to 2.5e-5',
+                             denovoWEST_p_full < 2.5e-5 & denovoWEST_p_full >2.5e-8 ~ '2.5e-5 to 2.5e-8',
+                             denovoWEST_p_full < 2.5e-8 & denovoWEST_p_full >2.5e-11 ~ '2.5e-8 to 2.5e-11',
+                             denovoWEST_p_full < 2.5e-11 & denovoWEST_p_full >2.5e-14 ~ '2.5e-11 to 2.5e-14',
+                             denovoWEST_p_full < 2.5e-14 ~ '< 2.5e-14'), case_when(denovoWEST_p_ud < 2.5e-2 & denovoWEST_p_ud >2.5e-5 ~ '2.5e-2 to 2.5e-5',
+                             denovoWEST_p_ud < 2.5e-5 & denovoWEST_p_ud >2.5e-8 ~ '2.5e-5 to 2.5e-8',
+                             denovoWEST_p_ud < 2.5e-8 & denovoWEST_p_ud >2.5e-11 ~ '2.5e-8 to 2.5e-11',
+                             denovoWEST_p_ud < 2.5e-11 & denovoWEST_p_ud >2.5e-14 ~ '2.5e-11 to 2.5e-14',
+                             denovoWEST_p_ud < 2.5e-14 ~ '< 2.5e-14'))) %>%
   group_by(pvalbin, diag_group) %>%
   tally()
 
-pval_2.5bins_gene_category_diagnostic_lists$pvalbin <- factor(pval_2.5bins_gene_category_diagnostic_lists$pvalbin, levels=c('2.5e-2 to 2.5e-4','2.5e-4 to 2.5e-6','2.5e-6 to 2.5e-8','2.5e-8 to 2.5e-10','2.5e-10 to 2.5e-12', '2.5e-12 to 2.5e-14', '< 2.5e-14'))
-pval_2.5bins_gene_category_diagnostic_lists$diag_group <- factor(pval_2.5bins_gene_category_diagnostic_lists$diag_group, levels=c('novel', 'discordant', 'consensus'))
+pval_5bins_gene_category_diagnostic_lists$pvalbin <- factor(pval_5bins_gene_category_diagnostic_lists$pvalbin, levels=c('2.5e-2 to 2.5e-5','2.5e-5 to 2.5e-8','2.5e-8 to 2.5e-11','2.5e-11 to 2.5e-14', '< 2.5e-14'))
+pval_5bins_gene_category_diagnostic_lists$diag_group <- factor(pval_5bins_gene_category_diagnostic_lists$diag_group, levels=c('novel', 'discordant', 'consensus'))
 
-ggplot(pval_2.5bins_gene_category_diagnostic_lists, aes(x=pvalbin, y=n, fill=diag_group)) +
+ggplot(pval_5bins_gene_category_diagnostic_lists, aes(x=pvalbin, y=n, fill=diag_group)) +
   geom_bar(stat = 'identity') +
   theme_classic() +
   labs(x='p-value bin', y='Number of genes') +
-  coord_flip() +
   scale_fill_manual(values=c("#E69F00","#56B4E9","black")) +
   theme(axis.text.x  = element_text(size=14), axis.text.y = element_text(size=14), axis.title = element_text(size=16), legend.title = element_blank(), legend.text = element_text(size=14)) +
-  scale_y_continuous('Number of genes',breaks=seq(0,125,25), labels=seq(0,125,25))
+  scale_y_continuous('Number of genes',breaks=seq(0,100,25), labels=seq(0,100,25)) +
+  scale_x_discrete('p-value bins', labels=c('2.5e-2 to\n2.5e-5', '2.5e-5 to\n2.5e-8', '2.5e-8 to\n2.5e-11', '2.5e-11 to\n2.5e-14', '< 2.5e-14'))
 ```
 
 #Figure 1(c)
