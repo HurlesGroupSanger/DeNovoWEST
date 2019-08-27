@@ -40,6 +40,8 @@ N_all <- Nddd + Ngdx + Nnjm
 th <- -log10(0.025)
 
 res_mup <- fread(resfile,sep = "\t")
+#ignore undiagnosed analysis here
+res_mup$diag_group[res_mup$diag_group == "novel" & res_mup$denovoWEST_p>0.025] <- "none"
 res_mup <- res_mup[!is.na(res_mup$denovoWEST_p),]
 res_mup$lg10denovoWEST <- -log10(res_mup$denovoWEST_p)
 res_mup$mup_pval_bonf <- p.adjust(res_mup$mup_pval,method = "bonferroni",n=(18500*2))
