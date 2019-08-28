@@ -6,12 +6,16 @@ output: html_document
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+library(wesanderson)
+downsampling_results <- "../input/downsampling_numbers.tab"
+ptv_simulation <- "../input/PTV_modelresults_2019-06-26.tab"
+
+otherpal <- wes_palette("Darjeeling1")
 ```
 Figure 4(a)
 
 ```{r}
-df <- fread("/Users/jk18/Documents/PhD/DeNovoWEST/input/downsampling_numbers.tab",sep = "\t",header = T)
+df <- fread(downsampling_results,sep = "\t",header = T)
 
 #pdf("~/Documents/PhD/denovo_enrichment/plots_for_paper/downsample.pdf",width = 5,height = 4)
 ggplot(data = df,aes(x = samplesize,y = sig_ihw)) + geom_point()  + geom_line() + xlab("Downsampled sample size") + ylab("Number of DeNovoWEST significant genes")+
@@ -23,3 +27,25 @@ ggplot(data = df,aes(x = samplesize,y = sig_ihw)) + geom_point()  + geom_line() 
 
 Figure 4(b)
 
+```{r}
+m <- read.table(ptv_simulation,header = T)
+
+c = cumsum(m$prob[order(m$prob)])/sum(m$prob)
+thresh100 = 0
+thresh90 = m$prob[order(m$prob)][which.min(abs(c - 0.1))]
+thresh50 = m$prob[order(m$prob)][which.min(abs(c - 0.5))]
+
+ggplot(m) + geom_tile(aes(elof_vals, prophi_vals, fill = prob)) + 
+  geom_contour(aes(elof_vals, prophi_vals, z=prob),breaks=c(thresh90),colour=otherpal[3]) +
+  geom_contour(aes(elof_vals, prophi_vals, z=prob),breaks=c(thresh50),colour=otherpal[1]) +
+  scale_fill_gradient(low ="white", high = otherpal[2],guide = guide_colorbar(title = "Prob"),oob = scales::squish,limits = NULL) + 
+  xlab("PTV Enrichment") + 
+  ylab("Number of HI Genes") +
+  theme_bw(base_size = 12) +
+  theme(strip.text = element_text(color="black"),strip.background = element_rect(fill="white", size=0),panel.border = element_blank()) + 
+  theme(panel.grid.major = element_blank(),panel.grid.minor = element_blank()) + 
+  theme(legend.position = c(0.9,0.5)) +
+  guides(fill=guide_legend(title="Likelihood")) + 
+  ylim(0,2400) + xlim(0,40) 
+  # + geom_vline(xintercept = 38.8,linetype = 'dashed')
+```
