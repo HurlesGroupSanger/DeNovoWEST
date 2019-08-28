@@ -17,6 +17,7 @@ library(dplyr)
 library(tidyr)
 library(rateratio.test)
 library(wesanderson)
+library(ggbeeswarm)
 
 # filepaths
 resfile <- "../input/extended_denovoWEST_results.tab"
@@ -35,15 +36,27 @@ res <- fread(resfile,sep = "\t")
 mypal = wes_palette("Zissou1")
 res$cat <- res$diag_group
 res$cat[res$diag_group == "none" & res$sig] <- "novel"
-res$cat[res$cat == "none"] <- "unassociated"
+res$cat[res$cat == "none"] <- "not-significant"
 respow <- rbind(res[res$sig],res[!res$sig & !res$consensus_gene & !res$discordant_gene])
 
 ggplot(respow[!is.na(respow$cat),],aes(x = cat,y = powmed,fill = sig)) + geom_boxplot() + theme_classic() + labs(x = "",y = "Power (using median enrichment)")  + scale_fill_manual(values=c(mypal[5],mypal[1]),labels = c("not significant","significant")) + geom_boxplot(aes(color = sig),fatten = NULL, fill = NA, coef = 0, outlier.alpha = 0,show.legend = F)+
-  theme(legend.position="top")
+  theme(legend.position="top",legend.title = element_blank(),legend.text = element_text(size = 14),axis.text=element_text(size=14),axis.title=element_text(size=16)) 
 
 ```
 #Figure 3(b)   
-
+```{r}
+higenes <- res[res$lofe<=10^(-6) & res$sig,]
+higenes$lglofratio <- log10(higenes$lofratio)
+p <- ggplot(higenes, aes(x=diag_group, y=lglofratio, fill = diag_group)) + labs(y = "log10(observed/expected PTVs)") + 
+  geom_boxplot(notch = F,color = "gray40") + scale_fill_manual(values = c("black", '#56B4E9', "#E69F00")) + 
+  theme_classic() +theme(legend.position = "none")+
+  #geom_jitter(position = position_jitter(0.1),color = "gray40") +
+  xlab("Diagnostic group")+
+  geom_beeswarm(aes(color = group),priority = 'ascending',color = "gray40",cex = 1.8)+
+  theme(axis.text=element_text(size=14),axis.title=element_text(size=16)) 
+dat <- ggplot_build(p)$data[[1]]
+p
+```
 #Figure 3(c)  
 
 #Figure 3(d)  
