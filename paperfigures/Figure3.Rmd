@@ -45,7 +45,9 @@ ggplot(respow[!is.na(respow$cat),],aes(x = cat,y = powmed,fill = sig)) + geom_bo
   theme(legend.position="top",legend.title = element_blank(),legend.text = element_text(size = 14),axis.text=element_text(size=14),axis.title=element_text(size=16)) 
 dev.off()
 ```
+
 #Figure 3(b)   
+
 ```{r}
 higenes <- res[res$lofe<=10^(-6) & res$sig,]
 higenes$lglofratio <- log10(higenes$lofratio)
@@ -61,6 +63,7 @@ pdf("./plots/fig3b.pdf",width = 6,height = 5.5)
 p
 dev.off()
 ```
+
 #Figure 3(c)  
 
 ```{r}
@@ -99,7 +102,10 @@ bp <- barplot(obscounts$x/expcounts$x,ylim = c(0,60),names.arg = c("low","medium
 arrows(bp[,1],ci.lower,bp[,1],ci.upper,length = 0,lwd = 1.5)
 dev.off()
 ```
+
 #Figure 3(d)  
+
+**This currently does not reflect the analysis in the paper.**   
 
 ```{r}
 # determine bins
