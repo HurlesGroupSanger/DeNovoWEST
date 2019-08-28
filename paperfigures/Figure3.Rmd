@@ -22,6 +22,7 @@ library(ggbeeswarm)
 # filepaths
 resfile <- "../input/extended_denovoWEST_results.tab"
 usfile <- "../input/USabnormality_likelihood.csv"
+ddg2p_file = '../input/DDG2P_21_9_2018.csv'
 
 ```
 
@@ -62,23 +63,36 @@ p
 ```{r}
 traffic <- c("#4CBB17","#FF7800","#E60000")
 
+#get a list of known haploinsuffient genes from DDG2P
+ddg2p <- fread(ddg2p_file,sep = ",",header = T)
+ddg2p <- ddg2p[ddg2p$`DDD category`%in%c("probable","confirmed") & ddg2p$`allelic requirement` %in% c("monoallelic", 'x-linked dominant'),c("gene symbol","hgnc id","DDD category","allelic requirement","mutation consequence")]
+ddg2p <- unique(ddg2p)
+see<- ddg2p[,.( mutconsqs = paste(`mutation consequence`,collapse = "|")),by = .(`gene symbol`,`hgnc id`,`DDD category`,`allelic requirement`)]
+ddg2p <- unique(see)
+lof_ddg2p <- ddg2p[grepl('loss of function',ddg2p$mutconsqs),]
+
+#read in fetal class file with likelihood of US abnormality
 cl <- fread(usfile,sep = ",")
 cl$lik_anomaly <- cl$`Likelihood of anomalies identified on antenatal USS`
-#clinfo <- merge(cl,res,by.x = c("Symbol"),by.y = c("symbol"),all.x = T)
-all <- merge(cl,res,by.x = c("Symbol"),by.y = c("symbol"),all.x = T)
 
-expcounts <- aggregate(all$lofexpected,by = list(all$lik_anomaly),FUN = sum,na.rm = T)
-obscounts <- aggregate(all$lofcount,by = list(all$lik_anomaly),FUN = sum,na.rm = T)
-poisson.test(obscounts$x[c(1,3)],T =  expcounts$x[c(1,3)])
-poisson.test(obscounts$x[c(1,2)],T =  expcounts$x[c(1,2)])
-poisson.test(c(obscounts$x[1],obscounts$x[2]+obscounts$x[3]),T = c(expcounts$x[1],expcounts$x[2] + expcounts$x[3]))
+#merge this with results file
+clinfo <- merge(cl,res,by.x = c("Symbol"),by.y = c("symbol"),all.x = T)
+
+#only include known haploinsufficent
+clinfo <- clinfo[clinfo$Symbol %in% lof_ddg2p$`gene symbol`]
+clinfo <- clinfo[!is.na(clinfo$lofexpected),]
+
+#calcuated expected and observed across three classes
+expcounts <- aggregate(clinfo$lofexpected,by = list(clinfo$lik_anomaly),FUN = sum,na.rm = T)
+obscounts <- aggregate(clinfo$lofcount,by = list(clinfo$lik_anomaly),FUN = sum,na.rm = T)
+
+#confidence intervals
 ci.lower <- sapply(obscounts$x, function(x) poisson.test(x,conf.level = 0.95)$conf.int[1])/expcounts$x
 ci.upper <- sapply(obscounts$x, function(x) poisson.test(x,conf.level = 0.95)$conf.int[2])/expcounts$x
 
-pdf("~/Documents/PhD/denovo_enrichment/plots_for_paper/prenatal.pdf",width = 4,height = 5)
-bp <- barplot(obscounts$x/expcounts$x,ylim = c(0,60),names.arg = c("low","medium","high"),xlab = "Genes' likelihood of US abnormality",ylab = "PTV enrichment",col = traffic,border = NA)
+#plot
+bp <- barplot(obscounts$x/expcounts$x,ylim = c(0,60),names.arg = c("low","medium","high"),xlab = "Genes' likelihood of US abnormality",ylab = "PTV enrichment",col = traffic,border = NA,cex.axis = 1.3,cex.lab = 1.5,cex.names = 1.3)
 arrows(bp[,1],ci.lower,bp[,1],ci.upper,length = 0,lwd = 1.5)
-dev.off()
 ```
 #Figure 3(d)  
 
