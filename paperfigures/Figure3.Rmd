@@ -21,8 +21,8 @@ library(ggbeeswarm)
 
 # filepaths
 resfile <- "../input/extended_denovoWEST_results.tab"
-gnomad_constraint_file <- '../input/gnomad.v2.1.1.lof_metrics.by_gene.txt.bgz'
-hgnc_file <- '../input/protein-coding_gene.txt'
+usfile <- "../input/USabnormality_likelihood.csv"
+
 ```
 
 ```{r}
@@ -59,6 +59,27 @@ p
 ```
 #Figure 3(c)  
 
+```{r}
+traffic <- c("#4CBB17","#FF7800","#E60000")
+
+cl <- fread(usfile,sep = ",")
+cl$lik_anomaly <- cl$`Likelihood of anomalies identified on antenatal USS`
+#clinfo <- merge(cl,res,by.x = c("Symbol"),by.y = c("symbol"),all.x = T)
+all <- merge(cl,res,by.x = c("Symbol"),by.y = c("symbol"),all.x = T)
+
+expcounts <- aggregate(all$lofexpected,by = list(all$lik_anomaly),FUN = sum,na.rm = T)
+obscounts <- aggregate(all$lofcount,by = list(all$lik_anomaly),FUN = sum,na.rm = T)
+poisson.test(obscounts$x[c(1,3)],T =  expcounts$x[c(1,3)])
+poisson.test(obscounts$x[c(1,2)],T =  expcounts$x[c(1,2)])
+poisson.test(c(obscounts$x[1],obscounts$x[2]+obscounts$x[3]),T = c(expcounts$x[1],expcounts$x[2] + expcounts$x[3]))
+ci.lower <- sapply(obscounts$x, function(x) poisson.test(x,conf.level = 0.95)$conf.int[1])/expcounts$x
+ci.upper <- sapply(obscounts$x, function(x) poisson.test(x,conf.level = 0.95)$conf.int[2])/expcounts$x
+
+pdf("~/Documents/PhD/denovo_enrichment/plots_for_paper/prenatal.pdf",width = 4,height = 5)
+bp <- barplot(obscounts$x/expcounts$x,ylim = c(0,60),names.arg = c("low","medium","high"),xlab = "Genes' likelihood of US abnormality",ylab = "PTV enrichment",col = traffic,border = NA)
+arrows(bp[,1],ci.lower,bp[,1],ci.upper,length = 0,lwd = 1.5)
+dev.off()
+```
 #Figure 3(d)  
 
 ```{r}
