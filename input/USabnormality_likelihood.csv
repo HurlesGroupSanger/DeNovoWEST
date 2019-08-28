@@ -1,0 +1,332 @@
+﻿Symbol,Num_hgnc_id,Likelihood of anomalies identified on antenatal USS,System affected eg. brain/heart/skeleton/growth,Comment
+ABCC9,60,1,Heart,"Cardiomyopathy or congenital heart disease in some, unlikely to TOP in absence of other anomalies"
+ACSL4,3571,1,Brain ,Microcephaly in small proportion otherwise anomalies rare
+ACTB,132,2,Brain ,Microcephaly and brain malformations present in some
+ACTG1,144,2,Brain ,As for ACTB
+ACVR1,171,1,Skeletal,Skeletal changes typically have postnatal onset
+ADNP,15766,1,"Heart, Brain","Microcephaly, congen heart disease reported but rare. Other anomalies (eg.cataract/microphtalmia) too subtle for US detection"
+AFF4,17869,1,"Heart, Growth",Anomalies probably too subtle for detection
+AHDC1,25230,1,Brain ,Brain anomalies inc myelination abnorm and pachygyria - not detectable on US at 20 weeks
+ALG13,30881,1,Brain ,Brain anomalies not detectable on US at 20 weeks
+ALX4,450,2,Craniofacial,Fontonasal dysplasia may not be detectable on US
+AMER1,26837,2,"Skeletal, craniofacial, brain","Macrocephaly, sclerosis, arthrogryposis, clefts reported in males. Severe/lethal in males. Unlikely to detect anomalies in females"
+ANKRD11,21316,1,Brain ,Congenital anomalies rare
+ARHGAP31,29216,3,Skeletal,"Highly variable, likelihood of TOP would depend on severity of transverse defects"
+ARID1A,11110,2,"Brain, heart, craniofacial","Highly variable, likelihood of TOP would depend on number of anomalies and presence of ACC/brain malformation"
+ARID1B,18040,2,"Brain heart, craniofacial",As for ARID 1B
+ARID2,18037,2,"Brain, heart, craniofacial",As for ARID 1B
+ASXL1,18318,2,"Brain, craniofacial, growth restriction","Detection of brain malformations, distal contractures and severe IUGR likely to prompt TOP"
+ASXL2,23805,1,,Congenital anomalies rare
+ASXL3,29357,1,,Congenital anomalies rare
+ATP1A3,801,1,,"Congenital anomalies not reported, postnatal onset of neurological symptoms"
+ATP6V1B2,854,1,Craniofacial,Craniofacial dysmorphism unlikely to be detected on US
+AUTS2,14262,1,,Congenital anomalies rare
+BCL11A,13221,1,,Congenital anomalies rare
+BCOR,20893,1,"Eye, heart, brain","Eye anomalies most common - may not be seen on US, other anomalies rare"
+BMP2,1069,1,"Craniofacial, heart",Craniofacial features unlikely to be detected on US
+BMP4,1071,2,"Eye, brain, craniofacial",Eye features difficult to detect and brain anomalies rare; however if seen may lead to TOP
+BRAF,1097,2,"Heart, hydrops",Highly vriable. Presentation with hydrops or large NT
+BRPF1,14255,1,,Congenital anomalies rare
+CACNA1A,1388,1,,Congenital anomalies not reported
+CACNA1C,1390,2,Heart,Congenital heart disease may be detected on US as isolated finding
+CAMK2A,1460,1,,Congenital anomalies not reported. Brain imaging normal
+CAMK2B,1461,1,,Congenital anomalies not reported
+CAMTA1,18806,1,Brain,"Cerebellar atrophy lmay be detectable in antenatal period, symptoms usually postnatal onset."
+CASK,1497,1,,Congenital anomalies rare
+CBL,1541,2,"Heart, hydrops",Highly variable. Presentation with hydrops or large NT
+CCDC78,14153,1,Muscle,Onset typically postnatal
+CCND2,1583,3,"Brain, polydactyly",VM and megalencephaly detectable by US
+CDK13,1733,2,Heart,Congenital heart disease may be detected on US as isolated finding
+CDKL5,11411,1,,Congenital anomalies not reported
+CDKN1C,1786,2,Growth,"IUGR a common antenatal finding, other anomalies rare"
+CDON,17104,2,Brain,Highly variable findings within holoprosecephaly spectrum
+CHAMP1,20311,1,,Congenital anomalies not reported
+CHD2,1917,1,,Congenital anomalies not reported
+CHD4,1919,2,"Heart, brain, skeletal","Highly variable, wide range of possible anomalies, multiple anomalies common"
+CHD7,20626,2,"Heart, craniofacial","Highly variable, anomalies (with exception of cleft and heart) likely too subtle for US detection."
+CHD8,20153,1,,Congenital anomalies not reported
+CHRNA4,1958,1,,Congenital anomalies not reported
+CHRNB2,1962,1,,Congenital anomalies not reported
+CLTC,2092,1,Brain,Brain anomalies rare and non-specific.
+COL11A1,2186,3,Skeletal,"AR variants cause fibrochondrogenesis 1, a lethal skeletal dysplasisa. Het variants cause Stickler - unlikely to be detectable on US"
+COL11A2,2187,3,Skeletal,Fibrochondrogenesis type 1 and Otospondylomegaepiphyseal dysplasia both severe skeletal dysplasias
+COL2A1,2200,2,Skeletal,Variable spectrum of severity between different skeletal phenotypes
+COL4A1,2202,2,Brain,"Variable spectrum of severity, may present as schizencephaly, porencephaly or in-utero stroke"
+COL4A2,2203,2,Brain,As above
+COL4A3BP,2205,1,,Congenital anomalies not reported
+COL9A1,2217,1,"Skeletal, craniofacial",Features of Stickler syndrome unlikely to be detected on ultrasound
+COL9A2,2218,1,Skeletal,Postnatal onset of symptoms
+COL9A3,2219,1,Skeletal,Postnatal onset of symptoms
+CREBBP,2348,1,"Brain, heart",Features likely to be non-specific and not detectable on US
+CSNK2A1,2457,1,Brain,Microcephaly in small proportion otherwise anomalies rare
+CTCF,13723,1,Brain,Microcephaly in small proportion otherwise anomalies rare
+CTNNB1,2514,1,Brain,Microcephaly in small proportion otherwise anomalies rare
+CTNND1,2515,1,Craniofacial,Features unlikely to be detectable on US
+DCX,2714,2,Brain,Lissencephaly may be missed on early US
+DDX3X,2745,2,Brain,Microcephaly and brain malformations reported in some
+DEAF1,14677,1,,Congenital anomalies not reported
+DEPDC5,18423,1,,Congenital anomalies not reported
+DHDDS,20603,1,,Congenital anomalies not reported
+DHX30,16716,1,Brain ,Brain anomalies rare and non-specific.
+DLG4,2903,1,,Congenital anomalies not reported
+DMPK,2933,1,Muscle,"Features of congenital MD likely to be subtle and non-specific eg. Talipes, reduced movement"
+DNM1,2972,1,,Congenital anomalies not reported
+DNMT3A,2978,1,,"US findings likely to be non-specific eg. Macrosomia, hydrocephalus"
+DPF2,9964,2,"Brain, heart, craniofacial","Highly variable, likelihood of TOP would depend on number of anomalies and presence of ACC/brain malformation"
+DSPP,3054,1,,Congenital anomalies not reported
+DYNC1H1,2961,2,Brain,Neuronal migration defects reported but may be missed on antenatal US
+DYRK1A,3091,2,"Brain, growth",Variable severity of microcephaly and in-utero growth retardation
+EBF3,19087,1,Brain,Cerebellar hypoplasia rarely reported
+EBP,3133,2,Skeletal,Rhizomelia detectable on US
+EEF1A2,3192,1,,Congenital anomalies not reported
+EFTUD2,30858,2,"Brain, craniofacial",Microcephaly and cleft may be detectable
+EHMT1,24650,1,Heart,"Congenital anomalies rare, conotruncal defects may be detected"
+EP300,3373,1,"Brain, heart",Features likely to be non-specific and not detectable on US
+ERF,3444,1,Craniofacial,Craniofacial and digital anomalies not detectable on US
+EYA1,3519,2,"Renal, craniofacial","Renal anomalies detectable, branichial arch anomalies not detectable, highly variable"
+EZH2,3527,1,Overgrowth,May presents as non-specific macrosomia. Congenital anomalies not reported
+FGF10,3666,1,,Features unlikely to be detectable on US
+FGF12,3668,1,,Congenital anomalies not reported
+FGFR1,3688,3,"Skeletal, craniofacial, brain","Multiple phenotypes, many features detectable on US"
+FGFR2,3689,2,Craniofacial,"Variable severity of craniosynostosis, more severe detectable on US"
+FGFR3,3690,2,"Skeletal, craniofacial",Multiple phenotypes of variable severity: TD phenotype detectable on US; Muenke and achondroplasia less likely to be detectable on routine 20 week US
+FLNA,3754,2,"Skeletal, craniofacial, brain, heart","Multiple phenotypes, highly variable spectrum of anomalies, many features detectable on US"
+FMR1,3775,1,,Congenital anomalies not reported
+FOXC1,3800,1,Heart,"Congenital heart anomalies may be detected as isolated finding, ocular features not detectable on US"
+FOXG1,3811,1,,"Congenital anomalies not reported, Postnatal onset of microcephaly"
+FOXP1,3823,1,,Congenital anomalies not reported
+FOXP2,13875,1,,Congenital anomalies not reported
+GABRA1,4075,1,,Congenital anomalies not reported
+GABRB2,4082,1,,Congenital anomalies not reported
+GABRB3,4083,1,,Congenital anomalies not reported
+GABRG2,4087,1,,Congenital anomalies not reported
+GATAD2B,30778,1,,Congenital anomalies not reported
+GDF6,4221,1,"Skeletal, Eye",Features unlikely to be detectable on US
+GDI1,4226,1,,Congenital anomalies not reported
+GFAP,4235,1,,Congenital anomalies not reported
+GJA1,4274,2,"Craniofacial, skeletal (syndactyly)  eye","Multiple phenotypes, highly variable spectrum of anomalies, some features detectable on US "
+GLI2,4318,2,"Brain, skeletal (polydactyly)",Variable spectrum of anomalies
+GLI3,4319,2,"Brain, skeletal, kidney",Variable spectrum of anomalies
+GLUD1,4335,1,,Congenital anomalies not reported
+GNAI3,4387,1,,Features unlikely to be detectable on US
+GNAO1,4389,1,Brain ,Brain anomalies rare and non-specific.
+GNAS,4392,1,,Congenital anomalies not reported
+GNB1,4396,1,,Congenital anomalies not reported
+GPC3,4451,3,"Overgrowth, brain, heart, kidney, diaphragm",Variable spectrum of anomalies
+GRHL3,25839,2,Craniofacial,Isolated cleft lip/palate may be detectable
+GRIN1,4584,1,,Congenital anomalies not reported
+GRIN2A,4585,1,,Congenital anomalies not reported
+GRIN2B,4586,1,Brain ,Brain anomalies rare and non-specific.
+HCCS,4837,2,"Brain, Eye, heart",Variable spectrum of anomalies
+HCN1,4845,1,,Congenital anomalies not reported
+HDAC4,14063,1,,Congenital anomalies not reported
+HDAC8,13315,2,"Growth, skeletal, diaphragm",Highly variable spectrum of anomalies and severity
+HECW2,29853,1,Brain,Brain anomalies rare and non-specific.
+HIVEP2,4921,1,Brain ,Brain anomalies rare and non-specific.
+HNRNPH2,5042,1,Brain ,Brain anomalies rare and non-specific.
+HNRNPU,5048,1,,Congenital anomalies not reported
+HRAS,5173,2,"Heart, hydrops",Variable severity
+HSD17B10,4800,1,,Congenital anomalies not reported
+HUWE1,30892,1,Brain ,Brain anomalies rare and non-specific.
+IFIH1,18873,1,,Brain anomalies have postnatal onset
+IKBKG,5961,1,,Features unlikely to be detectable on US
+IL1RAPL1,5996,1,,Congenital anomalies not reported
+IQSEC2,29059,1,,Congenital anomalies not reported
+IRF6,6121,2,"Craniofacial, soft tissue webbing","Clefting and pterygia may be detectable, variable spectrum of severity"
+ITPR1,6180,1,,Congenital anomalies not reported
+JAG1,6188,1,Heart,Only heart anomalies detectable on US. Other features not detectable
+KANSL1,24565,1,"Heart, Brain",Only heart anomalies detectable on US. Other features not detectable or very rare
+KAT6A,13013,1,,Congenital anomalies rare
+KAT6B,17582,3,Skeletal,"Variable severity, presence of contractures likely to lead to TOP"
+KCNA2,6220,1,,Congenital anomalies not reported
+KCNB1,6231,1,,Congenital anomalies not reported
+KCNC1,6233,1,,Congenital anomalies not reported
+KCNC3,6235,1,,Congenital anomalies not reported
+KCNH1,6250,1,,Features likely to be non-specific and not detectable on US
+KCNJ11,6257,1,,Congenital anomalies not reported
+KCNJ6,6267,1,,Congenital anomalies not reported
+KCNQ2,6296,1,,Congenital anomalies not reported
+KCNQ3,6297,1,,Congenital anomalies not reported
+KCNQ5,6299,1,,Congenital anomalies not reported
+KCNT1,18865,1,,Congenital anomalies not reported
+KDM1A,29079,1,,Features likely to be non-specific and not detectable on US
+KDM6A,12637,1,Heart,Only heart anomalies detectable on US. Other features not detectable
+KIDINS220,29508,1,Brain ,Brain anomalies rare and non-specific.
+KIF11,6388,1,,Features unlikely to be detectable on US
+KIF1A,888,1,Skeletal,Congenital contractures and brain anomalies reported rarely
+KIF2A,6318,3,Brain ,Brain anomalies likely detectable and usually severe
+KIF5C,6325,2,Brain ,Brain anomalies likely to be detectable but variable severity
+KMT2A,7132,1,,Features unlikely to be detectable on US
+KMT2C,13726,1,,Congenital anomalies not reported
+KMT2D,7133,2,"Heart, kidney",Highly variable spectrum of anomalies and severity
+KMT5B,24283,1,,Congenital anomalies not reported
+KRAS,6407,2,"Heart, Hydrops",Variable severity
+LAMP2,6501,1,,Congenital anomalies not reported
+MAB21L2,6758,2,Skeletal,Likely to present as non-lethal skeletal dysplasia
+MAF,6776,1,,Features unlikely to be detectable on US
+MAGEL2,6814,1,Skeletal,Arthrogryposis has been reported rarely
+MAP2K1,6840,2,"Heart, hydrops",Variable severity
+MAP2K2,6842,2,"Heart, hydrops",Variable severity
+MECP2,6990,1,,Congenital anomalies not reported
+MED12,11957,1,Brain ,"Features, other than ACC, unlikely to be detectable on US"
+MED13L,22962,2,Heart,"Variable penetrance of cardiac anomalies, other features not detectable on US"
+MEF2C,6996,1,Brain ,Brain anomalies rare and non-specific.
+MITF,7105,1,,Features unlikely to be detectable on US
+MSL3,7370,1,,Congenital anomalies not reported
+MSX1,7391,2,Craniofacial,Likely to present as isolated cleft
+MSX2,7392,2,"Craniofacial, skeletal",Features likely to be non-specific eg. Cleft
+MTOR,3942,2,Brain ,Brain anomalies likely to be detectable but variable severity
+MYCN,7559,2,"GIT, Heart, brain","Highly variable, GIT atresias may  not be detectable"
+MYH9,7579,1,,Congenital anomalies not reported
+MYT1L,7623,1,,Congenital anomalies not reported
+NAA10,18704,3,Heart,Congenital heart anomalies common may be detected on US as isolated finding
+NAA15,30782,1,,Congenital anomalies not reported
+NACC1,20967,1,,Congenital anomalies not reported
+NEDD4L,7728,2,Brain ,Periventricular nodular heterotopia may be difficult to see on US
+NEXMIF,29433,1,,Congenital anomalies not reported
+NF1,7765,1,,"Features, aside from large congenital plexiform tumours, not detectable on US"
+NFIX,7788,1,,Congenital anomalies not reported
+NHS,7820,1,,Features unlikely to be detectable on US
+NIPBL,28862,2,"Brain, Heart, Diaphragm, skeletal",Highly variable spectrum of anomalies and severity
+NKX2-1,11825,1,,Congenital anomalies not reported
+NOG,7866,1,,Congenital anomalies not reported
+NR2F1,7975,1,,Congenital anomalies not reported
+NRAS,7989,2,"Heart, hydrops",Variable severity
+NSD1,14234,1,Overgrowth,Congenital anomalies not reported
+NSDHL,13398,3,"Skeletal, heart, kidney",Features of CHILD syndrome (seen females only) more severe and detectable. CK syndrome features milder and may not be detected on US
+NTRK2,8032,1,,Congenital anomalies not reported
+OFD1,2567,2,"Kidney, Skeletal (polydactyly)",Craniofacial anomalies may not be detected on US
+OPHN1,8148,3,Brain,Cerebellar anomalies common
+OTX2,8522,1,Eye,Microphthalmia often not detectable on US
+PACS1,30032,2,"Brain, heart, kidney",Highly variable spectrum of anomalies and severity
+PAFAH1B1,8574,2,Brain,Lissencephaly may be missed on early US
+PAX3,8617,1,,Features unlikely to be detectable on US
+PAX6,8620,1,,Features unlikely to be detectable on US
+PAX8,8622,1,,Features unlikely to be detectable on US
+PAX9,8623,1,,Congenital anomalies not reported
+PCGF2,12929,1,"Heart, Brain",Congenital anomalies rare and non-specific
+PDE4D,8783,1,,Features unlikely to be detectable on US
+PDHA1,8806,2,Brain,Brain anomalies rare and non-specific.
+PHIP,15673,1,,Congenital anomalies not reported
+PIK3R2,8980,3,Brain,"Megalencephaly common, likelihood of TOP dependent on presence of other brain anomalies"
+PITX2,9005,1,,Features unlikely to be detectable on US
+PLCB4,9059,2,Craniofacial,"Micrognathia and cleft common, may be detectable"
+PLP1,9086,1,,Congenital anomalies not reported. Postnatal onset of symptoms
+POGZ,18801,1,,Congenital anomalies not reported
+POLR1D,20422,2,Craniofacial,"Micrognathia and cleft features,  may be detectable"
+PORCN,17652,2,"Brain, skeletal, diaphragm, heart",Highly variable spectrum of anomalies and severity
+PPM1D,9277,1,,Congenital anomalies not reported
+PPP1CB,9282,2,Heart,Congenital heart anomalies common may be detected on US as isolated finding
+PPP2R1A,9302,1,,Congenital anomalies not reported
+PPP2R5D,9312,1,,Congenital anomalies not reported
+PPP3CA,9314,2,"Skeletal, craniofacial",Likely to present as non-lethal skeletal dysplasia
+PRKAR1A,9388,1,Skeletal,Features unlikely to be detectable on US
+PRPS1,9462,1,,Features unlikely to be detectable on US
+PRRT2,30500,1,,Congenital anomalies not reported
+PTCH1,9585,1,,Features unlikely to be detectable on US
+PTDSS1,9587,1,Skeletal,Congenital anomalies rare. Postnatal onset of symptoms
+PTEN,9588,1,,Features unlikely to be detectable on US
+PTH1R,9608,2,Skeletal,"Multiple phenotypes, variable spectrum of severity"
+PTPN11,9644,2,"Heart, hydrops",Variable severity
+PUF60,17042,2,"Heart kidney, skeletal",Variable spectrum of anomalies
+PURA,9701,1,,Congenital anomalies not reported
+RAC1,9801,2,Brain,Brain anomalies relatively common but non-specific.
+RAD21,9811,2,"Brain, heart, skeletal",Highly variable spectrum of anomalies and severity
+RAF1,9829,2,"Heart, hydrops",Variable severity
+RAI1,9834,1,,Congenital anomalies not reported
+RARB,9865,2,"Eye, heart, lung, diaphragm",Microphthalmia often not detectable on US
+RBPJ,5724,2,Skeletal (transverse defects),Mild transverse defects more common with this gene
+RERE,9965,2,"Heart, Brain",Highly variable spectrum of anomalies and severity
+RIT1,10023,3,"Heart, Hydrops","Variable severity, antenatal findings common for this gene"
+RORA,10258,1,Brain,Cerebellar hypoplasia rarely reported
+RPS6KA3,10432,1,,Features unlikely to be detectable on US
+RUNX2,10472,1,"Craniofacial, skeletal",Features unlikely to be detectable on US
+SALL1,10524,1,"Heart, kidney",Isolated heart or kidney anomalies may be detectable. Other features unlikely detectable on US
+SALL4,15924,2,"Skeletal (radial ray), kidney",Variable severity
+SATB2,21637,1,Craniofacial,Features likely to be non-specific eg. Cleft
+SCN1A,10585,1,,Congenital anomalies not reported
+SCN1B,10586,1,,Congenital anomalies not reported
+SCN2A,10588,1,,Congenital anomalies not reported
+SCN8A,10596,1,,Congenital anomalies not reported
+SET,10760,1,,Congenital anomalies not reported
+SETBP1,15573,1,"Brain, craniofacial, kidney",Congenital anomalies rare and non-specific
+SETD2,18420,1,"Brain, craniofacial, kidney",Congenital anomalies rare and non-specific
+SETD5,25566,1,,Features unlikely to be detectable on US
+SF3B4,10771,2,"Craniofacial, skeletal (radial ray)",Variable severity
+SHANK2,14295,1,,Congenital anomalies not reported
+SHANK3,14294,1,,Congenital anomalies not reported
+SHH,10848,2,Brain,Variable severity
+SHOC2,15454,2,Heart,Congenital heart anomalies common may be detected on US as isolated finding
+SIK1,11142,1,,Congenital anomalies not reported
+SIN3A,19353,1,Brain,Brain anomalies rare and non-specific.
+SIX1,10887,1,,Features unlikely to be detectable on US
+SIX3,10889,2,Brain ,Variable severity
+SKI,10896,1,,Features unlikely to be detectable on US
+SLC1A2,10940,1,,Congenital anomalies not reported
+SLC25A24,20662,2,Growth,Severe IUGR common
+SLC2A1,11005,1,,Congenital anomalies not reported
+SLC35A2,11022,2,Brain ,Brain anomalies relatively common but non-specific.
+SLC6A1,11042,1,,Congenital anomalies not reported
+SLC6A8,11055,1,,Congenital anomalies not reported
+SLC9A6,11079,1,,Congenital anomalies not reported
+SMAD4,6770,2,Heart,Congenital heart anomalies common may be detected on US as isolated finding
+SMARCA2,11098,1,,Features unlikely to be detectable on US
+SMARCA4,11100,2,"Brain, Heart",Variable spectrum of anomalies
+SMARCB1,11103,2,"Brain, Heart",Variable spectrum of anomalies
+SMARCE1,11109,2,"Brain, Heart",Variable spectrum of anomalies
+SMC1A,11111,2,"Brain,  growth, heart",Variable spectrum of anomalies
+SMC3,2468,2,"Brain,  growth, heart",Variable spectrum of anomalies
+SNRPB,11153,2,"Craniofacial, skeletal","Micrognathia and cleft common, may be detectable"
+SON,11183,2,"Brain, heart, kidney",Variable severity
+SOS1,11187,2,"Heart, hydrops",Variable severity
+SOX10,11190,1,,Features unlikely to be detectable on US
+SOX11,11191,1,,Features unlikely to be detectable on US
+SOX2,11195,2,"Brain, eye, skeletal, GIT",Variable spectrum of anomalies
+SOX5,11201,1,,Features unlikely to be detectable on US
+SPECC1L,29022,2,"Craniofacial, heart, brain",Variable spectrum of anomalies
+SPRED1,20249,1,,Congenital anomalies not reported
+SPTAN1,11273,1,,Congenital anomalies not reported
+SRCAP,16974,1,,Features unlikely to be detectable on US
+STAG1,11354,1,,Congenital anomalies not reported
+STX1B,18539,1,,Congenital anomalies not reported
+STXBP1,11444,1,,Congenital anomalies not reported
+SYNGAP1,11497,1,,Congenital anomalies not reported
+TBL1XR1,29529,1,,Features of Pierpont unlikely to be detectable on US
+TBR1,11590,1,,Congenital anomalies not reported
+TCF12,11623,1,,Features unlikely to be detectable on US
+TCF4,11634,1,,Features unlikely to be detectable on US
+TCOF1,11654,2,,Variable severity
+TFAP2A,11742,2,"Kidney, craniofacial",Variable severity
+TGFBR1,11772,1,,Features unlikely to be detectable on US
+TGFBR2,11773,1,,Features unlikely to be detectable on US
+TGIF1,11776,2,,Variable severity
+TINF2,11824,1,Growth,Congenital anomalies not reported aside from growth restriction
+TP63,15979,2,"Craniofacial, skeletal (ectrodactyly)","Multiple phenotypes, variable spectrum of severity"
+TRIO,12303,1,Brain (microcephaly),"Features, aside from microcephaly, not detectable on US"
+TRIP12,12306,1,,Congenital anomalies not reported
+TSC1,12362,2,"Cardiac, brain","Variable severity, features often not detectable on US"
+TSC2,12363,2,"Cardiac, brain","Variable severity, features often not detectable on US"
+TUBA1A,20766,2,Brain,Lissencephaly may be missed on early US
+TUBB,20778,3,Brain,Structural brain anomalies common and severe
+TUBB2A,12412,3,Brain ,Structural brain anomalies common and severe
+TUBB2B,30829,3,Brain,Structural brain anomalies common and severe
+TUBB3,20772,3,Brain,Structural brain anomalies common and severe. Note allelic condition CFEOM not detectable on US
+TUBB4A,20774,1,Brain,Postnatal onset of symptoms
+TUBG1,12417,3,Brain,Structural brain anomalies common and severe. 
+TWIST1,12428,1,,Features unlikely to be detectable on US
+UBE3A,12496,1,,Congenital anomalies not reported
+UBTF,12511,1,,Postnatal onset of symptoms
+USP9X,12632,2,"Heart, Brain, kidney","Variable spectrum of anomalies, variable severity"
+WAC,17327,1,,Congenital anomalies rare and non-specific
+WDR26,21208,1,Brain,Brain anomalies rare and non-specific.
+WDR45,28912,1,,Postnatal onset of symptoms
+YWHAG,12852,1,,Congenital anomalies not reported
+YY1,12856,1,Brain,Brain anomalies rare and non-specific.
+ZBTB18,13030,1,Brain ,Brain anomalies rare and non-specific.
+ZBTB20,13503,2,"Skeletal, brain",Highly variable spectrum of anomalies and severity
+ZC4H2,24931,3,Skeletal ,Commonly presents as congenital arthrogryposis
+ZEB2,14881,2,"Heart, Brain",Highly variable spectrum of anomalies and severity
+ZIC1,12872,1,,Features unlikely to be detectable on US
+ZIC2,12873,2,Brain,Variable severity
+ZMYND11,16966,1,,Congenital anomalies not reported
+ZSWIM6,29316,2,"Craniofacial, skeletal, brain",Brain anomalies less common
