@@ -15,6 +15,8 @@ library(data.table)
 library(ggplot2)
 library(dplyr)
 library(tidyr)
+library(ggrepel)
+
 
 #color palette 
 myColors <- c("black", '#56B4E9', "gray", "#E69F00")
@@ -99,10 +101,22 @@ ggplot(pval_5bins_gene_category_diagnostic_lists, aes(x=pvalbin, y=n, fill=diag_
 
 #Figure 1(c)
 
-To be inserted by Joanna.  
-
 ```{r, fig.align='center'}
+res <- fread(resfile,sep = "\t")
+novel <- res[res$diag_group == "novel",]
+novel$lg10p <- -log10(novel$denovoWEST_p_ud)
+novel$nonsyn <- novel$lofcount+novel$missense_variant
 
+#PTV count vs missense with p-value as size and 
+ggplot(novel,aes(x=missense_variant,y = lofcount)) +
+  geom_point(alpha = 0.5,aes(size = lg10p),color = "darkblue") + theme_classic()+
+  geom_label_repel(aes(label = symbol),box.padding   = 0.25,point.padding = 0.5) +
+  xlab("Number of missense DNMs") + ylab("Number of PTV DNMs")+ 
+  labs(colour = "Significant in:",size = "-log10(p-value)") +
+  xlim(0,18) +ylim(0,18)+ 
+  scale_color_manual(values=mycol)+
+  theme(axis.text=element_text(size=14),
+        axis.title=element_text(size=16))
 ```
 
 #Figure 1(d)  
