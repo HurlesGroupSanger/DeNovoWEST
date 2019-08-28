@@ -62,7 +62,7 @@ SimModel <- function(prophi,elof,df,phi = FALSE,nsim = 10,edist = FALSE,esd = NU
 }
 
 #------PATHS----------------
-powpath = "input/extended_denovoWEST_results.tab"
+powpath = "../../input/extended_denovoWEST_results.tab"
 
 #import libraries-------------------
 library(reshape2)
@@ -77,13 +77,14 @@ set.seed(5)
 
 #read in enrichment results
 res <- fread(powpath,sep = "\t",stringsAsFactors = F)
-
 #replace genes without pLI with median
 res$pLI[is.na(res$pLI)] <- median(res$pLI,na.rm = T)
 res <- res[!is.na(res$lofexpected)]
 
-edist <- res$lofratio[!is.na(res$lofratio) & res$padj_shetres<0.025 & !is.na(res$padj_shetres)& res$lofcount>0 & res$consensus_gene]
+edist <- res$lofratio[!is.na(res$lofratio) & res$denovoWEST_p_full<0.025 & !is.na(res$denovoWEST_p_full)& res$lofcount>0 & res$consensus_gene]
 esd <- sd(log(edist))
+
+#For well powered genes, how much more likely are you to be a DD gene if you have pLI>0.9, this is fed into the model
 plimulti <- (sum((res$pLI>=0.9 & res$powmed>0.8) & ((!is.na(res$sig) & res$sig )| res$consensus_gene))/sum((res$pLI>=0.9 & res$powmed>0.8)))/(sum((res$pLI<0.9 & res$powmed>0.8) & ((!is.na(res$sig) & res$sig )| res$consensus_gene))/sum((res$pLI<0.9 & res$powmed>0.8)))
 
 #significance threshold 
