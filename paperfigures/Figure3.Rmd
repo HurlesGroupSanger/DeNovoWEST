@@ -98,7 +98,7 @@ ci.upper <- sapply(obscounts$x, function(x) poisson.test(x,conf.level = 0.95)$co
 
 #plot
 pdf("./plots/fig3c.pdf",width = 5,height = 5)
-bp <- barplot(obscounts$x/expcounts$x,ylim = c(0,60),names.arg = c("low","medium","high"),xlab = "Genes' likelihood of US abnormality",ylab = "PTV enrichment",col = traffic,border = NA,cex.axis = 1.2,cex.lab = 1.4,cex.names = 1.2)
+bp <- barplot(obscounts$x/expcounts$x,ylim = c(0,60),names.arg = c("low","medium","high"),xlab = "Genes' likelihood of ultrasound abnormality",ylab = "PTV enrichment",col = traffic,border = NA,cex.axis = 1.2,cex.lab = 1.4,cex.names = 1.2)
 arrows(bp[,1],ci.lower,bp[,1],ci.upper,length = 0,lwd = 1.5)
 dev.off()
 ```
