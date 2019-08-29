@@ -60,7 +60,7 @@ higenes$lglofratio <- log10(higenes$lofratio)
 
 wilcox.test(higenes$lofratio[higenes$diag_group == "novel"],higenes$lofratio[higenes$diag_group == "consensus"])
 
-p <- ggplot(higenes, aes(x=diag_group, y=lglofratio, fill = diag_group)) + labs(y = "log10(observed/expected PTVs)") + 
+p <- ggplot(higenes, aes(x=diag_group, y=lglofratio, fill = diag_group)) + labs(y = "log10(obs/exp PTVs)") + 
   geom_boxplot(notch = F,color = "gray40") + scale_fill_manual(values = c("black", '#56B4E9', "#E69F00")) + 
   theme_classic() +theme(legend.position = "none")+
   #geom_jitter(position = position_jitter(0.1),color = "gray40") +
@@ -211,9 +211,9 @@ plot_3d <- ggplot(ptv_syn_gnomad, aes(x = lofbin, y = ptv_syn)) +
   theme(axis.text.x  = element_text(size=14), axis.text.y = element_text(size=14), axis.title = element_text(size=16)) +
   scale_x_continuous(name = 'PTV enrichment bin', breaks = seq(1,5,1), labels = c('0.96-1.30\n(n=21)', '1.30-1.65\n(n=63)', '1.65-2.00\n(n=40)', '2.00-2.34\n(n=23)', '2.34-2.68\n(n=9)'))
 
-pdf("./plots/combined_fig3.pdf",width = 12, height = 10)
-top_row <- plot_grid(plot_3a, plot_3b, labels=c('A', 'B'), scale=0.95)
-bottom_row <- plot_grid(plot_3c, plot_3d, nrow = 1, labels = c('C', 'D'), rel_widths = c(1, 1.5), scale=0.95)
+pdf("./plots/combined_fig3.pdf",width = 12, height = 8)
+top_row <- plot_grid(plot_3a, plot_3b, labels=c('(a)', '(b)'), scale=0.95)
+bottom_row <- plot_grid(plot_3c, plot_3d, nrow = 1, labels = c('(c)', '(d)'), rel_widths = c(1, 1.5), scale=0.95)
 plot_grid(top_row, bottom_row, nrow = 2)
 dev.off()
 ```
