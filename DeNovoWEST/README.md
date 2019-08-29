@@ -37,7 +37,7 @@ This is a dictionary of weights made by looking at enrichment of that specific c
 *Rates:*
 
 This is a file with site specific mutation rates per gene which is also annotated with CADD score, MAF (gnomad) and a boolean for whether it lies in a missense contrained regions. For non-missense mutations that lie in missense constrained regions these have been annotated as 'True' if the gene has ANY missense constrained region and 'False' if the gene does not have a single missense constrained region. This has been done to calibrate the weights in a sensible way.
-You can download these rates files HERE. These are split into 6 different files. 
+You can download these rates files from ``` ftp://ftp.sanger.ac.uk/pub/project/ddd/rates ```. These are split into 6 different files. 
 
 *De novos:*
 

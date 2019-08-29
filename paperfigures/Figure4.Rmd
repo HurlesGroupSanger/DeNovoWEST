@@ -12,7 +12,8 @@ ptv_simulation <- "../input/PTV_modelresults_2019-06-26.tab"
 
 otherpal <- wes_palette("Darjeeling1")
 ```
-Figure 4(a)
+
+# Figure 4(a)  
 
 ```{r}
 df <- fread(downsampling_results,sep = "\t",header = T)
@@ -21,11 +22,11 @@ df <- fread(downsampling_results,sep = "\t",header = T)
 ggplot(data = df,aes(x = samplesize,y = sig_ihw)) + geom_point()  + geom_line() + xlab("Downsampled sample size") + ylab("Number of DeNovoWEST significant genes")+
   theme_bw(base_size = 12) +
   theme(strip.text = element_text(color="black"),strip.background = element_rect(fill="white", size=0),panel.border = element_blank()) + 
-  theme(panel.grid.major = element_blank(),panel.grid.minor = element_blank(),axis.text=element_text(size=14),axis.title=element_text(size=16)) 
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.text=element_text(size=14), axis.title=element_text(size=16)) 
 #dev.off()
 ```
 
-Figure 4(b)
+# Figure 4(b)  
 
 ```{r}
 m <- read.table(ptv_simulation,header = T)
@@ -42,10 +43,41 @@ ggplot(m) + geom_tile(aes(elof_vals, prophi_vals, fill = prob)) +
   xlab("PTV Enrichment") + 
   ylab("Number of HI Genes") +
   theme_bw(base_size = 12) +
-  theme(strip.text = element_text(color="black"),strip.background = element_rect(fill="white", size=0),panel.border = element_blank()) + 
+  theme(strip.text = element_text(color="black"), strip.background = element_rect(fill="white", size=0), panel.border = element_blank()) + 
   theme(panel.grid.major = element_blank(),panel.grid.minor = element_blank()) + 
   theme(legend.position = c(0.9,0.5)) +
+  theme(axis.text.x  = element_text(size=14), axis.text.y = element_text(size=14), axis.title = element_text(size=16), legend.text = element_text(size=14)) +
+  guides(fill=guide_legend(title="Likelihood")) + 
+  ylim(0,2400) + xlim(0,40) +
+  geom_segment(x=38.8, xend=38.8, y=-5, yend=0, arrow = arrow())
+  # + geom_vline(xintercept = 38.8,linetype = 'dashed')
+```
+
+# Combining plots  
+
+```{r}
+library(cowplot)
+
+plot_4a <- ggplot(data = df,aes(x = samplesize,y = sig_ihw)) + geom_point()  + geom_line() + xlab("Downsampled sample size") + ylab("Number of DeNovoWEST significant genes")+
+  theme_bw(base_size = 12) +
+  theme(strip.text = element_text(color="black"),strip.background = element_rect(fill="white", size=0),panel.border = element_blank()) + 
+  theme(panel.grid.major = element_blank(),panel.grid.minor = element_blank(),axis.text=element_text(size=14),axis.title=element_text(size=16)) 
+
+plot_4b <- ggplot(m) + geom_tile(aes(elof_vals, prophi_vals, fill = prob)) + 
+  geom_contour(aes(elof_vals, prophi_vals, z=prob),breaks=c(thresh90),colour=otherpal[3]) +
+  geom_contour(aes(elof_vals, prophi_vals, z=prob),breaks=c(thresh50),colour=otherpal[1]) +
+  scale_fill_gradient(low ="white", high = otherpal[2],guide = guide_colorbar(title = "Prob"),oob = scales::squish,limits = NULL) + 
+  xlab("PTV Enrichment") + 
+  ylab("Number of HI Genes") +
+  theme_bw(base_size = 12) +
+  theme(strip.text = element_text(color="black"), strip.background = element_rect(fill="white", size=0), panel.border = element_blank()) + 
+  theme(panel.grid.major = element_blank(),panel.grid.minor = element_blank()) + 
+  theme(legend.position = c(0.9,0.5)) +
+  theme(axis.text.x  = element_text(size=14), axis.text.y = element_text(size=14), axis.title = element_text(size=16), legend.text = element_text(size=14)) +
   guides(fill=guide_legend(title="Likelihood")) + 
   ylim(0,2400) + xlim(0,40) 
-  # + geom_vline(xintercept = 38.8,linetype = 'dashed')
+
+pdf()
+plot_grid(plot_4a, plot_4b, labels=c('(a)', '(b)'))
+dev.off()
 ```
