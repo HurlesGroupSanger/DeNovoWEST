@@ -7,6 +7,9 @@ output: html_document
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
 #get bootstrap CIs on all mean ratios
 bootRatioCI <- function(x,y,nsim = 100){
   x <- x[!is.na(x)]
@@ -53,9 +56,6 @@ getCIs <- function(mycol,df,nsim = 100){
 # load required libraries
 library(data.table)
 library(ggplot2)
-library(dplyr)
-library(tidyr)
-library(ggrepel)
 library(RColorBrewer)
 
 #color palette 
@@ -66,11 +66,10 @@ colScale <- scale_colour_manual(name = "diag_group",values = myColors)
 # filepaths
 resfile <- "../input/extended_denovoWEST_results.tab"
 features <-'../input/gene_features.tab'
-dnmfile <- '../input/DDD_RUMC_GDX_denovos_2019_05_15__wweights.txt.gz'
-id_sex_filepath <- '../input/fordist_joint_dnm_ID_sex_2019_08_22.txt'
 ```
 
-Figure 2 (a)
+# Figure 2 (b)  
+
 ```{r}
 #read in results
 res<- fread(resfile,sep = "\t")
@@ -112,13 +111,13 @@ myColors <- c("black", '#56B4E9', "gray", "#E69F00")
 #change order to be more readable
 diag.enrich <- diag.enrich[c(1,2,3,4,5,10,6,7,8,9,11),]
 
-pdf("./plots/fig2b.pdf",width = 6,height = 11)
+#pdf("./plots/fig2b.pdf",width = 6,height = 11)
 par(mar=c(21,4,2,2)+0.1)
 bp <- barplot(t(as.table(diag.enrich[,1:2])),beside = T,las = 3, col = myColors[c(1,4)],ylab = "Log10(Mean in Diagnostic group/Mean in non-DD genes)",ylim = c(min(diag.enrich),max(diag.enrich)),border = NA,cex.axis = 1.2,cex.lab = 1.4,cex.names = 1.2)
 abline(h = 0,lty = 2)
 arrows(bp[1,],diag.enrich[,colnames(diag.enrich) == "con.lower"],bp[1,],diag.enrich[,colnames(diag.enrich) == "con.upper"],length = 0,col = "grey")
 arrows(bp[2,],diag.enrich[,colnames(diag.enrich) == "novel.lower"],bp[2,],diag.enrich[,colnames(diag.enrich) == "novel.upper"],length = 0,col = "grey")
-dev.off()
+#dev.off()
 #to plot legend
 #plot(0,0,xaxt = "n",bty = "n",col = "white",xlab = "",ylab = "",yaxt = "n")
 #legend("top",legend = c("consensus","novel"),col = myColors[c(1,4)],pch = 15, border = NA,bty = "n",horiz = F, #inset=c(-0.2,0),xpd=TRUE)
