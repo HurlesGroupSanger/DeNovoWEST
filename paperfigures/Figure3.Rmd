@@ -40,6 +40,10 @@ res$cat[res$diag_group == "none" & res$sig] <- "novel"
 res$cat[res$cat == "none"] <- "unassociated"
 respow <- rbind(res[res$sig],res[!res$sig & !res$consensus_gene & !res$discordant_gene])
 
+wilcox.test(respow$powmed[respow$cat == "unassociated"],respow$powmed[respow$cat == "novel"])
+wilcox.test(respow$powmed[respow$cat == "consensus" & respow$sig],respow$powmed[respow$cat == "novel"])
+
+
 pdf("./plots/fig3a.pdf",width = 6,height = 5.5)
 ggplot(respow[!is.na(respow$cat),],aes(x = cat,y = powmed,fill = sig)) + geom_boxplot() + theme_classic() + labs(x = "",y = "Power (using median enrichment)")  + scale_fill_manual(values=c(mypal[5],mypal[1]),labels = c("not significant","significant")) +
   theme(legend.position="top",legend.title = element_blank(),legend.text = element_text(size = 14),axis.text=element_text(size=14),axis.title=element_text(size=16)) 
@@ -51,6 +55,9 @@ dev.off()
 ```{r}
 higenes <- res[res$lofe<=10^(-6) & res$sig,]
 higenes$lglofratio <- log10(higenes$lofratio)
+
+wilcox.test(higenes$lofratio[higenes$diag_group == "novel"],higenes$lofratio[higenes$diag_group == "consensus"])
+
 p <- ggplot(higenes, aes(x=diag_group, y=lglofratio, fill = diag_group)) + labs(y = "log10(observed/expected PTVs)") + 
   geom_boxplot(notch = F,color = "gray40") + scale_fill_manual(values = c("black", '#56B4E9', "#E69F00")) + 
   theme_classic() +theme(legend.position = "none")+
