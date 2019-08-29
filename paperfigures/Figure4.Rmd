@@ -6,6 +6,8 @@ output: html_document
 ---
 
 ```{r setup, include=FALSE}
+library(data.table)
+library(ggplot2)
 library(wesanderson)
 downsampling_results <- "../input/downsampling_numbers.tab"
 ptv_simulation <- "../input/PTV_modelresults_2019-06-26.tab"
@@ -46,10 +48,9 @@ ggplot(m) + geom_tile(aes(elof_vals, prophi_vals, fill = prob)) +
   theme(strip.text = element_text(color="black"), strip.background = element_rect(fill="white", size=0), panel.border = element_blank()) + 
   theme(panel.grid.major = element_blank(),panel.grid.minor = element_blank()) + 
   theme(legend.position = c(0.9,0.5)) +
-  theme(axis.text.x  = element_text(size=14), axis.text.y = element_text(size=14), axis.title = element_text(size=16), legend.text = element_text(size=14)) +
+  theme(axis.text.x  = element_text(size=14), axis.text.y = element_text(size=14), axis.title = element_text(size=16), legend.text = element_text(size=12)) +
   guides(fill=guide_legend(title="Likelihood")) + 
-  ylim(0,2400) + xlim(0,40) +
-  geom_segment(x=38.8, xend=38.8, y=-5, yend=0, arrow = arrow())
+  ylim(0,2400) + xlim(0,40)
   # + geom_vline(xintercept = 38.8,linetype = 'dashed')
 ```
 
@@ -58,7 +59,7 @@ ggplot(m) + geom_tile(aes(elof_vals, prophi_vals, fill = prob)) +
 ```{r}
 library(cowplot)
 
-plot_4a <- ggplot(data = df,aes(x = samplesize,y = sig_ihw)) + geom_point()  + geom_line() + xlab("Downsampled sample size") + ylab("Number of DeNovoWEST significant genes")+
+plot_4a <- ggplot(data = df,aes(x = samplesize,y = sig_ihw)) + geom_point()  + geom_line() + xlab("Downsampled sample size") + ylab("Number of DeNovoWEST\nsignificant genes")+
   theme_bw(base_size = 12) +
   theme(strip.text = element_text(color="black"),strip.background = element_rect(fill="white", size=0),panel.border = element_blank()) + 
   theme(panel.grid.major = element_blank(),panel.grid.minor = element_blank(),axis.text=element_text(size=14),axis.title=element_text(size=16)) 
@@ -73,11 +74,11 @@ plot_4b <- ggplot(m) + geom_tile(aes(elof_vals, prophi_vals, fill = prob)) +
   theme(strip.text = element_text(color="black"), strip.background = element_rect(fill="white", size=0), panel.border = element_blank()) + 
   theme(panel.grid.major = element_blank(),panel.grid.minor = element_blank()) + 
   theme(legend.position = c(0.9,0.5)) +
-  theme(axis.text.x  = element_text(size=14), axis.text.y = element_text(size=14), axis.title = element_text(size=16), legend.text = element_text(size=14)) +
+  theme(axis.text.x  = element_text(size=14), axis.text.y = element_text(size=14), axis.title = element_text(size=16), legend.text = element_text(size=12)) +
   guides(fill=guide_legend(title="Likelihood")) + 
-  ylim(0,2400) + xlim(0,40) 
+  ylim(0,2400) + xlim(0,40)
 
-pdf()
-plot_grid(plot_4a, plot_4b, labels=c('(a)', '(b)'))
+pdf("./plots/combined_fig4.pdf", width = 10, height = 4)
+plot_grid(plot_4a, plot_4b, labels=c('(a)', '(b)'), scale=0.93)
 dev.off()
 ```
