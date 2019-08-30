@@ -24,7 +24,7 @@ colScale <- scale_colour_manual(name = "diag_group",values = myColors)
 
 # filepaths
 resfile <- "../input/extended_denovoWEST_results.tab"
-dnmfile <- '../input/DDD_RUMC_GDX_denovos_2019_05_15__wweights.txt.gz'
+dnmfile <- '../input/DDD_RUMC_GDX_denovos_2019_05_15_wweights.txt.gz'
 id_sex_filepath <- '../input/fordist_joint_dnm_ID_sex_2019_08_22.txt'
 
 # counts per study
@@ -131,7 +131,6 @@ ggplot(novel,aes(x=missense_variant,y = lofcount)) +
 ```{r}
 # load de novo mutations
 all <- read.table(dnmfile, stringsAsFactors = F, sep = '\t', header = T)
-all <- all %>% mutate(study3 = ifelse(study=='newGDX', 'GDX', study))
 
 # determine fraction of cases with nonsynonymous DNM in each gene category
 # all consensus known, significant discordant known, significant novel
