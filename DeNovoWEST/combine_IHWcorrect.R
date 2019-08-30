@@ -9,12 +9,8 @@
 #--------------------------------------
 
 # filepaths and set up
-mut_file = 'input/gene_mutability_length.tab'
-hgnc_genefile = "input/protein-coding_gene.txt"
-shet_file = 'input/s_het.csv'
-
+info_file = '../input/info_for_IHW.tab'
 #-----------------IMPORTS--------------
-source("useful_functions.R")
 mypal<-wes_palette("Royal1")
 library(lattice)
 library(metap)
@@ -31,37 +27,8 @@ dnn_file = args[2]
 out_file = args[3]
 
 #---------LOAD DATA--------------------
-# first part is to load the HGNC genes so that all other gene sets can be annotated with them
-hgnc_genes <- fread(hgnc_genefile,sep = "\t",header = T, stringsAsFactors = F)
-# to get rid of the HGNC: part of the hgnc_id column
-hgnc_genes$num_hgnc_id <- apply(hgnc_genes, 1, function(row) strsplit(row[1], ':')[[1]][2])
-hgnc_genes$chrh <-  sapply(strsplit(sapply(strsplit(hgnc_genes$location,split = "q"), "[", 1),"p"),"[",1)
 
-#mutability info
-muts <- read.table(mut_file,header = T, stringsAsFactors = F, sep = "\t")
-muts$glen <- muts$pos
-
-#S_HET
-shet <- read.csv(shet_file,sep = ",",header = T,stringsAsFactors = F)
-# add a column that lists NA if the gene_symbol isn't in HGNC
-shet$matchedhgnc <- apply(shet, 1, function(row) if(row[1] %in% hgnc_genes$symbol) { row[1] } else { NA } )
-shet$newsymbol <- shet$gene_symbol
-shet$newsymbol[shet$gene_symbol%in%names(myl)] <- myl[shet$gene_symbol[shet$gene_symbol%in%names(myl)]]
-
-# use matchedhgnc (row[16])
-# if NA, use newsymbol (row[17])
-shet$replacementsymbol <- apply(shet, 1, function(row) if(is.na(row[16])){ row[17] } else { row[16] })
-
-# clean up
-shet$symbol <- shet$replacementsymbol
-shet$matchedhgnc <- NULL
-shet$newsymbol <- NULL
-shet$replacementsymbol <- NULL
-
-#---------MERGE--------------------------
-genes <- merge(muts,shet, by.x = "symbol",by.y = "symbol",all.x = T)
-genes <- merge(genes,hgnc_genes,by.x = "symbol",by.y = "symbol",all.y = T)
-genes$chr <- genes$chrh
+genes <- fread(info_file,sep = "\t",header = T)
 genes <- genes[!is.na(genes$prob),]
 
 #---------GET RESIDUALS--------------------
