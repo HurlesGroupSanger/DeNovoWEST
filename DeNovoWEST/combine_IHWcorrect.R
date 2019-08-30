@@ -10,7 +10,6 @@
 
 # filepaths and set up
 info_file = '../input/info_for_IHW.tab'
-info_file = '/Users/jk18/Documents/PhD/DeNovoWEST/input/info_for_IHW.tab'
 #-----------------IMPORTS--------------
 mypal<-wes_palette("Royal1")
 library(lattice)
