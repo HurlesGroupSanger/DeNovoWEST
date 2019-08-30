@@ -68,7 +68,6 @@ def get_other_weight_dic(wdicpath):
     get weight dic for non missense variants
     '''
     wdic = pd.read_table(wdicpath)
-    #wdic = wdic[wdic.cq.isin(["synonymous","splice_lof","splice_region","inframe","frameshift"])]
     wdic = wdic[wdic.cq.isin(["synonymous","splice_lof","inframe","frameshift"])]
     con = dict(zip("True"+wdic.cq,wdic.con))
     uncon = dict(zip("False"+wdic.cq,wdic.uncon))
@@ -79,12 +78,10 @@ def get_other_weights(rates,wdicpath):
     '''
     get weights for non missense variants - just enrichment of entire class as opposed to stratified by CADD
     '''
-    #othercq = ["synonymous","splice_lof","splice_region","inframe","frameshift"]
     othercq = ["synonymous","splice_lof","inframe","frameshift"]
     con= get_other_weight_dic(wdicpath)
     rates.weight.loc[rates.cq.isin(othercq)] = rates.constrained.astype(str) + rates.cq
     rates.weight.replace(con,inplace=True)
-    #rates['weight'] = rates['weight'].map(con)
     return(rates)
 
 def get_indel_weights(wdicpath):
