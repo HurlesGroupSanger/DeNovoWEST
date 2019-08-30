@@ -79,6 +79,6 @@ plot_4b <- ggplot(m) + geom_tile(aes(elof_vals, prophi_vals, fill = prob)) +
   ylim(0,2400) + xlim(0,40)
 
 #pdf("./plots/combined_fig4.pdf", width = 10, height = 4)
-plot_grid(plot_4a, plot_4b, labels=c('(a)', '(b)'), scale=0.93)
+plot_grid(plot_4a, plot_4b, labels=c('(a)', '(b)'), scale=0.93, rel_widths = c(1,1.25))
 #dev.off()
 ```
