@@ -132,3 +132,15 @@ Positive predictive values (PPV) for the *de novo* mutations, split by mutation 
 
 The above table, but generated after removing the top 10 most mutated genes (*DDX3X*, *ARID1B*, *ANKRD11*, *KMT2A*, *MECP2*, *DYRK1A*, *SCN2A*, *STXBP1*, *MED13L*, *CREBBP*).  
 
+## Results of downsampling analysis
+ 
+`downsampling_numbers.tab'
+
+Results from downsampling full cohort to 5k,10k,15k,20k and 25k, rerunning DeNovoWEST and counting number of signifianct genes.
+
+| Column | Description |
+| --- | --- |
+| samplesize | Sample size the cohort has been downsampled to|
+| sig_ihw | The number of significant genes (DeNovoWEST p-value< 0.025) |
+ 
+ 
