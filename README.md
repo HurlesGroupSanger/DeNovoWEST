@@ -11,12 +11,12 @@ There are three main components of this repository:
 
 ## DeNovoWEST  
 
-To run `DeNovoWEST`, you will need Python x.x and R. More details are provided in the `README` in the `DeNovoWEST` directory.  
+To run `DeNovoWEST`, you will need Python 3.x and R. More details are provided in the `README` in the `DeNovoWEST` directory.  
 
 
 ## Input files  
 
-This directory contains the files needed to recreate some of the main text figures from the Kaplanis, Samocha, van de Wiel, Zhang et al manuscript. Specifically, the following files are provided:  
+This directory contains the files needed to recreate some of the main text figures from the Kaplanis, Samocha, Wiel, Zhang et al manuscript. Specifically, the following files are provided:  
 1. *De novo* mutations from 31,058 individuals with a developmental disorder
 2. Extended `DeNovoWEST` results file with information about per gene mutation rates  
 3. Sex information for probands in the study  
