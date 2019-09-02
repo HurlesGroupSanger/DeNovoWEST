@@ -21,6 +21,13 @@ This directory contains the files needed to recreate some of the main text figur
 2. Extended `DeNovoWEST` results file with information about per gene mutation rates  
 3. Sex information for probands in the study  
 4. Positive predictive value weight files that were generated as part of `DeNovoWEST`     
+5. Results of downsampling analysis  
+6. Results from simulations of modelling the number of remaining HI DD-associated genes  
+7. Classifications for likelihood of structural malformation of ultrasound  
+8. Gene features used to generate Figure 2(b) in manuscript  
+9. Results file from [DeNovoNear](https://github.com/jeremymcrae/denovonear)  
+10. Results file from enrichment part of `DeNovoWEST`  
+11. Information file needed to apply IHW for our dataset  
 
 
 ## Paper figure code  
