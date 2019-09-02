@@ -11,7 +11,6 @@
 # filepaths and set up
 info_file = '../input/info_for_IHW.tab'
 #-----------------IMPORTS--------------
-mypal<-wes_palette("Royal1")
 library(lattice)
 library(metap)
 library(ggplot2)
@@ -20,6 +19,8 @@ library(gridExtra)
 library(wesanderson)
 #devtools::install_github("nignatiadis/IHW")
 library(IHW)
+
+mypal<-wes_palette("Royal1")
 
 args = commandArgs(trailingOnly=TRUE)
 dne_file = args[1]
