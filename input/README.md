@@ -191,3 +191,23 @@ Gene features compiled to generate figure 2(b). Column descriptors below:
 Output from running [DeNovoNear](https://github.com/jeremymcrae/denovonear) on full cohort. 
 
 ## De Novo Enrichment results
+
+`dne_test_2019_05_16.tab`
+
+Output from running enrichment test from DeNovoWEST on full cohort. See README for DeNovoWEST section for more details.
+
+## Information for IHW
+
+`info_for_IHW.tab`
+
+Data needed to apply IHW to our dataset. 
+
+| Column | Description |
+| --- | --- |
+| symbol | gene symbol |
+| num_hgnc_id | HGNC id |
+| chr | chromosome |
+| pos | gene start position |
+| glen | CDS length |
+| prob | probability of mutation in gene (based in trinucleotide context) |
+| s_het |  s_het score |
