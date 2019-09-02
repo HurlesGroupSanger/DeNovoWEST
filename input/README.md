@@ -167,5 +167,19 @@ Column names are self explanatory. Clinician classified each consensus gene with
 
 `gene_features.tab`
 
-Gene features compiled to generate figure 2(b).
+Gene features compiled to generate figure 2(b). Column descriptors below:
 
+| Column | Description |
+| --- | --- |
+| symbol | Gene symbol |
+| dNdS_macaque | macaque dN/dS downloaded from Ensembl |
+| CODING_GERP | GERP summed across coding region |
+| PROMOTER_GERP |GERP summed across promoter region|
+| glen | gene length |
+| cancer_gene | a binary variable of whether the gene is a known somatic driver gene |
+| PPI_DGR | Network degree |
+| PPI_BTWN | Network betweeness |
+| PPI_LLS2HI | Network distance to consensus known gene |
+| median_fetalbrain_rpkm |  the median RPKM in the fetal brain taken from BrainSpan |
+| relevant_go |  a binary variable of whether the gene was annotated with one of twenty GO terms that were enriched in consensus DD genes |
+| pLI | gnomAD pLI score |
