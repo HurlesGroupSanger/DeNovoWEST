@@ -73,3 +73,27 @@ Where the dne_file is the results from the enrichment test, the dnn_file is the 
 ``` Rscript combine_IHWcorrect.R /input/dne_test_2019_05_16.tab /input/denovonear_out_missense_31058_ntrios_2019_05_15.txt [out_file] ```
 
 
+## Required libraries  
+
+### Python  
+
+* argparse  
+* datetime  
+* itertools  
+* logging  
+* numpy  
+* os  
+* pandas  
+* random  
+* scipy (stats)  
+* sys  
+
+### R  
+
+* data.table  
+* ggplot2  
+* gridExtra  
+* IHW  
+* lattice  
+* metap  
+* wesanderson  
