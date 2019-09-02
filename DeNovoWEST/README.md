@@ -32,7 +32,7 @@ optional arguments:
 
 *Weight Dictionary:* 
 
-This is a dictionary of weights made by looking at enrichment of that specific class of variants across the cohort. We have included this in the input directory. We have included both the weights file that has been generated on all our data (```../input/weights_ppv_2019_01_09.tab```) and the weights file that has been generated after removing variants in the most significant DD-associated genes (```../input/weights_ppv_notop10_2019_01_09.tab```). See manuscript for more details. 
+This is a dictionary of weights made by looking at enrichment of that specific class of variants across the cohort. We have included this in the input directory. We have included both the weights file that has been generated on all our data (```/input/weights_ppv_2019_01_09.tab```) and the weights file that has been generated after removing variants in the most significant DD-associated genes (```/input/weights_ppv_notop10_2019_01_09.tab```). See manuscript for more details. 
 
 *Rates:*
 
@@ -41,7 +41,7 @@ You can download these rates files from ``` ftp://ftp.sanger.ac.uk/pub/project/d
 
 *De novos:*
 
-This is a list of de novo mutations from our cohort that have been annotated with CADD score, MAF (gnomad) and a boolean for whether it lies in a constrained region (see explanation in rates file description). We have provided our list of de novos in the input folder: ```../input/DDD_RUMC_GDX_denovos_2019_05_15_wweights.txt.gz```.
+This is a list of de novo mutations from our cohort that have been annotated with CADD score, MAF (gnomad) and a boolean for whether it lies in a constrained region (see explanation in rates file description). We have provided our list of de novos in the input folder: ```/input/DDD_RUMC_GDX_denovos_2019_05_15_wweights.txt.gz```.
 
 *Nsim:*
 
@@ -56,11 +56,11 @@ To run enrichment test on all de novo mutations in our joint cohort, the followi
 
 ```python submit_DNE_test.py --ratespath <directory of rates> --weightspath /input/weights_ppv_2019_01_09.tab --denovospath  /input/DDD_RUMC_GDX_denovos_2019_05_15__wweights.txt.gz --outpath <output directory> --nmale 17422 --nfemale 13636```
 
-The results from the run of this on our full cohort is at ```../input/dne_test_2019_05_16.tab```
+The results from the run of this on our full cohort is at ```/input/dne_test_2019_05_16.tab```
 
 ## 2. Clustering test
 
-This is done by running [DeNovoNear](https://github.com/jeremymcrae/denovonear). Our results from running this on the full cohort can be found at ```../input/denovonear_out_missense_31058_ntrios_2019_05_15.txt```
+This is done by running [DeNovoNear](https://github.com/jeremymcrae/denovonear). Our results from running this on the full cohort can be found at ```/input/denovonear_out_missense_31058_ntrios_2019_05_15.txt```
 
 ## 3. Combine tests and apply IHW
 
