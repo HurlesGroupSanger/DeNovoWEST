@@ -43,7 +43,7 @@ This directory contains the files needed to recreate some of the main text figur
 
 `extended_denovoWEST_results.tab`  
 
-Results of applying `DeNovoWEST` to the *de novo* mutations (DNMs) from 31,058 developmental disorder patients. For each gene, the count of DNMs is provided, split by mutation type and by center. This extended results file also includes the results from a (previous method)[https://github.com/jeremymcrae/mupit].  
+Results of applying `DeNovoWEST` to the *de novo* mutations (DNMs) from 31,058 developmental disorder patients. For each gene, the count of DNMs is provided, split by mutation type and by center. This extended results file also includes the results from a [previous method](https://github.com/jeremymcrae/mupit).  
 
 | Column | Description |
 | --- | --- |
