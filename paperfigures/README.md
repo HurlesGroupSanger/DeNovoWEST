@@ -2,7 +2,7 @@
 
 In this directory, we provide the code to recreate most of the main text figures from Kaplanis, Samocha, Wiel, Zhang et al. We provide Rmarkdowns for the four main text figures and, in a separate directory, the R code to generate the results depicted in Figure 4b (the model of remaining PTV burden; see paper for more details).  
 
-Required R packages:    
+Required R libraries:    
 * data.table  
 * dplyr  
 * ggbeeswarm  
