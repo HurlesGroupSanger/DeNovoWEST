@@ -45,12 +45,14 @@ Results of applying `DeNovoWEST` to the *de novo* mutations (DNMs) from 31,058 d
 | chr | Chromosome of the gene |
 | bp |  Number of coding base pairs in the gene |
 | n_exons | Number of exons in the gene |
-| cds_length | Number of coding base pairs |
 | diag_group | Diagnostic gene list memberships (e.g. consensus, novel) |
 | p_all | |
 | p_syn | |
 | p_mis | |
 | p_lof | |
+| obs_lof | number of observed PTVs in gnomad taken from gnomad constraint file |
+| obs_syn | number of observed synonymous in gnomad taken from gnomad constraint file  |
+| constraint_flag | flag taken from gnomad constraint file |
 | consensus_gene | Boolean indicator of whether a gene is on the consensus known diagnostic gene list |
 | discordant_gene | Boolean indicator of whether a gene is on the discordant known diagnostic gene list |
 | DDD_count | Number of DNMs in DDD probands |
@@ -72,23 +74,25 @@ Results of applying `DeNovoWEST` to the *de novo* mutations (DNMs) from 31,058 d
 | lofexpected | Expected number of loss-of-function DNMs |
 | lofratio | Observed/expected ratio of loss-of-function DNMs |
 | misexpected | Expected number of missense DNMs |
-| misratio | Observed/expected ration of missense DNMs |
+| misratio | Observed/expected ratio of missense DNMs |
 | me | P-value for the enrichment of missense DNMs |
 | lofe | P-value for the enrichment of loss-of-function DNMs |
-| powmed | |
+| totaldnm| count of DNMs in this gene |
+| powmed | Power to detect median observed PTV enrichment in this gene|
 | s_het | s_het score |
 | pLI | gnomAD pLI score |
-| observed | |
-| expected | |
-| wratio | | |
-| dne_p | Enrichment p-value generated as part of `DeNovoWEST` |
-| dnn_p | Clustering p-value from `denovonear` |
-| com_p | Combined p-value of `dne_p` and `dnn_p` |
-| min_p | Minimum p-value of `dne_p` and `dnn_p` |
-| denovoWEST_p | P-value from `DeNovoWEST` when applied to the full dataset |
-| undiagnosed_denovoWEST_p | P-value from `DeNovoWEST` when applied to only undiagosed cases |
+| observed_full | observed gene score for full cohort|
+| expected_full |expected gene score for full cohort |
+| enrich_p_full | pEnrich for full cohort |
+| cluster_p_full | pClustering for full cohort |
+| denovoWEST_p_full | IHW adjusted DeNovoWEST p-value for full cohort |
+| observed_ud | observed gene score for undiagnosed subset|
+| expected_ud |expected gene score for undiagnosed subset|
+| enrich_p_ud | pEnrich for undiagnosed subset|
+| cluster_p_ud | pClustering for undiagnosed subset |
+| denovoWEST_p_ud | IHW adjusted DeNovoWEST p-value for undiagnosed subset |
 | mup_pval | P-value from mupit |
-| sig | Boolean indicator of whether the gene was significant in either the full of undiagnosed analysis |  
+| sig | Boolean indicator of whether gene is significantly associated with DD according to our analysis: this is defined as denovoWEST_p_full<0.025 if it is a consensus gene or denovoWEST_p_ud<0.025 for non-consensus genes|  
  
 
 ## Sex information for individuals in the study  
