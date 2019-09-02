@@ -134,7 +134,7 @@ The above table, but generated after removing the top 10 most mutated genes (*DD
 
 ## Results of downsampling analysis
  
-`downsampling_numbers.tab'
+`downsampling_numbers.tab`
 
 Results from downsampling full cohort to 5k,10k,15k,20k and 25k, rerunning DeNovoWEST and counting number of signifianct genes.
 
@@ -183,3 +183,11 @@ Gene features compiled to generate figure 2(b). Column descriptors below:
 | median_fetalbrain_rpkm |  the median RPKM in the fetal brain taken from BrainSpan |
 | relevant_go |  a binary variable of whether the gene was annotated with one of twenty GO terms that were enriched in consensus DD genes |
 | pLI | gnomAD pLI score |
+
+## DeNovoNear results
+
+`denovonear_out_missense_31058_ntrios_2019_05_15.txt`
+
+Output from running [DeNovoNear](https://github.com/jeremymcrae/denovonear) on full cohort. 
+
+## De Novo Enrichment results
