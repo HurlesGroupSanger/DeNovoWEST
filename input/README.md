@@ -156,3 +156,16 @@ Results from model simulations using code found at ```/paperfigures/Figure4_code
 | prophi_vals | Proportion of genes that are haplinsufficient DD genes|
 | logprob | log likelihood of observing our observed number of 'de novo' PTVs under this scenario|
 | prob |likelihood of observing our observed number of 'de novo' PTVs under this scenario |
+
+## Classifications for likelihood of structural malformation of ultrasound
+
+`USabnormality_likelihood.csv`
+
+Column names are self explanatory. Clinician classified each consensus gene with the likelihood of presenting with a structural malformation of ultrasound. These are classified low (1), medium (2) and high (3).
+
+## Gene features
+
+`gene_features.tab`
+
+Gene features compiled to generate figure 2(b).
+
