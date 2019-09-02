@@ -144,3 +144,15 @@ Results from downsampling full cohort to 5k,10k,15k,20k and 25k, rerunning DeNov
 | sig_ihw | The number of significant genes (DeNovoWEST p-value< 0.025) |
  
  
+## Results from simulations of modelling the number of remaining HI DD-associated genes
+
+`PTV_modelresults_2019-06-26.tab`
+
+Results from model simulations using code found at ```/paperfigures/Figure4_code_for_model/PTVmodel.R```. Data used to generate Figure 4(b) in the manuscript.
+
+| Column | Description |
+| --- | --- |
+| elof_vals | PTV enrichment |
+| prophi_vals | Proportion of genes that are haplinsufficient DD genes|
+| logprob | log likelihood of observing our observed number of 'de novo' PTVs under this scenario|
+| prob |likelihood of observing our observed number of 'de novo' PTVs under this scenario |
