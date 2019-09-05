@@ -54,7 +54,7 @@ The number of males and females in our cohort. For the total cohort this was 17,
 ### Submit command
 To run enrichment test on all de novo mutations in our joint cohort, the following prints the necessary commands to run:
 
-```python submit_DNE_test.py --ratespath <directory of rates> --weightspath /input/weights_ppv_2019_01_09.tab --denovospath  /input/DDD_RUMC_GDX_denovos_2019_05_15__wweights.txt.gz --outpath <output directory> --nmale 17422 --nfemale 13636```
+```python submit_DNE_test.py --ratespath <directory of rates> --weightspath /input/weights_ppv_2019_01_09.tab --denovospath  /input/DDD_RUMC_GDX_denovos_2019_05_15_wweights.txt.gz --outpath <output directory> --nmale 17422 --nfemale 13636```
 
 The results from the run of this on our full cohort is at ```/input/dne_test_2019_05_16.tab```
 
