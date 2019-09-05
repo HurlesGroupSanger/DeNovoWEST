@@ -15,7 +15,7 @@ This directory contains the files needed to recreate some of the main text figur
 
 ## *De novo* mutations
 
-`DDD_RUMC_GDX_denovos_2019_05_15__wweights.txt.gz`
+`DDD_RUMC_GDX_denovos_2019_05_15_wweights.txt.gz`
 
 45,221 *de novo* mutations (DNMs) from 31,058 developmental disorder patients.
 
@@ -53,10 +53,10 @@ Results of applying `DeNovoWEST` to the *de novo* mutations (DNMs) from 31,058 d
 | bp |  Number of coding base pairs in the gene |
 | n_exons | Number of exons in the gene |
 | diag_group | Diagnostic gene list memberships (e.g. consensus, novel) |
-| p_all | |
-| p_syn | |
-| p_mis | |
-| p_lof | |
+| p_all | Probability of a single nucleotide mutation based on a [sequence-context based mutational model of the canonical Ensembl transcript](https://www.nature.com/articles/nature19057) |
+| p_syn | Probability of a synonymous mutation based on a [sequence-context based mutational model of the canonical Ensembl transcript](https://www.nature.com/articles/nature19057)|
+| p_mis | Probability of a missense mutation based on a [sequence-context based mutational model of the canonical Ensembl transcript](https://www.nature.com/articles/nature19057) |
+| p_lof | Probability of a loss-of-function mutation based on a [sequence-context based mutational model of the canonical Ensembl transcript](https://www.nature.com/articles/nature19057) |
 | obs_lof | number of observed PTVs in gnomad taken from gnomad constraint file |
 | obs_syn | number of observed synonymous in gnomad taken from gnomad constraint file  |
 | constraint_flag | flag taken from gnomad constraint file |
