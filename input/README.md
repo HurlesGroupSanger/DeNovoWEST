@@ -53,10 +53,10 @@ Results of applying `DeNovoWEST` to the *de novo* mutations (DNMs) from 31,058 d
 | bp |  Number of coding base pairs in the gene |
 | n_exons | Number of exons in the gene |
 | diag_group | Diagnostic gene list memberships (e.g. consensus, novel) |
-| p_all | Probability of a single nucleotide mutation based on a [sequence-context based mutational model of the canonical Ensembl transcript](https://www.nature.com/articles/nature19057) |
-| p_syn | Probability of a synonymous mutation based on a [sequence-context based mutational model of the canonical Ensembl transcript](https://www.nature.com/articles/nature19057)|
-| p_mis | Probability of a missense mutation based on a [sequence-context based mutational model of the canonical Ensembl transcript](https://www.nature.com/articles/nature19057) |
-| p_lof | Probability of a loss-of-function mutation based on a [sequence-context based mutational model of the canonical Ensembl transcript](https://www.nature.com/articles/nature19057) |
+| p_all | Probability of a single nucleotide mutation based on a [sequence-context based mutational model](https://www.nature.com/articles/ng.3050) of the canonical Ensembl transcript |
+| p_syn | Probability of a synonymous mutation based on a [sequence-context based mutational model](https://www.nature.com/articles/ng.3050) of the canonical Ensembl transcript|
+| p_mis | Probability of a missense mutation based on a [sequence-context based mutational model](https://www.nature.com/articles/ng.3050) of the canonical Ensembl transcript |
+| p_lof | Probability of a loss-of-function mutation based on a [sequence-context based mutational model](https://www.nature.com/articles/ng.3050) of the canonical Ensembl transcript |
 | obs_lof | number of observed PTVs in gnomad taken from gnomad constraint file |
 | obs_syn | number of observed synonymous in gnomad taken from gnomad constraint file  |
 | constraint_flag | flag taken from gnomad constraint file |
