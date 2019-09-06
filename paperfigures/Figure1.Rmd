@@ -66,11 +66,9 @@ p <- ggplot(res_mup, aes(x = lg10mup,y = lg10denovoWEST, col = diag_group)) +
         xlab("-log10(mupit p-value)") + ylab("-log10(DeNovo WEST p-value)")+theme_classic() + 
         theme(legend.position = "top",legend.text = element_text(size = 14),legend.title = element_blank(),axis.text=element_text(size=atsize),axis.title=element_text(size=ltsize)) 
 
-#pdf("./plots/fig1a.pdf",width = 9,height = 8)
-  p + annotate(geom = "text",x = 4.5, y = 13, label = toString(n_both),color = "gray43",size = 8) +
+p + annotate(geom = "text",x = 4.5, y = 13, label = toString(n_both),color = "gray43",size = 8) +
       annotate(geom = "text",x = 0.2, y = 13, label = toString(n_new),color = "gray43",size = 8) +
       annotate(geom = "text",x = 5, y = 0.5, label = toString(n_mupit),color = "gray43",size = 8)
-#dev.off()
 ```
 
 #Figure 1(b)  
@@ -94,7 +92,6 @@ pval_5bins_gene_category_diagnostic_lists <- res_mup %>%
 pval_5bins_gene_category_diagnostic_lists$pvalbin <- factor(pval_5bins_gene_category_diagnostic_lists$pvalbin, levels=c('2.5e-2 to 2.5e-5','2.5e-5 to 2.5e-8','2.5e-8 to 2.5e-11','2.5e-11 to 2.5e-14', '< 2.5e-14'))
 pval_5bins_gene_category_diagnostic_lists$diag_group <- factor(pval_5bins_gene_category_diagnostic_lists$diag_group, levels=c('novel', 'discordant', 'consensus'))
 
-#pdf("./plots/fig1b.pdf",width = 7,height = 4)
 ggplot(pval_5bins_gene_category_diagnostic_lists, aes(x=pvalbin, y=n, fill=diag_group)) +
   geom_bar(stat = 'identity') +
   theme_classic() +
@@ -103,7 +100,6 @@ ggplot(pval_5bins_gene_category_diagnostic_lists, aes(x=pvalbin, y=n, fill=diag_
   scale_y_continuous('Number of genes',breaks=seq(0,100,25), labels=seq(0,100,25)) +
   scale_x_discrete('p-value bins', labels=c('2.5e-2 to\n2.5e-5', '2.5e-5 to\n2.5e-8', '2.5e-8 to\n2.5e-11', '2.5e-11 to\n2.5e-14', '< 2.5e-14')) +
   theme(legend.position = "none")
-#dev.off()
 ```
 
 #Figure 1(c)
@@ -114,7 +110,6 @@ novel$lg10p <- -log10(novel$denovoWEST_p_ud)
 novel$nonsyn <- novel$lofcount+novel$missense_variant
 
 #PTV count vs missense with p-value as size
-#pdf("./plots/fig1c.pdf",width = 9,height = 8)
 ggplot(novel,aes(x=missense_variant,y = lofcount)) +
   geom_point(alpha = 0.5,aes(size = lg10p),color = "darkblue") + theme_classic()+
   geom_label_repel(aes(label = symbol),box.padding   = 0.25,point.padding = 0.5,size =2.75) +
@@ -123,7 +118,6 @@ ggplot(novel,aes(x=missense_variant,y = lofcount)) +
   xlim(0,18) +ylim(0,18)+
   theme(axis.text=element_text(size=atsize),
         axis.title=element_text(size=ltsize),legend.position = "top",legend.text = element_text(size = atsize))
-#dev.off()
 ```
 
 #Figure 1(d)  
@@ -163,23 +157,12 @@ nodoublecount_fractioncase <- add_row(nodoublecount_fractioncase,
 nodoublecount_fractioncase$person_cat <- factor(nodoublecount_fractioncase$person_cat, levels = c('not de novo', 'remaining', 'novel', 'discordant', 'consensus'))
 
 # plot the fraction of cases
-#pdf("./plots/fig1d.pdf",width = 2.25,height = 4)
 ggplot(nodoublecount_fractioncase, aes(x=1, y=fractioncase_all, fill=person_cat))+
   geom_bar(stat='identity') +
   labs(y='Fraction of cases', x='', title='') +
   theme_classic() +
 theme(legend.title = element_blank(), axis.text.x  = element_blank(), axis.text.y = element_text(size=atsize), axis.title = element_text(size=ltsize), legend.text = element_text(size=atsize), axis.line.x = element_blank(), axis.ticks.x = element_blank(), axis.line.y = element_blank()) +
-  scale_fill_manual(values = rev(c("black", '#56B4E9', "#E69F00", "#009E73", 'lightgray'))) + theme(legend.position = "none")
-#dev.off()
-
-#pdf("./plots/fig1d_legend.pdf",width = 8,height = 4)
-ggplot(nodoublecount_fractioncase, aes(x=1, y=fractioncase_all, fill=person_cat))+
-  geom_bar(stat='identity') +
-  labs(y='Fraction of cases', x='', title='') +
-  theme_classic() +
-theme(legend.title = element_blank(), axis.text.x  = element_blank(), axis.text.y = element_text(size=atsize), axis.title = element_text(size=ltsize), legend.text = element_text(size=atsize), axis.line.x = element_blank(), axis.ticks.x = element_blank(), axis.line.y = element_blank()) +
-  scale_fill_manual(values = rev(c("black", '#56B4E9', "#E69F00", "#009E73", 'lightgray'))) + theme(legend.position = "top")
-#dev.off()
+  scale_fill_manual(values = rev(c("black", '#56B4E9', "#E69F00", "#009E73", 'lightgray')))
 ```
 
 #Figure 1(e)  
@@ -213,7 +196,6 @@ nodoublecount_fractioncase_by_sex <- all %>%
 
 nodoublecount_fractioncase_by_sex$person_cat <- factor(nodoublecount_fractioncase_by_sex$person_cat, levels = c('novel', 'discordant', 'consensus'))
 
-#pdf("./plots/fig1e.pdf",width = 3,height = 4)
 ggplot(nodoublecount_fractioncase_by_sex, aes(x=sex, y=fractioncase, fill=person_cat))+
   geom_bar(stat='identity') +
   labs(y='Fraction of cases', x='', title='') +
@@ -221,6 +203,5 @@ ggplot(nodoublecount_fractioncase_by_sex, aes(x=sex, y=fractioncase, fill=person
   ylim(c(0,0.3)) +
 theme(legend.title = element_blank(), axis.text.x  = element_text(size = atsize), axis.text.y = element_text(size=atsize), axis.title = element_text(size=ltsize), legend.text = element_text(size=atsize), axis.line.x = element_blank(), axis.ticks.x = element_blank(), axis.line.y = element_blank()) +
   scale_fill_manual(values = rev(c("black", '#56B4E9', "#E69F00"))) + theme(legend.position = "none")
-#dev.off()
 ```
 
