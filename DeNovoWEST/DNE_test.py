@@ -147,20 +147,18 @@ def get_indel_rates(generates,indel_weights):
     '''
     get gene specific indel rates
     '''
-    missense_rate_con = generates[(generates.cq == "missense") & generates.constrained].prob.sum()
-    missense_rate_uncon = generates[(generates.cq == "missense") & ~generates.constrained].prob.sum()
+    missense_rate = generates[generates.cq == "missense"].prob.sum()
     nonsense_rate = generates[generates.cq == "nonsense"].prob.sum()
-    inframe_rate_con = missense_rate_con * 0.03
-    inframe_rate_uncon = missense_rate_uncon * 0.03
+    inframe_rate = missense_rate * 0.03
     frameshift_rate = nonsense_rate * 1.3
-    inframe_weight_con = float(indel_weights[indel_weights.cq == "inframe"].con)
-    inframe_weight_uncon = float(indel_weights[indel_weights.cq == "inframe"].uncon)
-    constraint = generates.constrained.any()
-    if constraint:
-        frameshift_weight =float(indel_weights[indel_weights.cq == "frameshift"].con)
+    shethigh = generates.shethigh.any()
+    if shethigh:
+        frameshift_weight =float(indel_weights[(indel_weights.cq == "frameshift") & (indel_weights.constrained == False)].shethigh)
+        inframe_weight =float(indel_weights[(indel_weights.cq == "inframe") & (indel_weights.constrained == False)].shethigh)
     else:
-        frameshift_weight =float(indel_weights[indel_weights.cq == "frameshift"].uncon)
-    indelrates = pd.DataFrame([["inframe",inframe_rate_con,inframe_weight_con,True],["inframe",inframe_rate_uncon,inframe_weight_uncon,False],["frameshift",frameshift_rate,frameshift_weight,constraint]],columns = ["cq","prob","weight","constrained"])
+        frameshift_weight =float(indel_weights[(indel_weights.cq == "frameshift") & (indel_weights.constrained == False)].shetlow)
+        inframe_weight =float(indel_weights[(indel_weights.cq == "inframe") & (indel_weights.constrained == False)].shetlow)
+    indelrates = pd.DataFrame([["inframe",inframe_rate,inframe_weight,False,shethigh],["frameshift",frameshift_rate,frameshift_weight,False,shethigh]],columns = ["cq","prob","weight","constrained","shethigh"])
     generates = generates.append(indelrates,ignore_index = True)
     return(generates)
 
@@ -171,7 +169,7 @@ def test_all_genes(rates,denovos,nsim,indel_weights):
     '''
     logging.info("Starting tests:  "+ str(nsim) + " simulations")
     genes = rates.symbol.unique()
-    gnes = denovos.symbol.unique()
+    #gnes = denovos.symbol.unique()
     results = []
     for gene in genes:
         logging.info(gene)
