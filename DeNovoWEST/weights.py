@@ -54,7 +54,6 @@ def get_missense_weights(rates,wdicpath,print_flag):
     rates['weight'] = np.where((rates.constrained == True)  & (rates.shethigh == False) & (rates.score > caddmax) & (rates.cq.isin(cqname)), slcm, rates['weight'])
     rates['weight'] = np.where((rates.constrained == False)  & (rates.shethigh == True) & (rates.score > caddmax) & (rates.cq.isin(cqname)), shum, rates['weight'])
     rates['weight'] = np.where((rates.constrained == False)  & (rates.shethigh == False) & (rates.score > caddmax) & (rates.cq.isin(cqname)), slum, rates['weight'])
-    print(rates.head(10))
     return(rates)
     
 def get_nonsense_weights(rates,wdicpath, print_flag):
