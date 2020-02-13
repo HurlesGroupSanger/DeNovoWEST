@@ -35,8 +35,6 @@ N_all <- Nddd + Ngdx + Nnjm
 
 atsize = 15
 ltsize = 17
-
-
 ```
 
 #Figure 1(a)  
@@ -46,10 +44,10 @@ ltsize = 17
 ngenes <- 18762
 th <- 0.025/ngenes
 res_mup <- fread(resfile,sep = "\t")
+
 #ignore undiagnosed analysis here
 res_mup <- res_mup[!is.na(res_mup$denovoWEST_p_full),]
 res_mup$lg10denovoWEST <- -log10(res_mup$denovoWEST_p_full)
-#res_mup$mup_pval_bonf <- p.adjust(res_mup$mup_pval,method = "bonferroni",n=(ngenes*2))
 res_mup$mup_pval[res_mup$mup_pval<10^(-16)] <- 10^(-16)
 res_mup$lg10mup <- -log10(res_mup$mup_pval)
 
@@ -57,10 +55,7 @@ n_mupit <- sum(res_mup$mup_pval<=th/2 & res_mup$denovoWEST_p_full>th & !is.na(re
 n_new <- sum(res_mup$mup_pval>th/2 & res_mup$denovoWEST_p_full<=th & !is.na(res_mup$mup_pval) & !is.na(res_mup$denovoWEST_p_full))
 n_both <- sum(res_mup$mup_pval<=th/2 & res_mup$denovoWEST_p_full<=th & !is.na(res_mup$mup_pval) & !is.na(res_mup$denovoWEST_p_full))
 
-
-sum(res_mup$mup_pval>th & res_mup$denovoWEST_p_full>th & !is.na(res_mup$mup_pval) & !is.na(res_mup$denovoWEST_p_full))
 res_mup$nonsyn_count <- res_mup$lofcount + res_mup$missense_variant
-#res_mup <- res_mup[!(res_mup$min_p == 1 & res_mup$mup_pval == 1),]
 p <- ggplot(res_mup, aes(x = lg10mup,y = lg10denovoWEST, col = diag_group)) + 
         geom_point(data = res_mup[!(res_mup$diag_group == "consensus")],aes(x = lg10mup, y = lg10denovoWEST, size = nonsyn_count), alpha = 0.9) + 
         geom_point(data = res_mup[(res_mup$diag_group == "consensus")],aes(x = lg10mup, y = lg10denovoWEST, size = nonsyn_count), alpha = 0.55) +
@@ -81,19 +76,19 @@ p + annotate(geom = "text",x = 9, y = 17, label = toString(n_both),color = "gray
 # denovoWEST p-value bins
 pval_5bins_gene_category_diagnostic_lists <- res_mup %>%
   filter(sig==TRUE) %>%
-  mutate(pvalbin = ifelse(diag_group=='consensus', case_when(denovoWEST_p_full < 2.5e-2 & denovoWEST_p_full >2.5e-5 ~ '2.5e-2 to 2.5e-5',
-                             denovoWEST_p_full < 2.5e-5 & denovoWEST_p_full >2.5e-8 ~ '2.5e-5 to 2.5e-8',
-                             denovoWEST_p_full < 2.5e-8 & denovoWEST_p_full >2.5e-11 ~ '2.5e-8 to 2.5e-11',
-                             denovoWEST_p_full < 2.5e-11 & denovoWEST_p_full >2.5e-14 ~ '2.5e-11 to 2.5e-14',
-                             denovoWEST_p_full < 2.5e-14 ~ '< 2.5e-14'), case_when(denovoWEST_p_ud < 2.5e-2 & denovoWEST_p_ud >2.5e-5 ~ '2.5e-2 to 2.5e-5',
-                             denovoWEST_p_ud < 2.5e-5 & denovoWEST_p_ud >2.5e-8 ~ '2.5e-5 to 2.5e-8',
-                             denovoWEST_p_ud < 2.5e-8 & denovoWEST_p_ud >2.5e-11 ~ '2.5e-8 to 2.5e-11',
-                             denovoWEST_p_ud < 2.5e-11 & denovoWEST_p_ud >2.5e-14 ~ '2.5e-11 to 2.5e-14',
-                             denovoWEST_p_ud < 2.5e-14 ~ '< 2.5e-14'))) %>%
+  mutate(pvalbin = ifelse(diag_group=='consensus', case_when(denovoWEST_p_full < th & denovoWEST_p_full > th/10^2 ~ '1.3e-6 to 1.3e-8',
+                             denovoWEST_p_full < th/10^2 & denovoWEST_p_full > th/10^4 ~ '1.3e-8 to 1.3e-10',
+                             denovoWEST_p_full < th/10^4 & denovoWEST_p_full > th/10^6 ~ '1.3e-10 to 1.3e-12',
+                             denovoWEST_p_full < th/10^6 & denovoWEST_p_full > 1e-14 ~ '1.3e-12 to 1e-14',
+                             denovoWEST_p_full <= 1e-14 ~ '< 1e-14'), case_when(denovoWEST_p_ud < th & denovoWEST_p_ud > th/10^2 ~ '1.3e-6 to 1.3e-8',
+                             denovoWEST_p_ud < th/10^2 & denovoWEST_p_ud >th/10^4 ~ '1.3e-8 to 1.3e-10',
+                             denovoWEST_p_ud < th/10^4 & denovoWEST_p_ud > th/10^6 ~ '1.3e-10 to 1.3e-12',
+                             denovoWEST_p_ud < th/10^6 & denovoWEST_p_ud > 1e-14 ~ '1.3e-12 to 1e-14',
+                             denovoWEST_p_ud <= 1e-14 ~ '< 1e-14'))) %>%
   group_by(pvalbin, diag_group) %>%
   tally()
 
-pval_5bins_gene_category_diagnostic_lists$pvalbin <- factor(pval_5bins_gene_category_diagnostic_lists$pvalbin, levels=c('2.5e-2 to 2.5e-5','2.5e-5 to 2.5e-8','2.5e-8 to 2.5e-11','2.5e-11 to 2.5e-14', '< 2.5e-14'))
+pval_5bins_gene_category_diagnostic_lists$pvalbin <- factor(pval_5bins_gene_category_diagnostic_lists$pvalbin, levels=c('1.3e-6 to 1.3e-8','1.3e-8 to 1.3e-10','1.3e-10 to 1.3e-12','1.3e-12 to 1e-14', '< 1e-14'))
 pval_5bins_gene_category_diagnostic_lists$diag_group <- factor(pval_5bins_gene_category_diagnostic_lists$diag_group, levels=c('novel', 'discordant', 'consensus'))
 
 ggplot(pval_5bins_gene_category_diagnostic_lists, aes(x=pvalbin, y=n, fill=diag_group)) +
@@ -101,8 +96,8 @@ ggplot(pval_5bins_gene_category_diagnostic_lists, aes(x=pvalbin, y=n, fill=diag_
   theme_classic() +
   scale_fill_manual(values=c("#E69F00","#56B4E9","black")) +
   theme(axis.text.x  = element_text(size=atsize), axis.text.y = element_text(size=atsize), axis.title = element_text(size=ltsize), legend.title = element_blank(), legend.text = element_text(size=atsize), axis.line = element_blank(), axis.ticks.x = element_blank()) +
-  scale_y_continuous('Number of genes',breaks=seq(0,100,25), labels=seq(0,100,25)) +
-  scale_x_discrete('p-value bins', labels=c('2.5e-2 to\n2.5e-5', '2.5e-5 to\n2.5e-8', '2.5e-8 to\n2.5e-11', '2.5e-11 to\n2.5e-14', '< 2.5e-14')) +
+  scale_y_continuous('Number of genes',breaks=seq(0,150,25), labels=seq(0,150,25)) +
+  scale_x_discrete('p-value bins', labels=c('1.3e-6 to\n1.3e-8', '1.3e-8 to\n1.3e-10', '1.3e-10 to\n1.3e-12', '1.3e-13 to\n1e-14', '\u2264 1e-14')) +
   theme(legend.position = "none")
 ```
 
