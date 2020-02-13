@@ -35,40 +35,44 @@ N_all <- Nddd + Ngdx + Nnjm
 
 atsize = 15
 ltsize = 17
+
+
 ```
 
 #Figure 1(a)  
 
 ```{r, fig.align='center'}
 #compare mupit to denovo WEST
-th <- -log10(0.025)
-
+ngenes <- 18762
+th <- 0.025/ngenes
 res_mup <- fread(resfile,sep = "\t")
 #ignore undiagnosed analysis here
 res_mup <- res_mup[!is.na(res_mup$denovoWEST_p_full),]
 res_mup$lg10denovoWEST <- -log10(res_mup$denovoWEST_p_full)
-res_mup$mup_pval_bonf <- p.adjust(res_mup$mup_pval,method = "bonferroni",n=(18500*2))
-res_mup$mup_pval_bonf[res_mup$mup_pval_bonf<10^(-16)] <- 10^(-16)
-res_mup$lg10mup <- -log10(res_mup$mup_pval_bonf)
+#res_mup$mup_pval_bonf <- p.adjust(res_mup$mup_pval,method = "bonferroni",n=(ngenes*2))
+res_mup$mup_pval[res_mup$mup_pval<10^(-16)] <- 10^(-16)
+res_mup$lg10mup <- -log10(res_mup$mup_pval)
 
-n_mupit <- sum(res_mup$mup_pval_bonf<=0.025 & res_mup$denovoWEST_p_full>0.025 & !is.na(res_mup$mup_pval_bonf) & !is.na(res_mup$denovoWEST_p_full))
-n_new <- sum(res_mup$mup_pval_bonf>0.025 & res_mup$denovoWEST_p_full<=0.025 & !is.na(res_mup$mup_pval_bonf) & !is.na(res_mup$denovoWEST_p_full))
-n_both <- sum(res_mup$mup_pval_bonf<=0.025 & res_mup$denovoWEST_p_full<=0.025 & !is.na(res_mup$mup_pval_bonf) & !is.na(res_mup$denovoWEST_p_full))
+n_mupit <- sum(res_mup$mup_pval<=th/2 & res_mup$denovoWEST_p_full>th & !is.na(res_mup$mup_pval) & !is.na(res_mup$denovoWEST_p_full))
+n_new <- sum(res_mup$mup_pval>th/2 & res_mup$denovoWEST_p_full<=th & !is.na(res_mup$mup_pval) & !is.na(res_mup$denovoWEST_p_full))
+n_both <- sum(res_mup$mup_pval<=th/2 & res_mup$denovoWEST_p_full<=th & !is.na(res_mup$mup_pval) & !is.na(res_mup$denovoWEST_p_full))
 
+
+sum(res_mup$mup_pval>th & res_mup$denovoWEST_p_full>th & !is.na(res_mup$mup_pval) & !is.na(res_mup$denovoWEST_p_full))
 res_mup$nonsyn_count <- res_mup$lofcount + res_mup$missense_variant
 #res_mup <- res_mup[!(res_mup$min_p == 1 & res_mup$mup_pval == 1),]
 p <- ggplot(res_mup, aes(x = lg10mup,y = lg10denovoWEST, col = diag_group)) + 
         geom_point(data = res_mup[!(res_mup$diag_group == "consensus")],aes(x = lg10mup, y = lg10denovoWEST, size = nonsyn_count), alpha = 0.9) + 
         geom_point(data = res_mup[(res_mup$diag_group == "consensus")],aes(x = lg10mup, y = lg10denovoWEST, size = nonsyn_count), alpha = 0.55) +
-        colScale+ geom_hline(yintercept = th, linetype = "dashed",color = "gray43") + 
-        geom_vline(xintercept = th,linetype = "dashed",color = "gray43") +
+        colScale+ geom_hline(yintercept = -log10(th), linetype = "dashed",color = "gray43") + 
+        geom_vline(xintercept = -log10(th/2),linetype = "dashed",color = "gray43") +
         geom_abline(intercept = 0, slope = 1, color = "gray43",linetype = "dotted")  + 
         xlab("-log10(mupit p-value)") + ylab("-log10(DeNovo WEST p-value)")+theme_classic() + 
         theme(legend.position = "top",legend.text = element_text(size = 14),legend.title = element_blank(),axis.text=element_text(size=atsize),axis.title=element_text(size=ltsize)) 
 
-p + annotate(geom = "text",x = 4.5, y = 13, label = toString(n_both),color = "gray43",size = 8) +
-      annotate(geom = "text",x = 0.2, y = 13, label = toString(n_new),color = "gray43",size = 8) +
-      annotate(geom = "text",x = 5, y = 0.5, label = toString(n_mupit),color = "gray43",size = 8)
+p + annotate(geom = "text",x = 9, y = 17, label = toString(n_both),color = "gray43",size = 8) +
+      annotate(geom = "text",x = 2.5, y = 17, label = toString(n_new),color = "gray43",size = 8) +
+      annotate(geom = "text",x = 9, y = 0.5, label = toString(n_mupit),color = "gray43",size = 8)
 ```
 
 #Figure 1(b)  
