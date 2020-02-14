@@ -24,7 +24,7 @@ colScale <- scale_colour_manual(name = "diag_group",values = myColors)
 
 # filepaths
 resfile <- "../input/extended_denovoWEST_results.tab"
-dnmfile <- '../input/DDD_RUMC_GDX_denovos_2019_05_15_wweights.txt.gz'
+dnmfile <- '../input/DDD_RUMC_GDX_denovos_cadd_shet_wweights_2020_01_17.txt.gz'
 id_sex_filepath <- '../input/fordist_joint_dnm_ID_sex_2019_08_30.txt'
 
 # counts per study
