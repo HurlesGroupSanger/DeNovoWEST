@@ -9,7 +9,7 @@
 # Simulation Function
 SimModel <- function(prophi,elof,df,phi = FALSE,nsim = 10,edist = FALSE,esd = NULL){
   
-  known <- which(df$padj_shetres<0.025 & !is.na(df$padj_shetres))
+  known <- which(df$sig | df$consensus_gene)
   resnown <- 1:nrow(df)
   resnown <- resnown[!(resnown %in% known)]
   
@@ -81,14 +81,15 @@ res <- fread(powpath,sep = "\t",stringsAsFactors = F)
 res$pLI[is.na(res$pLI)] <- median(res$pLI,na.rm = T)
 res <- res[!is.na(res$lofexpected)]
 
-edist <- res$lofratio[!is.na(res$lofratio) & res$denovoWEST_p_full<0.025 & !is.na(res$denovoWEST_p_full)& res$lofcount>0 & res$consensus_gene]
+edist <- res$lofratio[!is.na(res$lofratio) & res$sig & res$lofcount>0 & res$consensus_gene]
 esd <- sd(log(edist))
 
 #For well powered genes, how much more likely are you to be a DD gene if you have pLI>0.9, this is fed into the model
 plimulti <- (sum((res$pLI>=0.9 & res$powmed>0.8) & ((!is.na(res$sig) & res$sig )| res$consensus_gene))/sum((res$pLI>=0.9 & res$powmed>0.8)))/(sum((res$pLI<0.9 & res$powmed>0.8) & ((!is.na(res$sig) & res$sig )| res$consensus_gene))/sum((res$pLI<0.9 & res$powmed>0.8)))
 
 #significance threshold 
-th <- 0.05/18856
+ngenes <- 18762
+th <- 0.05/ngenes
 
 # set the probability of being haploinsufficient as a function of power and pLI
 res$pHI <- 1-res$powmed
