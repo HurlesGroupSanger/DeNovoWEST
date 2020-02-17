@@ -2,7 +2,7 @@
 #
 #R script that takes output from enrichment test DeNovoWEST on all variants, just missense variants, and a missense clustering test from DeNovoNear and combines p-values
 #
-# Usage: Rscript combine_IHWcorrect.R [dne_all_file] [dne_mis_file] [dnn_file] [out_file]
+# Usage: Rscript combine_dne_dnn.R [dne_all_file] [dne_mis_file] [dnn_file] [out_file]
 #
 #
 #-----------------IMPORTS--------------
@@ -10,8 +10,8 @@ library(metap)
 library(data.table)
 
 args = commandArgs(trailingOnly=TRUE)
-dne_all_file = args[1]
-dne_mis_file = args[2]
+dne_file_all= args[1]
+dne_file_mis = args[2]
 dnn_file = args[3]
 out_file = args[4]
 
@@ -31,6 +31,7 @@ out_file = args[4]
 #read in de novo near output
 dnn <- fread(dnn_file,sep = "\t",header = T, stringsAsFactors = F)
 dnn$dnn_p <- dnn$probability
+dnn <- dnn[dnn$mutation_category == "missense"]
 
 #read in enrichment for all variants output
 dne_all <- fread(dne_file_all,sep = "\t",header = T,stringsAsFactors = F)

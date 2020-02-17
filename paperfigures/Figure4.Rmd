@@ -20,7 +20,7 @@ otherpal <- wes_palette("Darjeeling1")
 ```{r}
 df <- fread(downsampling_results,sep = "\t",header = T)
 
-ggplot(data = df,aes(x = samplesize,y = sig_ihw)) + geom_point()  + geom_line() + xlab("Downsampled sample size") + ylab("Number of DeNovoWEST significant genes")+
+ggplot(data = df,aes(x = samplesize,y = sig_bon)) + geom_point()  + geom_line() + xlab("Downsampled sample size") + ylab("Number of DeNovoWEST significant genes")+
   theme_bw(base_size = 12) +
   theme(strip.text = element_text(color="black"),strip.background = element_rect(fill="white", size=0),panel.border = element_blank()) + 
   theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.text=element_text(size=14), axis.title=element_text(size=16)) 
