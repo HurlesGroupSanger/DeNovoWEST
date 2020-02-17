@@ -10,7 +10,7 @@ library(data.table)
 library(ggplot2)
 library(wesanderson)
 downsampling_results <- "../input/downsampling_numbers.tab"
-ptv_simulation <- "../input/PTV_modelresults_2019-06-26.tab"
+ptv_simulation <- "../input/PTV_modelresults_2020-02-14.tab"
 
 otherpal <- wes_palette("Darjeeling1")
 ```
@@ -48,6 +48,6 @@ ggplot(m) + geom_tile(aes(elof_vals, prophi_vals, fill = prob)) +
   theme(legend.position = c(0.9,0.5)) +
   theme(axis.text.x  = element_text(size=14), axis.text.y = element_text(size=14), axis.title = element_text(size=16), legend.text = element_text(size=12)) +
   guides(fill=guide_legend(title="Likelihood")) + 
-  ylim(0,2400) + xlim(0,40)
+  ylim(0,2900) + xlim(0,40)
 ```
 
