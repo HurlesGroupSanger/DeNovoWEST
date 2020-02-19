@@ -26,8 +26,8 @@ This directory contains the files needed to recreate some of the main text figur
 7. Classifications for likelihood of structural malformation of ultrasound  
 8. Gene features used to generate Figure 2(b) in manuscript  
 9. Results file from [DeNovoNear](https://github.com/jeremymcrae/denovonear)  
-10. Results file from enrichment part of `DeNovoWEST`  
-11. Information file needed to apply IHW for our dataset  
+10. Results file from all variant enrichment part of `DeNovoWEST`  
+11. Results file from missense variant enrichment part of `DeNovoWEST`  
 
 
 ## Paper figure code  
