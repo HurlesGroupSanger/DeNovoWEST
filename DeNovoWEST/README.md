@@ -2,9 +2,9 @@
 # DeNovoWEST
 
 There are three steps to running DeNovoWEST:
-1. Run enrichment test on DNMs
+1. Run enrichment test on all DNMs and the separately on just missense DNMs
 2. Run clustering test on DNMs
-3. Combine results from both tests and apply IHW
+3. Combine results from tests
 
 ## 1. Enrichment Test
 Conduct gene enrichment test for de novo mutations.
