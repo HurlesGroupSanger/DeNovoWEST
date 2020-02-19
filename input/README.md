@@ -11,7 +11,6 @@ This directory contains the files needed to recreate some of the main text figur
 8. Gene features used to generate Figure 2 (b) in manuscript
 9. Results file from DeNovoNear
 10. Results file from enrichment part of DeNovoWEST
-11. Information file needed to apply IHW for our dataset
 
 ## *De novo* mutations
 
@@ -36,7 +35,8 @@ This directory contains the files needed to recreate some of the main text figur
 | score | CADD version 1.0 Phred score |
 | study | Cohort of the proband with the DNM |
 | symbol | HGNC symbol |
-| constrained | Whether the DNM is in a missense constrained region (if stop_gained or missense) or in a gene with evidence of regional missense constraint (other mutation types) |
+| constrained | Whether the DNM is in a missense constrained region for missense DNMs (should be False for all other consequences) |
+| shethigh | Whether the DNM is in a gene with a high s_het, this is defined as s_het > 0.15 |
 
 
 ## Results of DeNovoWEST  
@@ -88,18 +88,20 @@ Results of applying `DeNovoWEST` to the *de novo* mutations (DNMs) from 31,058 d
 | powmed | Power to detect median observed PTV enrichment in this gene|
 | s_het | s_het score |
 | pLI | gnomAD pLI score |
-| observed_full | observed gene score for full cohort|
-| expected_full |expected gene score for full cohort |
-| enrich_p_full | pEnrich for full cohort |
+| observed_full | observed gene score for all variants in full cohort|
+| expected_full |expected gene score for all variants in full cohort |
+| enrich_all_p_full | pEnrich for all variants in full cohort |
+| enrich_mis_p_full | pMisEnrich for missense variants in full cohort |
 | cluster_p_full | pClustering for full cohort |
-| denovoWEST_p_full | IHW adjusted DeNovoWEST p-value for full cohort |
-| observed_ud | observed gene score for undiagnosed subset|
-| expected_ud |expected gene score for undiagnosed subset|
-| enrich_p_ud | pEnrich for undiagnosed subset|
+| denovoWEST_p_full | DeNovoWEST p-value for full cohort |
+| observed_ud | observed gene score for all variants in undiagnosed subset|
+| expected_ud |expected gene score for all variants in undiagnosed subset|
+| enrich_all_p_ud | pEnrich for all variants in undiagnosed subset|
+| enrich_mis_p_ud | pMisEnrich for missense variants in undiagnosed subset|
 | cluster_p_ud | pClustering for undiagnosed subset |
-| denovoWEST_p_ud | IHW adjusted DeNovoWEST p-value for undiagnosed subset |
+| denovoWEST_p_ud | DeNovoWEST p-value for undiagnosed subset |
 | mup_pval | P-value from mupit |
-| sig | Boolean indicator of whether gene is significantly associated with DD according to our analysis: this is defined as denovoWEST_p_full<0.025 if it is a consensus gene or denovoWEST_p_ud<0.025 for non-consensus genes|  
+| sig | Boolean indicator of whether gene is significantly associated with DD according to our analysis: this is defined as denovoWEST_p_full< (0.05/(2 x 18,762)) if it is a consensus gene or denovoWEST_p_ud <(0.05/(2 x 18,762))  for non-consensus genes|  
  
 
 ## Sex information for individuals in the study  
@@ -116,7 +118,7 @@ Sex for each proband.
 
 ## Positive predictive value weights  
 
-`weights_ppv_2019_01_09.tab`  
+`weights_ppv_2020_01_17.tab`  
 
 Positive predictive values (PPV) for the *de novo* mutations, split by mutation consequence and constraint strata. These are used as weights in `DeNovoWEST`.    
 
@@ -124,8 +126,9 @@ Positive predictive values (PPV) for the *de novo* mutations, split by mutation 
 | --- | --- |
 | cq | Mutation consequence class |
 | score | CADD version 1.0 Phred score |
-| con | PPV for variants in missense constrained regions/genes |
-| uncon | PPV for variants not in missense constrained regions/genes |
+| constraimed | Boolean for if variant is missense and falls in missense constrained region |
+| shethigh | PPV for variants in gene with a high s_het (s_het>=0.15) |
+| shetlow | PPV for variants in gene with a low s_het (s_het<0.15) |
 
 
 `weights_ppv_notop10_2019_01_09.tab`  
@@ -141,12 +144,12 @@ Results from downsampling full cohort to 5k,10k,15k,20k and 25k, rerunning DeNov
 | Column | Description |
 | --- | --- |
 | samplesize | Sample size the cohort has been downsampled to|
-| sig_ihw | The number of significant genes (DeNovoWEST p-value< 0.025) |
+| sig_bom | The number of significant genes after bonferonni correction (DeNovoWEST p-value< (0.05/18762 x 2) ) |
  
  
 ## Results from simulations of modelling the number of remaining HI DD-associated genes
 
-`PTV_modelresults_2019-06-26.tab`
+`PTV_modelresults_2020-02-14.tab`
 
 Results from model simulations using code found at ```/paperfigures/Figure4_code_for_model/PTVmodel.R```. Data used to generate Figure 4(b) in the manuscript.
 
@@ -192,22 +195,11 @@ Output from running [DeNovoNear](https://github.com/jeremymcrae/denovonear) on f
 
 ## De Novo Enrichment results
 
-`dne_test_2019_05_16.tab`
+`dne_test_2020_01_21_all.tab`
 
-Output from running enrichment test from DeNovoWEST on full cohort. See README for DeNovoWEST section for more details.
+Output from running enrichment test from DeNovoWEST on all variants in full cohort. See README for DeNovoWEST section for more details.
 
-## Information for IHW
+`dne_test_2020_01_21_mis.tab`
 
-`info_for_IHW.tab`
+Output from running enrichment test from DeNovoWEST on only missense variants in full cohort. See README for DeNovoWEST section for more details.
 
-Data needed to apply IHW to our dataset. 
-
-| Column | Description |
-| --- | --- |
-| symbol | gene symbol |
-| num_hgnc_id | HGNC id |
-| chr | chromosome |
-| pos | gene start position |
-| glen | CDS length |
-| prob | probability of mutation in gene (based in trinucleotide context) |
-| s_het |  s_het score |
