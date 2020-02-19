@@ -144,7 +144,7 @@ Results from downsampling full cohort to 5k,10k,15k,20k and 25k, rerunning DeNov
 | Column | Description |
 | --- | --- |
 | samplesize | Sample size the cohort has been downsampled to|
-| sig_bom | The number of significant genes after bonferonni correction (DeNovoWEST p-value< (0.05/18762 x 2) ) |
+| sig_bon | The number of significant genes after bonferonni correction (DeNovoWEST p-value< (0.05/18762 x 2) ) |
  
  
 ## Results from simulations of modelling the number of remaining HI DD-associated genes
