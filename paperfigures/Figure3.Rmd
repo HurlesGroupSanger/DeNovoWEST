@@ -22,7 +22,7 @@ library(ggbeeswarm)
 # filepaths
 resfile <- "../input/extended_denovoWEST_results.tab"
 usfile <- "../input/USabnormality_likelihood.csv"
-ddg2p_file = '../input/DDG2P_21_9_2018.csv'
+ddg2p_file = '../input/DDG2P_22_9_2019.csv.gz'
 ```
 
 ```{r}
@@ -54,6 +54,7 @@ ggplot(respow[!is.na(respow$cat),],aes(x = cat,y = powmed,fill = sig)) +
 
 ```{r}
 higenes <- res[res$lofe<=10^(-6) & res$sig,]
+
 higenes$lglofratio <- log10(higenes$lofratio)
 
 wilcox.test(higenes$lofratio[higenes$diag_group == "novel"],higenes$lofratio[higenes$diag_group == "consensus"])

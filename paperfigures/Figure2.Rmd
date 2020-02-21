@@ -82,15 +82,15 @@ allfeat <- as.data.frame(merge(res,feat,by = c("symbol")))
 #names of features in both dataframe and used for plotting
 all_feat_terms <- c("dNdS_macaque","CODING_GERP","PROMOTER_GERP","glen","cancer_gene",
                "PPI_DGR","PPI_BTWN","PPI_LLS2HI",
-               "median_fetalbrain_rpkm","relevant_go","pLI")
+               "median_fetalbrain_rpkm","relevant_go")
 forplot_terms <- c("Macaque dN/dS","coding GERP","promoter GERP","CDS length","Somatic Driver Gene",
                    "Network Degree","Network Betweeness","Network Distance to consensus DD gene",
-                   "Median RPKM fetal brain","Relevant GO term","pLI")
+                   "Median RPKM fetal brain","Relevant GO term")
 
 #get mean across features by diagnostic group
 diag.means <- aggregate(allfeat[,all_feat_terms], list(allfeat$diag_group), mean,na.rm = T)
 #calculate how enriched these are compared to 'none' diagnostic group
-diag.enrich <- sweep(diag.means[,2:12],MARGIN = 2, FUN = "/", STATS = t(diag.means[3,2:12]))
+diag.enrich <- sweep(diag.means[,2:11],MARGIN = 2, FUN = "/", STATS = t(diag.means[3,2:11]))
 diag.enrich <- t(diag.enrich)[,c(1,4,2)]
 colnames(diag.enrich)<- diag.means$Group.1[c(1,4,2)]
 
@@ -109,7 +109,7 @@ myColors <- c("black", '#56B4E9', "gray", "#E69F00")
 #plot consensus vs novel features
 
 #change order to be more readable
-diag.enrich <- diag.enrich[c(1,2,3,4,5,10,6,7,8,9,11),]
+diag.enrich <- diag.enrich[c(1,2,3,4,9,5,6,7,8,10),]
 
 par(mar=c(21,4,2,2)+0.1)
 bp <- barplot(t(as.table(diag.enrich[,1:2])),beside = T,las = 3, col = myColors[c(1,4)],ylab = "Log10(Mean in Diagnostic group/Mean in non-DD genes)",ylim = c(min(diag.enrich),max(diag.enrich)),border = NA,cex.axis = 1.2,cex.lab = 1.4,cex.names = 1.2)
