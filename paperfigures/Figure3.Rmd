@@ -42,12 +42,14 @@ respow <- rbind(res[res$sig],res[!res$sig & !res$consensus_gene & !res$discordan
 wilcox.test(respow$powmed[respow$cat == "unassociated"],respow$powmed[respow$cat == "novel"])
 wilcox.test(respow$powmed[respow$cat == "consensus" & respow$sig],respow$powmed[respow$cat == "novel"])
 
+#pdf("fig3a.pdf",width = 6,height = 5.5)
 ggplot(respow[!is.na(respow$cat),],aes(x = cat,y = powmed,fill = sig)) +
   geom_boxplot() +
   theme_classic() +
   labs(x = "",y = "Power (using median enrichment)") +
   scale_fill_manual(values=c(mypal[5],mypal[1]),labels = c("not significant","significant")) +
   theme(legend.position="top",legend.title = element_blank(),legend.text = element_text(size = 14),axis.text=element_text(size=14),axis.title=element_text(size=16), axis.line.x = element_blank(), axis.ticks.x = element_blank()) 
+#dev.off()
 ```
 
 #Figure 3(b)   
@@ -68,7 +70,9 @@ p <- ggplot(higenes, aes(x=diag_group, y=lglofratio, fill = diag_group)) + labs(
   theme(axis.text=element_text(size=14),axis.title=element_text(size=16), axis.line.x = element_blank(), axis.ticks.x = element_blank()) 
 dat <- ggplot_build(p)$data[[1]]
 
+#pdf("fig3b.pdf",width = 6,height = 5.5)
 p
+#dev.off()
 ```
 
 #Figure 3(c)  
@@ -109,6 +113,7 @@ summary(fit_weighted_lofbin_ptvsyn)
 ```
 
 ```{r, fig.align='center'}
+#pdf("fig3c.pdf",width = 7,height = 5)
 ggplot(ptv_syn_gnomad, aes(x = lofbin, y = ptv_syn)) +
   geom_point(size=5) +
   theme_classic() +
@@ -118,6 +123,7 @@ ggplot(ptv_syn_gnomad, aes(x = lofbin, y = ptv_syn)) +
   geom_abline(intercept = weighted_intercept, slope = weighted_slope, col='darkgray', linetype=2) +
   theme(axis.text.x  = element_text(size=14), axis.text.y = element_text(size=14), axis.title = element_text(size=16)) +
   scale_x_continuous(name = 'PTV enrichment bin', breaks = seq(1,5,1), labels = c('0.96-1.30\n(n=21)', '1.30-1.65\n(n=63)', '1.65-2.00\n(n=40)', '2.00-2.34\n(n=23)', '2.34-2.68\n(n=9)'))
+#dev.off()
 ```
 
 #Figure 3(d)  
@@ -157,6 +163,7 @@ abnormal_us_obs_exp <- merge(obscounts, expcounts, by = 'Group.1')
 colnames(abnormal_us_obs_exp) <- c('Group', 'observed', 'expected')
 
 # plot
+#pdf("fig3d.pdf",width = 5,height = 5)
 ggplot(abnormal_us_obs_exp, aes(x=Group, y=observed/expected)) +
   geom_bar(stat='identity', fill=traffic) +
   theme_classic() +
@@ -165,6 +172,45 @@ ggplot(abnormal_us_obs_exp, aes(x=Group, y=observed/expected)) +
   scale_x_continuous(name="Genes' likelihood of ultrasound abnormality", breaks = seq(1,3,1), labels=c("low","medium","high")) +
   theme(axis.text.x  = element_text(size=14, vjust = 3), axis.text.y = element_text(size=14), axis.title = element_text(size=16), axis.line.x = element_blank(), axis.ticks.x = element_blank()) +
   geom_segment(aes(x=c(1,2,3), y=ci.lower, xend=c(1,2,3), yend=ci.upper))
+#dev.off()
 ```
 
+# Putting the plots together  
 
+```{r}
+library(cowplot)
+# saving plots
+plot_3a <- ggplot(respow[!is.na(respow$cat),],aes(x = cat,y = powmed,fill = sig)) +
+  geom_boxplot() +
+  theme_classic() +
+  labs(x = "",y = "Power (using median enrichment)") +
+  scale_fill_manual(values=c(mypal[5],mypal[1]),labels = c("not significant","significant")) +
+  theme(legend.position="top",legend.title = element_blank(),legend.text = element_text(size = 14),axis.text=element_text(size=14),axis.title=element_text(size=16), axis.line.x = element_blank(), axis.ticks.x = element_blank())
+
+plot_3b <- p
+
+plot_3c <- ggplot(ptv_syn_gnomad, aes(x = lofbin, y = ptv_syn)) +
+  geom_point(size=5) +
+  theme_classic() +
+  ylim(c(0,0.021)) +
+  geom_errorbar(aes(ymin=lower_bound, ymax=upper_bound), width=.1) +
+  labs(x='PTV enrichment bin', y = 'PTV/syn in gnomAD') +
+  geom_abline(intercept = weighted_intercept, slope = weighted_slope, col='darkgray', linetype=2) +
+  theme(axis.text.x  = element_text(size=14), axis.text.y = element_text(size=14), axis.title = element_text(size=16)) +
+  scale_x_continuous(name = 'PTV enrichment bin', breaks = seq(1,5,1), labels = c('0.96-1.30\n(n=21)', '1.30-1.65\n(n=63)', '1.65-2.00\n(n=40)', '2.00-2.34\n(n=23)', '2.34-2.68\n(n=9)'))
+
+plot_3d <- ggplot(abnormal_us_obs_exp, aes(x=Group, y=observed/expected)) +
+  geom_bar(stat='identity', fill=traffic) +
+  theme_classic() +
+  ylim(c(0,60)) +
+  labs(y = 'PTV enrichment') +
+  scale_x_continuous(name="Genes' likelihood of ultrasound abnormality", breaks = seq(1,3,1), labels=c("low","medium","high")) +
+  theme(axis.text.x  = element_text(size=14, vjust = 3), axis.text.y = element_text(size=14), axis.title = element_text(size=16), axis.line.x = element_blank(), axis.ticks.x = element_blank()) +
+  geom_segment(aes(x=c(1,2,3), y=ci.lower, xend=c(1,2,3), yend=ci.upper))
+
+#pdf("combined_fig3.pdf",width = 12, height = 8)
+top_row <- plot_grid(plot_3a, plot_3b, labels=c('(a)', '(b)'), scale=0.95)
+bottom_row <- plot_grid(plot_3c, plot_3d, nrow = 1, labels = c('(c)', '(d)'), rel_widths = c(1.5, 1), scale=0.95)
+plot_grid(top_row, bottom_row, nrow = 2)
+#dev.off()
+```

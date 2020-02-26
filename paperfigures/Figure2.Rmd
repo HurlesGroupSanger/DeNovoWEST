@@ -111,11 +111,13 @@ myColors <- c("black", '#56B4E9', "gray", "#E69F00")
 #change order to be more readable
 diag.enrich <- diag.enrich[c(1,2,3,4,9,5,6,7,8,10),]
 
+#pdf("./plots/fig2b.pdf",width = 6,height = 11)
 par(mar=c(21,4,2,2)+0.1)
 bp <- barplot(t(as.table(diag.enrich[,1:2])),beside = T,las = 3, col = myColors[c(1,4)],ylab = "Log10(Mean in Diagnostic group/Mean in non-DD genes)",ylim = c(min(diag.enrich),max(diag.enrich)),border = NA,cex.axis = 1.2,cex.lab = 1.4,cex.names = 1.2)
 abline(h = 0,lty = 2)
 arrows(bp[1,],diag.enrich[,colnames(diag.enrich) == "con.lower"],bp[1,],diag.enrich[,colnames(diag.enrich) == "con.upper"],length = 0,col = "grey")
 arrows(bp[2,],diag.enrich[,colnames(diag.enrich) == "novel.lower"],bp[2,],diag.enrich[,colnames(diag.enrich) == "novel.upper"],length = 0,col = "grey")
+#dev.off()
 #to plot legend
 #plot(0,0,xaxt = "n",bty = "n",col = "white",xlab = "",ylab = "",yaxt = "n")
 #legend("top",legend = c("consensus","novel"),col = myColors[c(1,4)],pch = 15, border = NA,bty = "n",horiz = F, #inset=c(-0.2,0),xpd=TRUE)
