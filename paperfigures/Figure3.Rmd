@@ -34,21 +34,20 @@ res <- fread(resfile,sep = "\t")
 
 ```{r}
 mypal = wes_palette("Zissou1")
-res$cat <- res$diag_group
-res$cat[res$diag_group == "none" & res$sig] <- "novel"
-res$cat[res$cat == "none"] <- "unassociated"
-respow <- rbind(res[res$sig],res[!res$sig & !res$consensus_gene & !res$discordant_gene])
+res$cat <- NA
+res$cat[res$diag_group == "consensus" | res$sig] <- "associated"
+res$cat[res$diag_group == "none"] <- "unassociated"
+res_nodisc <- res[!is.na(res$cat)]
 
-wilcox.test(respow$powmed[respow$cat == "unassociated"],respow$powmed[respow$cat == "novel"])
-wilcox.test(respow$powmed[respow$cat == "consensus" & respow$sig],respow$powmed[respow$cat == "novel"])
+wilcox.test(res_nodisc$p_lof[res_nodisc$cat == "unassociated"],res_nodisc$p_lof[res_nodisc$cat == "associated"])$p.value
 
 #pdf("fig3a.pdf",width = 6,height = 5.5)
-ggplot(respow[!is.na(respow$cat),],aes(x = cat,y = powmed,fill = sig)) +
-  geom_boxplot() +
+ggplot(res_nodisc[!is.na(res_nodisc$p_lof)],aes(x = cat,y = log10(p_lof),fill = cat)) +
+  geom_violin(draw_quantiles = c(0.5) )+
   theme_classic() +
-  labs(x = "",y = "Power (using median enrichment)") +
-  scale_fill_manual(values=c(mypal[5],mypal[1]),labels = c("not significant","significant")) +
-  theme(legend.position="top",legend.title = element_blank(),legend.text = element_text(size = 14),axis.text=element_text(size=14),axis.title=element_text(size=16), axis.line.x = element_blank(), axis.ticks.x = element_blank()) 
+  labs(x = "",y = "log10(PTV mutability)") +
+  scale_fill_manual(values=c(mypal[5],mypal[1]),labels = c("significant","not significant")) +
+  theme(legend.position="none",legend.title = element_blank(),legend.text = element_text(size = 14),axis.text=element_text(size=14),axis.title=element_text(size=16), axis.line.x = element_blank(), axis.ticks.x = element_blank()) 
 #dev.off()
 ```
 
@@ -65,8 +64,7 @@ p <- ggplot(higenes, aes(x=diag_group, y=lglofratio, fill = diag_group)) + labs(
   geom_boxplot(notch = F,color = "gray40") + scale_fill_manual(values = c("black", '#56B4E9', "#E69F00")) + 
   theme_classic() +theme(legend.position = "none")+
   #geom_jitter(position = position_jitter(0.1),color = "gray40") +
-  xlab("")+
-  geom_beeswarm(aes(color = group),priority = 'ascending',color = "gray40",cex = 1.8)+
+  xlab("")+ geom_beeswarm(aes(color = group),priority = 'ascending',color = "gray40",cex = 1.8)+
   theme(axis.text=element_text(size=14),axis.title=element_text(size=16), axis.line.x = element_blank(), axis.ticks.x = element_blank()) 
 dat <- ggplot_build(p)$data[[1]]
 
