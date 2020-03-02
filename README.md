@@ -28,6 +28,7 @@ This directory contains the files needed to recreate some of the main text figur
 9. Results file from [DeNovoNear](https://github.com/jeremymcrae/denovonear)  
 10. Results file from all variant enrichment part of `DeNovoWEST`  
 11. Results file from missense variant enrichment part of `DeNovoWEST`  
+12. List of diagnostic developmental disorders according to [DDG2P](https://www.ebi.ac.uk/gene2phenotype)  
 
 
 ## Paper figure code  
