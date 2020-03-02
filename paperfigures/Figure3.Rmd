@@ -22,7 +22,7 @@ library(ggbeeswarm)
 # filepaths
 resfile <- "../input/extended_denovoWEST_results.tab"
 usfile <- "../input/USabnormality_likelihood.csv"
-ddg2p_file = '../input/DDG2P_22_9_2019.csv.gz'
+ddg2p_file = '../input/DDG2P_22_9_2019.csv'
 ```
 
 ```{r}
@@ -181,12 +181,12 @@ ggplot(abnormal_us_obs_exp, aes(x=Group, y=observed/expected)) +
 ```{r}
 library(cowplot)
 # saving plots
-plot_3a <- ggplot(respow[!is.na(respow$cat),],aes(x = cat,y = powmed,fill = sig)) +
-  geom_boxplot() +
+plot_3a <- ggplot(res_nodisc[!is.na(res_nodisc$p_lof)],aes(x = cat,y = log10(p_lof),fill = cat)) +
+  geom_violin(draw_quantiles = c(0.5) )+
   theme_classic() +
-  labs(x = "",y = "Power (using median enrichment)") +
-  scale_fill_manual(values=c(mypal[5],mypal[1]),labels = c("not significant","significant")) +
-  theme(legend.position="top",legend.title = element_blank(),legend.text = element_text(size = 14),axis.text=element_text(size=14),axis.title=element_text(size=16), axis.line.x = element_blank(), axis.ticks.x = element_blank())
+  labs(x = "",y = "log10(PTV mutability)") +
+  scale_fill_manual(values=c(mypal[5],mypal[1]),labels = c("significant","not significant")) +
+  theme(legend.position="none",legend.title = element_blank(),legend.text = element_text(size = 14),axis.text=element_text(size=14),axis.title=element_text(size=16), axis.line.x = element_blank(), axis.ticks.x = element_blank()) 
 
 plot_3b <- p
 
@@ -210,7 +210,7 @@ plot_3d <- ggplot(abnormal_us_obs_exp, aes(x=Group, y=observed/expected)) +
   geom_segment(aes(x=c(1,2,3), y=ci.lower, xend=c(1,2,3), yend=ci.upper))
 
 #pdf("combined_fig3.pdf",width = 12, height = 8)
-top_row <- plot_grid(plot_3a, plot_3b, labels=c('(a)', '(b)'), scale=0.95)
+top_row <- plot_grid(plot_3a, plot_3b, labels=c('(a)', '(b)'), rel_widths = c(1, 1.5), scale=0.95)
 bottom_row <- plot_grid(plot_3c, plot_3d, nrow = 1, labels = c('(c)', '(d)'), rel_widths = c(1.5, 1), scale=0.95)
 plot_grid(top_row, bottom_row, nrow = 2)
 #dev.off()
