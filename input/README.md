@@ -11,6 +11,7 @@ This directory contains the files needed to recreate some of the main text figur
 8. Gene features used to generate Figure 2 (b) in manuscript
 9. Results file from DeNovoNear
 10. Results file from enrichment part of DeNovoWEST
+11. List of diagnostic developmental disorders according to DDG2P
 
 ## *De novo* mutations
 
@@ -135,6 +136,10 @@ Positive predictive values (PPV) for the *de novo* mutations, split by mutation 
 
 The above table, but generated after removing the top 10 most mutated genes (*DDX3X*, *ARID1B*, *ANKRD11*, *KMT2A*, *MECP2*, *DYRK1A*, *SCN2A*, *STXBP1*, *MED13L*, *CREBBP*).  
 
+`weights_ppv_missense_2020_01_17.tab`  
+
+The above table, but only containing weights for missense variants. This is used for the generation of missense-specific enrichments.  
+
 ## Results of downsampling analysis
  
 `downsampling_numbers.tab`
@@ -203,3 +208,8 @@ Output from running enrichment test from DeNovoWEST on all variants in full coho
 
 Output from running enrichment test from DeNovoWEST on only missense variants in full cohort. See README for DeNovoWEST section for more details.
 
+## List of diagnostic genes  
+
+`DDG2P_22_9_2019.csv`  
+
+A curated list of genes associated to developmental disorders downloaded from [DDG2P](https://www.ebi.ac.uk/gene2phenotype/downloads) on 22 September 2019. For each gene-disease pair, the list provides information on the level of certainty of the association, the types of mutations associated, and the allelic requirement. More information can be found [here](https://www.ebi.ac.uk/gene2phenotype/README).  
