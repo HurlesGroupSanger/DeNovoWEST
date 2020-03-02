@@ -152,6 +152,8 @@ clinfo <- clinfo[!is.na(clinfo$lofexpected),]
 expcounts <- aggregate(clinfo$lofexpected,by = list(clinfo$lik_anomaly),FUN = sum,na.rm = T)
 obscounts <- aggregate(clinfo$lofcount,by = list(clinfo$lik_anomaly),FUN = sum,na.rm = T)
 
+poisson.test(c(obscounts$x[obscounts$Group.1 == 1],sum(obscounts$x[obscounts$Group.1 != 1])),T =  c(expcounts$x[expcounts$Group.1 == 1],sum(expcounts$x[expcounts$Group.1 != 1])))
+
 #confidence intervals
 ci.lower <- sapply(obscounts$x, function(x) poisson.test(x,conf.level = 0.95)$conf.int[1])/expcounts$x
 ci.upper <- sapply(obscounts$x, function(x) poisson.test(x,conf.level = 0.95)$conf.int[2])/expcounts$x
@@ -171,6 +173,7 @@ ggplot(abnormal_us_obs_exp, aes(x=Group, y=observed/expected)) +
   theme(axis.text.x  = element_text(size=14, vjust = 3), axis.text.y = element_text(size=14), axis.title = element_text(size=16), axis.line.x = element_blank(), axis.ticks.x = element_blank()) +
   geom_segment(aes(x=c(1,2,3), y=ci.lower, xend=c(1,2,3), yend=ci.upper))
 #dev.off()
+
 ```
 
 # Putting the plots together  

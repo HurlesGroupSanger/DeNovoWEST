@@ -26,8 +26,8 @@ def submit_jobs(rates_path, weight_path, denovos_path, out_path, nmal, nfem, tod
         jobfile = out_path + str(i) + ".out"
         command = " 'python DNE_test.py --weightdic " + weight_path + ' --nmales ' + str(nmal) + ' --nfemales ' + str(nfem) + ' --denovos ' + denovos_path + ' --rates ' + rates_path + file + ' --output ' + outfile + "'"
         #uncomment out the following two lines if running on lsf
-        joboptions = "bsub -R'select[mem>20000] rusage[mem=20000]' -M20000 -o " + jobfile
-        command = joboptions + command
+        #joboptions = "bsub -R'select[mem>20000] rusage[mem=20000]' -M20000 -o " + jobfile
+        #command = joboptions + command
         print(command)
 
     
