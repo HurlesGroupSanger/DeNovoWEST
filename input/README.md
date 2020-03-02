@@ -208,7 +208,7 @@ Output from running enrichment test from DeNovoWEST on all variants in full coho
 
 Output from running enrichment test from DeNovoWEST on only missense variants in full cohort. See README for DeNovoWEST section for more details.
 
-## List of diagnostic genes  
+## List of diagnostic developmental disorder genes from DDG2P  
 
 `DDG2P_22_9_2019.csv`  
 
