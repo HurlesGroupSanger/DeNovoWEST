@@ -32,16 +32,19 @@ def calc_p1(gl,s_obs,rates):
 def calc_pn(gl,s_obs,rates,n,nsim,weights_sorted):
     '''simulation to approximate  P(S >= s_obs | N = n)P(N = n)'''
     pndnm = stats.poisson.pmf(n,gl)
-    nsim = max([int(round(nsim*pndnm)),100])
+    #scaling the number of simulations performed based on the probability of observing n DNMs
+    nsim = max([int(round(nsim*pndnm)),10000000])
+    #is not possible to observe greater than observed with this number of DNMs set to 0
     if np.sum(weights_sorted[-n:])<s_obs:
         pscore = 0.0
+    #if this number of DNMs is always greater than observed set to 1
     elif np.sum(weights_sorted[0:n] >= s_obs):
         pscore = 1.0
     else:
         s = sim_score(gl,s_obs,rates,n,nsim)
         pscore = float(s)/nsim
     pn = pndnm * pscore
-    return(pn)
+    return(pn,nsim)
 
 def sim_score(gl,s_obs,rates,n,nsim):
     '''simulate drawing n random mutations from genes based on mutation probabilites 
@@ -55,7 +58,7 @@ def sim_score(gl,s_obs,rates,n,nsim):
     s = np.sum(scores>=s_obs)
     return(s)
 
-def get_pvalue(rates,s_obs,nsim):
+def get_pvalue(rates,s_obs,nsim,pvalcap):
     '''P(S>=s_obs) under null mutation rate model'''
     #poisson parameter for gene
     gl = rates['prob'].sum()
@@ -67,6 +70,7 @@ def get_pvalue(rates,s_obs,nsim):
     p1 = calc_p1(gl,s_obs,rates)
     #keep a running p value
     ptot = p0 + p1
+    psimtot = 0
     info = "finished all sims"
     #simulate for 2 to 250 mutations in the gene
     for i in range(2,250):
@@ -75,22 +79,22 @@ def get_pvalue(rates,s_obs,nsim):
             ptot = 1
             info = "observed < expected, pvalue set at 1"
             break
+        #if p value is over threshold then stop going further
+        if ptot > pvalcap:
+            info = "pvalue > " + str(pvalcap) + ", stop simulations"
+            break
         #calculate probability of observing gene score as or more extreme as what we observe | i mutations    
-        pi = calc_pn(gl,s_obs,rates,i,nsim,weights_sorted)
+        pi,psim = calc_pn(gl,s_obs,rates,i,nsim,weights_sorted)
         #add to running p value
         ptot = ptot + pi
-        #
-        #to speed up sims further can uncomment the following lines. This ends the simulation if cross nominal p-value threshold
-        #if p value is over threshold then stop going further
-        #if ptot > 0.01:
-        #    info = "pvalue above reasonable threshold"
-        #    break
-        #
+        #keep track of how many simulations are running
+        psimtot = psimtot + psim
+
         #if probability of seeing as or more extreme is small enough (but not 0 which may mean not enough simulations) and
         # the number of mutations is larger than the poisson rate then we can break simulations 
         picdf = 1-stats.poisson.cdf(i,gl)
         if picdf< 10**(-12) and i>gl:
-            info = "probability of observing this or more number of mutations is too small"
+            info = "probability of observing >= " + str(i) + " mutations is too small"
             break
         #if seeing our observed score is not possible with this number of mutations then break
         if np.sum(weights_sorted[0:i])>s_obs:
@@ -100,4 +104,5 @@ def get_pvalue(rates,s_obs,nsim):
     if ptot == 0:
         ptot = 10**(-14)
         info = "p value was 0, set at 10^-14"
+    info = str(psimtot) + "|" + info
     return(ptot,info,exp)
