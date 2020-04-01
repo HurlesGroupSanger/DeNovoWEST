@@ -26,8 +26,10 @@ from probabilities import *
 from weights import *
 
 #set seed
-random.seed(31)
-np.random.seed(31)
+#random.seed(31)
+#np.random.seed(31)
+random.seed(2014)
+np.random.seed(2014)
 
 #get todays date
 now = datetime.datetime.now()
@@ -53,9 +55,10 @@ def get_options():
     parser.add_argument('--denovos', default=denovopath,
         help='path to denovos annotated with constraint and CADD')
     parser.add_argument('--output',default = outpath,help = "output file to save to")
-    parser.add_argument('--nsim',default = 10000000,type = int,help = 'number of simulations for each mutation score')
+    parser.add_argument('--nsim',default = 1000000000,type = int,help = 'minimum number of simulations for each gene (default 1 billion)')
     parser.add_argument('--nmales',type = int, help = 'number of males in study')
     parser.add_argument('--nfemales', type = int, help = 'number of females in study')
+    parser.add_argument('--pvalcap',type = float, default = 1.0, help = "stop simulations if cumulative p-value > pvalcap (default 1)") 
     return parser.parse_args()
 
     
@@ -67,6 +70,7 @@ def load_denovos(path):
     denovos = pd.read_table(path, sep='\t') # added sep
     denovos['chrom'] = denovos['chrom'].astype(str)
     denovos['pos'] = denovos['pos'].astype(int)
+    denovos['score'] = denovos['score'].astype(float)
     denovos = fix_consequences(denovos)
     return(denovos)
 
@@ -82,13 +86,15 @@ def fix_consequences(denovos):
     return(denovos)
 
 
-def load_rates(ratespath):
+def load_rates(ratespath,genes):
     '''
     load rates file
     '''
     #rates = pd.read_table(ratespath,names = ['symbol','chrom','pos','ref','alt','cq','prob','raw','score','maf','constrained'])
     logging.info("Loading rates")
     rates = pd.read_table(ratespath)
+    #subset to only genes observed in de novo file
+    rates = rates[rates['symbol'].isin(genes)] 
     rates['chrom'] = rates['chrom'].astype(str)
     rates['pos'] = rates['pos'].astype(int)
     return(rates)
@@ -131,7 +137,7 @@ def get_expected_rates(rates, male, female):
     return correct_for_x_chrom(rates, male, female)
 
     
-def test_gene(rates,denovos,gene,nsim,indel_weights):
+def test_gene(rates,denovos,gene,nsim,indel_weights,pvalcap):
     '''
     test single gene given rates object and de novos
     '''
@@ -139,7 +145,7 @@ def test_gene(rates,denovos,gene,nsim,indel_weights):
     generates = get_indel_rates(generates,indel_weights)
     # here add inframe/frameshift rates
     s_obs = denovos[denovos.symbol == gene].weight.sum()
-    pval,info,s_exp = get_pvalue(generates,s_obs,nsim)
+    pval,info,s_exp = get_pvalue(generates,s_obs,nsim,pvalcap)
     return(s_exp,s_obs,pval,info)
 
     
@@ -163,21 +169,24 @@ def get_indel_rates(generates,indel_weights):
     return(generates)
 
     
-def test_all_genes(rates,denovos,nsim,indel_weights):
+def test_all_genes(rates,denovos,nsim,indel_weights,pvalcap):
     '''
     test all genes for enrichment
     '''
-    logging.info("Starting tests:  "+ str(nsim) + " simulations")
-    genes = rates.symbol.unique()
-    #gnes = denovos.symbol.unique()
+    logging.info("Starting tests: ")
+    #genes = rates.symbol.unique()
+    genes = denovos.symbol.unique()
     results = []
     for gene in genes:
-        logging.info(gene)
         #skip gene if no observed de novos in our dataset
-        if denovos[denovos.symbol == gene].weight.sum() == 0:
+        #if denovos[denovos.symbol == gene].weight.sum() == 0:
+        #    continue
+        #skip gene if no rates in our dataset
+        if gene not in rates.symbol.unique():
+            logging.info("could not find " + str(gene))
             continue
-        s_exp,s_obs,pval,info = test_gene(rates,denovos,gene,nsim,indel_weights)
-
+        logging.info("testing" + str(gene))
+        s_exp,s_obs,pval,info = test_gene(rates,denovos,gene,nsim,indel_weights,pvalcap)
         # extract hgnc_id
         hgnc = denovos.loc[denovos['symbol'] == gene, 'hgnc_id'].iloc[0]
         results.append((gene,hgnc,s_exp,s_obs,pval,info))
@@ -194,24 +203,31 @@ def main():
     male = args.nmales
     female = args.nfemales
 
-    #load rates and get expected
-    rates = load_rates(args.rates)
-    rates = get_expected_rates(rates, male, female)
-
-    #get weights
-    logging.info("get weights")
-    rates,indel_weights = get_weights(rates,args.weightdic,False)
-    rates = rates[rates.weight.apply(np.isreal)]
-    
     #load denovos
     denovos = load_denovos(args.denovos)
-
+    #get genes in de novo file so only run test on these
+    genes = denovos.symbol.unique()
+    logging.info("genes:" + ",".join(genes))
+    
     #use de novo mutation weights
     denovos,_ = get_weights(denovos,args.weightdic,False)
     denovos = denovos[denovos.weight.apply(np.isreal)]
-
+    
+    #load rates and get expected
+    rates = load_rates(args.rates,genes)
+    logging.info("rates loaded")
+    if len(rates.index) == 0:
+        logging.info("rates are empty")
+        return
+    rates = get_expected_rates(rates, male, female)
+    
+    #get weights
+    logging.info("get rates weights")
+    rates,indel_weights = get_weights(rates,args.weightdic,False)
+    rates = rates[rates.weight.apply(np.isreal)]
+    
     # run gene tests
-    results = test_all_genes(rates,denovos,args.nsim,indel_weights)
+    results = test_all_genes(rates,denovos,args.nsim,indel_weights,args.pvalcap)
 
     #save results to file
     df = pd.DataFrame.from_records(results,columns = ["symbol","hgnc_id","expected","observed","p-value","info"])
