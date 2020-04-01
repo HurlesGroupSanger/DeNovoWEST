@@ -71,11 +71,11 @@ This is done by running [DeNovoNear](https://github.com/jeremymcrae/denovonear).
 
 This is done by running the R script as follows:
 
-``` Rscript combine_IHWcorrect.R [dne_file_all] [dne_file_missense] [dnn_file] [out_file] ```
+``` Rscript combine_dne_dnn.R [dne_file_all] [dne_file_missense] [dnn_file] [out_file] ```
 
 Where the dne_file_all is the results from the enrichment test on all variants, the dne_file_missense is the results from the missense only enrichment, the dnn_file is the results from the clustering test, and the out_file is the filename to save it into. To replicate this step for the data from the paper without running the previous step, this can be run as follows:
 
-``` Rscript combine_IHWcorrect.R /input/dne_test_2020_01_21_all.tab /input/dne_test_2020_01_21_mis.tab /input/denovonear_out_missense_31058_ntrios_2019_05_15.txt [out_file] ```
+``` Rscript combine_dne_dnn.R /input/dne_test_2020_01_21_all.tab /input/dne_test_2020_01_21_mis.tab /input/denovonear_out_missense_31058_ntrios_2019_05_15.txt [out_file] ```
 
 
 ## Required libraries  
