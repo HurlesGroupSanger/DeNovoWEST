@@ -24,7 +24,7 @@ optional arguments:
   --denovos DENOVOS     path to denovos annotated with constraint and CADD and
                         MAF
   --output OUTPUT       output file to save to
-  --nsim NSIM           number of simulations for each mutation score
+  --nsim NSIM           number of simulations for each gene
   --nmales NMALES       number of males in study
   --nfemales NFEMALES   number of females in study
 ```
