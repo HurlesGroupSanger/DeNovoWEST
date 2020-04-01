@@ -27,6 +27,7 @@ optional arguments:
   --nsim NSIM           number of simulations for each gene
   --nmales NMALES       number of males in study
   --nfemales NFEMALES   number of females in study
+  --pvalcap PVALCAP     stop simulations for gene if cumulative p-value > pvalcap (default = 1)
 ```
 ### More detailed description of inputs with current paths used:
 
