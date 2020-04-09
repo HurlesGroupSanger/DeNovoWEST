@@ -15,17 +15,10 @@ dne_file_mis = args[2]
 dnn_file = args[3]
 out_file = args[4]
 
-#dnn_file = "/Volumes/ddd0/jk18/dne/DeNovoWEST/input/denovonear_out_missense_31058_ntrios_2019_05_15.txt"
-#dne_file_all = "/Volumes/ddd0/jk18/dne/newtest/dne_test_2020_01_21_all.tab"
-#dne_file_mis = "/Volumes/ddd0/jk18/dne/newtest/missense_test/dne_test_2020_01_21_mis.tab"
-#out_file = "/Volumes/ddd0/jk18/dne/newtest/dne_combined_corrected_bonferroni_2020_02_12.tab"
-
-#dnn_file = "/Volumes/ddd0/ks20/active_metaDNM_analyses/caddv1.0_4sets/undiagnosed_analyses/denovonear_out_missense_undiagnosed_24288_ntrios_2020_02_11.txt"
-#dne_file_all = "/Volumes/ddd0/jk18/dne/newtest/undiagnosed/dne_test_2020_02_10_ud.tab"
-#dne_file_mis = "/Volumes/ddd0/jk18/dne/newtest/undiagnosed/missense/dne_test_mis_2020_02_10_ud.tab"
-#out_file = "/Volumes/ddd0/jk18/dne/newtest/dne_combined_corrected_bonferroni_2020_02_12_ud.tab"
-
-
+#dnn_file = "../input/denovonear_out_missense_31058_ntrios_2019_05_15.txt"
+#dne_file_all = "../input/merged_all_dne_test_ppv_2020_03_09.tab"
+#dne_file_mis = "../input/merged_mis_dne_test_ppv_2020_03_09.tab"
+#out_file = "../input/dne_combined_2020_03_09.tab"
 #------COMBINE RESULTS----------------------
 
 #read in de novo near output
@@ -41,7 +34,7 @@ dne_mis <- fread(dne_file_mis,sep = "\t",header = T,stringsAsFactors = F)
 names(dne_mis) <- c("symbol","hgnc_id","expected_mis","observed_mis","dne_mis_p","info_mis")
 
 #merge data
-res <-merge(dne_all,dnn,by.x = "symbol",by.y = "gene_id",all = T)
+res <-merge(dne_all,dnn,by.x = "symbol",by.y = "gene_id",all.x = T)
 res<- merge(res,dne_mis,by = c("symbol","hgnc_id"),all = T)
 
 # sumlog combines p values
@@ -54,5 +47,4 @@ res$min_p[which(!is.finite(res$min_p))] <- 1
 
 #write to file
 write.table(res,file = out_file,sep = "\t",col.names = T,row.names = F,quote = F)
-
 
