@@ -53,16 +53,43 @@ This is the number of simulations you would like to perform for each mutation co
 The number of males and females in our cohort. For the total cohort this was 17,422 males and 13,636 females. For the undiagnosed cohort this was 14,087 males and 10,201 females.
 
 ### Submit command
-To run enrichment test on all de novo mutations in our joint cohort, the following prints the necessary commands to run:
+To run the enrichment tests (all mutation types and missense only) on all de novo mutations in our joint cohort, we provide a script that prints the necessary commands to run.
 
-```python submit_DNE_test.py --ratespath <directory of rates> --weightspath /input/weights_ppv_2020_01_17.tab --denovospath  /input/DDD_RUMC_GDX_denovos_2019_05_15_wweights.txt.gz --outpath <output directory> --nmale 17422 --nfemale 13636```
+Usage:
+```
+usage: submit_DNE_test_pergene.py [-h] --ratespath RATESPATH --weightspath
+                                  WEIGHTSPATH --misweightspath MISWEIGHTSPATH
+                                  --denovospath DENOVOSPATH --outpath OUTPATH
+                                  --nmale NMALE --nfemale NFEMALE
+                                  [--onlyprint]
+                                  [--ngenesperfile NGENESPERFILE]
+                                  [--pvalcap PVALCAP]
 
-The results from the run of this on our full cohort is at ```/input/dne_test_2020_01_21_all.tab```
+Generate commands per gene for DNE_test.py
 
-To run the missense only enrichment test, the following prints the necessary commands to run:
-```python submit_DNE_test.py --ratespath <directory of rates> --weightspath /input/weights_ppv_missense_2020_01_17.tab --denovospath  /input/DDD_RUMC_GDX_denovos_2019_05_15_wweights.txt.gz --outpath <output directory> --nmale 17422 --nfemale 13636```
+optional arguments:
+  -h, --help            show this help message and exit
+  --ratespath RATESPATH
+                        File path to rates file
+  --weightspath WEIGHTSPATH
+                        File path to weights file
+  --misweightspath MISWEIGHTSPATH
+                        File path to missense weights file
+  --denovospath DENOVOSPATH
+                        File path for the de novo variants
+  --outpath OUTPATH     Output file path
+  --nmale NMALE         Number of males
+  --nfemale NFEMALE     Number of females
+  --onlyprint           Only print the commands, do not submit
+  --ngenesperfile NGENESPERFILE
+                        Number of genes per output file
+  --pvalcap PVALCAP     Cap for the p-value in DNE test (default is 1.0)
+```
 
-The results from the missense run of this on our full cohort is at ```/input/dne_test_2020_01_21_mis.tab```
+For this work, we ran the following command:
+```python submit_DNE_test_pergene.py --ratespath <directory of rates> --weightspath /input/weights_ppv_2020_01_17.tab --misweightspath /input/weights_ppv_missense_2020_01_17.tab --denovospath  /input/DDD_RUMC_GDX_denovos_cadd_shet_wweights_2020_01_17.txt.gz --outpath <output directory> --nmale 17422 --nfemale 13636 --ngenesperfile 10```
+
+Results were concatenated and can be found at ```/input/dne_test_2020_01_21_all.tab``` and ```/input/dne_test_2020_01_21_mis.tab```.
 
 ## 2. Clustering test
 
