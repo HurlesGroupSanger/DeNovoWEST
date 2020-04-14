@@ -15,7 +15,7 @@ This directory contains the files needed to recreate some of the main text figur
 
 ## *De novo* mutations
 
-`DDD_RUMC_GDX_denovos_2019_05_15_wweights.txt.gz`
+`DDD_RUMC_GDX_denovos_cadd_shet_wweights_2020_01_17.txt.gz`
 
 45,221 *de novo* mutations (DNMs) from 31,058 developmental disorder patients.
 
@@ -101,13 +101,15 @@ Results of applying `DeNovoWEST` to the *de novo* mutations (DNMs) from 31,058 d
 | enrich_mis_p_ud | pMisEnrich for missense variants in undiagnosed subset|
 | cluster_p_ud | pClustering for undiagnosed subset |
 | denovoWEST_p_ud | DeNovoWEST p-value for undiagnosed subset |
+| denovoWEST_p_ud_synmod | DeNovoWEST p-value for the undiagnosed set using mutation rates modified by the observed to expected ratio of synonymous variants in gnomAD (only for 11 novel genes that are synonymous outliers in gnomAD) |
+| gnomad_oe_syn | The observed to expected ratio of synonymous variants from gnomAD v2.1.1, used to modify mutation rates for the 11 novel genes that are synonymous outliers in gnomAD |
 | mup_pval | P-value from mupit |
 | sig | Boolean indicator of whether gene is significantly associated with DD according to our analysis: this is defined as denovoWEST_p_full< (0.05/(2 x 18,762)) if it is a consensus gene or denovoWEST_p_ud <(0.05/(2 x 18,762))  for non-consensus genes|  
  
 
 ## Sex information for individuals in the study  
 
-`fordist_joint_dnm_ID_sex_2019_08_22.txt`
+`fordist_joint_dnm_ID_sex_2019_08_30.txt`
 
 Sex for each proband.  
 
@@ -132,7 +134,7 @@ Positive predictive values (PPV) for the *de novo* mutations, split by mutation 
 | shetlow | PPV for variants in gene with a low s_het (s_het<0.15) |
 
 
-`weights_ppv_notop10_2019_01_09.tab`  
+`weights_ppv_sanstop10_2020_02_14.tab`  
 
 The above table, but generated after removing the top 10 most mutated genes (*DDX3X*, *ARID1B*, *ANKRD11*, *KMT2A*, *MECP2*, *DYRK1A*, *SCN2A*, *STXBP1*, *MED13L*, *CREBBP*).  
 
@@ -154,7 +156,7 @@ Results from downsampling full cohort to 5k,10k,15k,20k and 25k, rerunning DeNov
  
 ## Results from simulations of modelling the number of remaining HI DD-associated genes
 
-`PTV_modelresults_2020-02-14.tab`
+`PTV_modelresults_2020-03-19.tab`
 
 Results from model simulations using code found at ```/paperfigures/Figure4_code_for_model/PTVmodel.R```. Data used to generate Figure 4(b) in the manuscript.
 
@@ -200,11 +202,11 @@ Output from running [DeNovoNear](https://github.com/jeremymcrae/denovonear) on f
 
 ## De Novo Enrichment results
 
-`dne_test_2020_01_21_all.tab`
+`merged_all_dne_test_ppv_2020_03_09.tab`
 
 Output from running enrichment test from DeNovoWEST on all variants in full cohort. See README for DeNovoWEST section for more details.
 
-`dne_test_2020_01_21_mis.tab`
+`merged_mis_dne_test_ppv_2020_03_09.tab`
 
 Output from running enrichment test from DeNovoWEST on only missense variants in full cohort. See README for DeNovoWEST section for more details.
 
