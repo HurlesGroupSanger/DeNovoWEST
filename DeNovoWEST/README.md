@@ -105,6 +105,8 @@ Where the dne_file_all is the results from the enrichment test on all variants, 
 
 ``` Rscript combine_dne_dnn.R /input/merged_all_dne_test_ppv_2020_03_09.tab /input/merged_mis_dne_test_ppv_2020_03_09.tab /input/denovonear_out_missense_31058_ntrios_2019_05_15.txt [out_file] ```
 
+Note that `min_p` is the final p-value and is reported as `denovoWEST_p` in the extended results file.  
+
 
 ## Required libraries  
 
