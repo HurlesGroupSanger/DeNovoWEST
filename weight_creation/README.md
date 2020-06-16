@@ -8,7 +8,7 @@ As a warning: loading the rates file can take a while since they are large.
 
 ## Required user inputs  
 
-You will need to specify:
+The user will need to specify:
 1. The directory where the rates files are stored   
 2. The full path to the annotated _de novo_ mutation file  
 
@@ -25,8 +25,8 @@ And, if you want to recreate a figure included as part of the supplement:
 
 ## Warnings about applications to other datasets  
 
-*Size of the dataset*  
+**Size of the dataset**  
 When we ran the predecessor of this pipeline on a dataset of ~10k trios (from the DDD cohort), we found that the method worked but the estimates of fold-enrichment were much noisier than when we used the full 31k trios in our cohort. Therefore, we warn that weights generated on smaller datasets may not be reliable.	  
 
-*User judgement calls*
+**User judgement calls**  
 This script cannot be run "out of the box" on a new dataset. It will require some user inputs and judgement calls, specifically around the number of CADD bins used for missense and nonsense variants. For example, if using fewer trios, you will likely need to use fewer CADD bins (e.g. 3 bins instead of 7). The exact number is up to the user.  
