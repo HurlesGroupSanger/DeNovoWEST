@@ -8,6 +8,7 @@ There are three main components of this repository:
 1. `DeNovoWEST` code  
 2. Input files needed to recreate the figures in the manuscript  
 3. Code to recreate figures in the manuscript  
+4. A directory to recreate the weights used in `DeNovoWEST`
 
 ## DeNovoWEST  
 
@@ -35,3 +36,6 @@ This directory contains the files needed to recreate some of the main text figur
 
 For each of the main text figures, there is a separate Rmarkdown file or directory with the code to generate the figures from the provided input files. 
 
+## Weight creation  
+
+We have provided an Rmarkdown that gives an overview of how to create the positive predictive value (PPV) weights that are used as part of `DeNovoWEST`. We have included some warnings about applying this aspect of the pipeline to other datasets in that directory's README.  
