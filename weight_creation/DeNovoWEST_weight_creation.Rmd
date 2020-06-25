@@ -1,7 +1,7 @@
 ---
 title: "DeNovoWEST weight creation"
 author: "Joanna Kaplanis & Kaitlin E. Samocha"
-date: "05/06/2020"
+date: "25/06/2020"
 output: html_document
 ---
 
@@ -11,7 +11,7 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ## Introduction  
 
-This is a guide for how to determine the positive predictive value (PPV) weights that are used in [DeNovoWEST](https://www.biorxiv.org/content/10.1101/797787v3). To load files, you will need to provide the filepaths, specifically the `rates_directory` and the full path to the _de novo_ mutation file (`dnm_file_wweights`) that has been annotated with CADD scores, sHet high vs low, and whether the variant falls into a region of missense constraint. As written, it assumes that the provided files, with no changes in name, are being loaded.    
+This is a guide for how to determine the positive predictive value (PPV) weights that are used in [DeNovoWEST](https://www.biorxiv.org/content/10.1101/797787v3). To load files, you will need to provide the filepaths, specifically the full path to the rates file (`rates_file`) and the full path to the _de novo_ mutation file (`dnm_file_wweights`) that has been annotated with CADD scores, sHet high vs low, and whether the variant falls into a region of missense constraint. As written, it assumes that the provided files, with no changes in name, are being loaded.    
 
 This code was written by Joanna Kaplanis (@queenjobo) and Kaitlin Samocha (@ksamocha).  
 
@@ -22,7 +22,7 @@ library(ggplot2)
 library(wesanderson)
 mypal <- wes_palette("Royal1")
 
-rates_directory = 'path_here'
+rates_file = 'path_here_to_file_here/all_rates_cadd_maf_shet_2020_03_05.txt.gz'
 dnm_file_wweights = 'path_to_file_here/DDD_RUMC_GDX_denovos_cadd_shet_wweights_2020_01_17.txt.gz'
 ```
 
@@ -32,11 +32,7 @@ all_wweights <- fread(dnm_file_wweights, stringsAsFactors = F, sep = '\t', heade
 all_wweights$size <- nchar(all_wweights$alt) - nchar(all_wweights$ref)
 
 # load rates -- takes a while to load!
-rates_1 <- fread(paste(rates_directory, 'all_rates_0_4000_cadd_maf_shet_2020_01_25.txt.gz', sep=''), sep = '\t', header = T, stringsAsFactors = F)
-rates_2 <- fread(paste(rates_directory, 'all_rates_4000_8000_cadd_maf_shet_2020_01_25.txt.gz', sep=''), sep = '\t', header = T, stringsAsFactors = F)
-rates_3 <- fread(paste(rates_directory, 'all_rates_8000_12000_cadd_maf_shet_2020_01_25.txt.gz', sep=''), sep = '\t', header = T, stringsAsFactors = F)
-rates_4 <- fread(paste(rates_directory, 'all_rates_12000_16000_cadd_maf_shet_2020_01_25.txt.gz', sep=''), sep = '\t', header = T, stringsAsFactors = F)
-rates_5 <- fread(paste(rates_directory, 'all_rates_16000_20000_cadd_maf_shet_2020_01_25.txt.gz', sep=''), sep = '\t', header = T, stringsAsFactors = F)
+rates <- fread(rates_file, sep = '\t', header = T, stringsAsFactors = F)
 ```
 
 ## Make weights  
@@ -90,23 +86,10 @@ obs_syn_shet2bins <- all_wweights %>%
   group_by(shetbin) %>%
   tally()
 
-shet2bins_syn_exp_rates1 <- get_expected_by_shet2bins_bycq(rates_1, 'synonymous')
-shet2bins_syn_exp_rates2 <- get_expected_by_shet2bins_bycq(rates_2, 'synonymous')
-shet2bins_syn_exp_rates3 <- get_expected_by_shet2bins_bycq(rates_3, 'synonymous')
-shet2bins_syn_exp_rates4 <- get_expected_by_shet2bins_bycq(rates_4, 'synonymous')
-shet2bins_syn_exp_rates5 <- get_expected_by_shet2bins_bycq(rates_5, 'synonymous')
-
-combined_shet2bins_syn_exp_rates <- bind_rows(shet2bins_syn_exp_rates1,
-                                              shet2bins_syn_exp_rates2,
-                                              shet2bins_syn_exp_rates3,
-                                              shet2bins_syn_exp_rates4,
-                                              shet2bins_syn_exp_rates5) %>%
-  replace(., is.na(.), 0) %>%
-  group_by(shetbin) %>%
-  summarize_all(sum)
+shet2bins_syn_exp_rates <- get_expected_by_shet2bins_bycq(rates, 'synonymous')
 
 obs_exp_shet2bins_syn <- obs_syn_shet2bins %>%
-  left_join(combined_shet2bins_syn_exp_rates, by=c('shetbin')) %>%
+  left_join(shet2bins_syn_exp_rates, by=c('shetbin')) %>%
   mutate(obs_exp = n/total_expected)
 
 # add confidence intervals
@@ -166,23 +149,10 @@ shet2bins_cadd6bins_missense_obs <- all_wweights %>%
   group_by(cadd_bin, shetbin, constrained) %>%
   tally()
 
-shet2bins_cadd6bins_missense_exp_rates1 <- get_expected_by_shet2bins_cadd6bins(rates_1)
-shet2bins_cadd6bins_missense_exp_rates2 <- get_expected_by_shet2bins_cadd6bins(rates_2)
-shet2bins_cadd6bins_missense_exp_rates3 <- get_expected_by_shet2bins_cadd6bins(rates_3)
-shet2bins_cadd6bins_missense_exp_rates4 <- get_expected_by_shet2bins_cadd6bins(rates_4)
-shet2bins_cadd6bins_missense_exp_rates5 <- get_expected_by_shet2bins_cadd6bins(rates_5)
-
-combined_shet2bins_cadd6bins_missense_exp_rates <- bind_rows(shet2bins_cadd6bins_missense_exp_rates1,
-                                                             shet2bins_cadd6bins_missense_exp_rates2,
-                                                             shet2bins_cadd6bins_missense_exp_rates3,
-                                                             shet2bins_cadd6bins_missense_exp_rates4,
-                                                             shet2bins_cadd6bins_missense_exp_rates5) %>%
-  replace(., is.na(.), 0) %>%
-  group_by(cadd_bin, shetbin, constrained) %>%
-  summarize_all(sum)
+shet2bins_cadd6bins_missense_exp_rates <- get_expected_by_shet2bins_cadd6bins(rates)
 
 obs_exp_shet2bins_cadd6bins_missense <- shet2bins_cadd6bins_missense_obs %>%
-  left_join(combined_shet2bins_cadd6bins_missense_exp_rates, by=c('cadd_bin', 'shetbin', 'constrained')) %>%
+  left_join(shet2bins_cadd6bins_missense_exp_rates, by=c('cadd_bin', 'shetbin', 'constrained')) %>%
   mutate(obs_exp = n/total_expected)
 
 # add confidence intervals
@@ -317,24 +287,11 @@ obs_nonsense <- all_wweights %>%
                               cadd_bin==7 ~ 3.75+45))
 
 ## expected
-exp_nonsense_rates1 <- get_expected_by_shet2bins_cadd7bins_nonsense(rates_1)
-exp_nonsense_rates2 <- get_expected_by_shet2bins_cadd7bins_nonsense(rates_2)
-exp_nonsense_rates3 <- get_expected_by_shet2bins_cadd7bins_nonsense(rates_3)
-exp_nonsense_rates4 <- get_expected_by_shet2bins_cadd7bins_nonsense(rates_4)
-exp_nonsense_rates5 <- get_expected_by_shet2bins_cadd7bins_nonsense(rates_5)
+exp_nonsense_rates <- get_expected_by_shet2bins_cadd7bins_nonsense(rates)
 
-combined_exp_nonsense_rates <- bind_rows(exp_nonsense_rates1,
-                                         exp_nonsense_rates2,
-                                         exp_nonsense_rates3,
-                                         exp_nonsense_rates4,
-                                         exp_nonsense_rates5) %>%
-    replace(., is.na(.), 0) %>%
-    group_by(cadd_bin, shetbin) %>%
-    summarize_all(sum)
-  
 ## combine observed and expected
 obs_exp_nonsense <- obs_nonsense %>%
-    left_join(combined_exp_nonsense_rates, by=c('cadd_bin', 'shetbin')) %>%
+    left_join(exp_nonsense_rates, by=c('cadd_bin', 'shetbin')) %>%
     mutate(obs_exp = n/total_expected)
   
 ## add confidence intervals
@@ -504,23 +461,10 @@ obs_slof_shet2bins <- all_wweights %>%
   group_by(shetbin) %>%
   tally()
 
-shet2bins_slof_exp_rates1 <- get_expected_by_shet2bins_bycq(rates_1, 'splice_lof')
-shet2bins_slof_exp_rates2 <- get_expected_by_shet2bins_bycq(rates_2, 'splice_lof')
-shet2bins_slof_exp_rates3 <- get_expected_by_shet2bins_bycq(rates_3, 'splice_lof')
-shet2bins_slof_exp_rates4 <- get_expected_by_shet2bins_bycq(rates_4, 'splice_lof')
-shet2bins_slof_exp_rates5 <- get_expected_by_shet2bins_bycq(rates_5, 'splice_lof')
-
-combined_shet2bins_slof_exp_rates <- bind_rows(shet2bins_slof_exp_rates1,
-                                                shet2bins_slof_exp_rates2,
-                                                shet2bins_slof_exp_rates3,
-                                                shet2bins_slof_exp_rates4,
-                                                shet2bins_slof_exp_rates5) %>%
-  replace(., is.na(.), 0) %>%
-  group_by(shetbin) %>%
-  summarize_all(sum)
+shet2bins_slof_exp_rates <- get_expected_by_shet2bins_bycq(rates, 'splice_lof')
 
 obs_exp_shet2bins_slof <- obs_slof_shet2bins %>%
-  left_join(combined_shet2bins_slof_exp_rates, by=c('shetbin')) %>%
+  left_join(shet2bins_slof_exp_rates, by=c('shetbin')) %>%
   mutate(obs_exp = n/total_expected)
 
 # add confidence intervals
@@ -546,23 +490,10 @@ obs_mis_shet2bins <- all_wweights %>%
   group_by(shetbin) %>%
   tally()
 
-shet2bins_mis_exp_rates1 <- get_expected_by_shet2bins_bycq(rates_1, 'missense')
-shet2bins_mis_exp_rates2 <- get_expected_by_shet2bins_bycq(rates_2, 'missense')
-shet2bins_mis_exp_rates3 <- get_expected_by_shet2bins_bycq(rates_3, 'missense')
-shet2bins_mis_exp_rates4 <- get_expected_by_shet2bins_bycq(rates_4, 'missense')
-shet2bins_mis_exp_rates5 <- get_expected_by_shet2bins_bycq(rates_5, 'missense')
-
-combined_shet2bins_mis_exp_rates <- bind_rows(shet2bins_mis_exp_rates1,
-                                                shet2bins_mis_exp_rates2,
-                                                shet2bins_mis_exp_rates3,
-                                                shet2bins_mis_exp_rates4,
-                                                shet2bins_mis_exp_rates5) %>%
-  replace(., is.na(.), 0) %>%
-  group_by(shetbin) %>%
-  summarize_all(sum)
+shet2bins_mis_exp_rates <- get_expected_by_shet2bins_bycq(rates, 'missense')
 
 obs_exp_shet2bins_mis <- obs_mis_shet2bins %>%
-  left_join(combined_shet2bins_mis_exp_rates, by=c('shetbin')) %>%
+  left_join(shet2bins_mis_exp_rates, by=c('shetbin')) %>%
   mutate(obs_exp = n/total_expected)
 
 # add confidence intervals
@@ -660,7 +591,7 @@ reorder_ppv <- ppv %>%
   mutate(constrained = ifelse(constrained=='con', 'True', 'False')) %>%
   filter(is.na(score) | score <= 50)
 
-write.table(reorder_ppv, file = "weights_ppv.tab", sep = "\t", row.names = F, quote = F)
+write.table(reorder_ppv, file = "weights_ppv_test.tab", sep = "\t", row.names = F, quote = F)
 ```
 
 
