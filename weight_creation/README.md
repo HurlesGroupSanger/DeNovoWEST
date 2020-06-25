@@ -2,14 +2,14 @@
 
 This R markdown shows the process of creating the positive predictive value (PPV) weights that are used in DeNovoWEST, specifically `weights_ppv_2020_01_17.tab`.  
 
-It is currently written based on the provided _de novo_ mutation file (`DDD_RUMC_GDX_denovos_cadd_shet_wweights_2020_01_17.txt.gz`) and rates files that were released as part of the Kaplanis, Samocha, Wiel, Zhang et al manuscript.   
+It is currently written based on the provided _de novo_ mutation file (`DDD_RUMC_GDX_denovos_cadd_shet_wweights_2020_01_17.txt.gz`) and rates file (`all_rates_cadd_maf_shet_2020_03_05.txt.gz`) that were released as part of the Kaplanis, Samocha, Wiel, Zhang et al manuscript.   
 
-As a warning: loading the rates file can take a while since they are large.
+As a warning: loading the rates file can take a while since it is large.
 
 ## Required user inputs  
 
 The user will need to specify:
-1. The directory where the rates files are stored   
+1. The full path to the full rates file   
 2. The full path to the annotated _de novo_ mutation file  
 
 ## Required libraries  
