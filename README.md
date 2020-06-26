@@ -39,3 +39,6 @@ For each of the main text figures, there is a separate Rmarkdown file or directo
 ## Weight creation  
 
 We have provided an Rmarkdown that gives an overview of how to create the positive predictive value (PPV) weights that are used as part of `DeNovoWEST`. We have included some warnings about applying this aspect of the pipeline to other datasets in that directory's README.  
+
+
+[![DOI](https://zenodo.org/badge/202693571.svg)](https://zenodo.org/badge/latestdoi/202693571)
