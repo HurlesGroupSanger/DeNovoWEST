@@ -2,7 +2,7 @@
 
 `DeNovoWEST` is a simulation-based method to test for a statistically significant enrichment of damaging *de novo* mutations (DNMs) in individual genes. This method scores all classes of variants (e.g. nonsense, missense, splice site) on a unified severity scale based on the empirically-estimated positive predictive value of being pathogenic, and incorporates a gene-based weighting derived from the deficit of protein truncating variants in the general population.  
 
-More information on the method can be found in Kaplanis, Samocha, Wiel, Zhang et al [on bioRxiv](https://www.biorxiv.org/content/10.1101/797787v1).  
+More information on the method can be found in Kaplanis, Samocha, Wiel, Zhang et al [Nature 2020](https://www.nature.com/articles/s41586-020-2832-5).  
 
 There are three main components of this repository:  
 1. `DeNovoWEST` code  
