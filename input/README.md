@@ -1,6 +1,6 @@
 # README for provided input files  
 
-This directory contains the files needed to recreate some of the main text figures from the Kaplanis, Samocha, Wiel, Zhang et al manuscript. Specifically, the following files are provided:
+This directory contains the files needed to recreate some of the main text figures from the Kaplanis, Samocha, Wiel, Zhang et al Nature 2020 paper. Specifically, the following files are provided:
 1. *De novo* mutations from 31,058 individuals with a developmental disorder
 2. Extended `DeNovoWEST` results file
 3. Sex information for probands
