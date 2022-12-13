@@ -1,5 +1,9 @@
 DeNovoWEST.code-workspace
 *ipynb*
 .nextflow*
-DeNovoWEST/__pycache__/*
+*__pycache__*
 test/*
+notebooks/*
+input/*
+.vscode
+*old*
