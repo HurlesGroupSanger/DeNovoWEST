@@ -1,0 +1,10 @@
+name: denovowest
+channels:
+- conda-forge
+- bioconda
+dependencies:
+- python
+- pandas      
+- gffutils
+- click
+- pyyaml  

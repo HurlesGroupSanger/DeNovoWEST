@@ -1,0 +1,4 @@
+MUTATION_RATE_MODEL : "/lustre/scratch119/realdata/mdt2/teams/hurles/users/ed11/DNW/DeNovoWEST/examples/rates/data/rates_model_dnn.tsv"
+GFF : "/lustre/scratch119/realdata/mdt2/teams/hurles/users/ed11/DNW/DeNovoWEST/examples/rates/data/test/MANE.GRCh38.v1.0.ensembl_genomic_BRCA1_SCN5A_TARDBP.gff"
+FASTA : "/lustre/scratch123/hgi/mdt1/teams/hurles/ed11/resources/GRCh38.primary_assembly.genome.fa"
+OUTDIR : "/lustre/scratch119/realdata/mdt2/teams/hurles/users/ed11/DNW/out_rate_creation/test"

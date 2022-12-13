@@ -1,0 +1,5 @@
+DeNovoWEST.code-workspace
+*ipynb*
+.nextflow*
+DeNovoWEST/__pycache__/*
+test/*
