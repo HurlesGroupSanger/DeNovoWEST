@@ -1,5 +1,5 @@
 #!/usr/bin/env nextflow     
-// bsub -R 'select[mem>2000] rusage[mem=2000]' -M 2000 -J denovowest -o /lustre/scratch119/realdata/mdt2/teams/hurles/users/ed11/DNW/work/denovowest.%J.o -e /lustre/scratch119/realdata/mdt2/teams/hurles/users/ed11/DNW/work/denovowest.%J.e "nextflow run denovowest.nf -resume -w /lustre/scratch119/realdata/mdt2/teams/hurles/users/ed11/DNW/work"
+// bsub -R 'select[mem>5000] rusage[mem=5000]' -M 5000 -J denovowest -o /lustre/scratch119/realdata/mdt2/teams/hurles/users/ed11/DNW/work/denovowest.%J.o -e /lustre/scratch119/realdata/mdt2/teams/hurles/users/ed11/DNW/work/denovowest.%J.e "nextflow run denovowest.nf -resume -w /lustre/scratch119/realdata/mdt2/teams/hurles/users/ed11/DNW/work"
 
 nextflow.enable.dsl=2
 
@@ -80,7 +80,7 @@ process RATE_CREATION {
     path mutation_rate_model
 
     output :
-    path "${gene_list}_mutation/mutation_rates.csv"
+    path "${gene_list}_mutation/mutation_rates.tsv"
 
     script :
     """
@@ -99,15 +99,15 @@ process RATE_CREATION {
 process MERGE_RATES {
 
   input : 
-  path rates, stageAs : "mutation_rates_*.csv"
+  path rates, stageAs : "mutation_rates_*.tsv"
   
   output : 
-  path "merged_rates.csv"
+  path "merged_rates.tsv"
 
   script : 
   """
-  # Concatenates the csv files and keep only the first header
-  awk 'FNR==1 && NR!=1{next;}{print}' $rates > merged_rates.csv
+  # Concatenates the tsv files and keep only the first header
+  awk 'FNR==1 && NR!=1{next;}{print}' $rates > merged_rates.tsv
   """
 
 }

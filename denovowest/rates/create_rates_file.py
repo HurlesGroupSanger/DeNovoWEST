@@ -201,7 +201,7 @@ def calculate_rates_cds(gene, start, mutation_rate_model, seq, range_model) :
 
 
 def get_sequence(fasta, chrom, start, end ) :
-    """ Returns sequence crom a fasta file according to genomic coordinates
+    """ Returns sequence from a fasta file according to genomic coordinates
 
     Args:
         fasta (pyfaidx.Fasta): Genome sequence
@@ -246,12 +246,14 @@ def calculate_rates(mutation_rate_model, fasta, gff_db, gene_list):
     # Loop through all CDS of interest to generate mutation rates
     for gene in gff_db.all_features(featuretype="gene", order_by="start"):
 
+        # Skip gene if not in user provided gene list
         if gene.attributes["ID"][0] not in gene_list :
             continue
         
-        logger.info(gene.attributes["ID"][0])
+        #logger.info(gene.attributes["ID"][0])
 
-        list_mutation_rates_gene = list()
+        list_mutation_rates_gene = list() # Store mutation rates for the current gene
+        list_cds_boundaries = list() # Store CDS boundaries to avoid calculating rates for same CDS in several transcripts
         for transcript in gff_db.children(gene, featuretype="transcript", order_by="start"):
             for cds in gff_db.children(transcript, featuretype="CDS", order_by="start"):
 
@@ -259,6 +261,12 @@ def calculate_rates(mutation_rate_model, fasta, gff_db, gene_list):
                 # the range model so that we get the neighboring nucleotides and we correct for python 0-index
                 start = cds.start - CDS_OFFSET - range_model - 1
                 end = cds.stop + CDS_OFFSET + range_model
+                
+                # If the CDS has already been covered by another transcript we skip it 
+                if (start,end) in list_cds_boundaries :
+                    continue
+                else :
+                    list_cds_boundaries.append((start, end))
 
                 # We extract the coding sequence
                 cds_seq = get_sequence(fasta, gene.chrom, start, end)
@@ -267,14 +275,12 @@ def calculate_rates(mutation_rate_model, fasta, gff_db, gene_list):
                 # We calculate the rates for the current CDS region
                 list_mutation_rates_cds = calculate_rates_cds(gene, start + 1, mutation_rate_model, cds_seq, range_model)
                 list_mutation_rates_gene += list_mutation_rates_cds
-
-            
-            # TODO : We are considering only the first transcript for now
-            break
-
+                
+       
         # For each gene we build a data frame and remove possible duplicated values
         mutation_rates_gene_df = pd.DataFrame(list_mutation_rates_gene)
         mutation_rates_gene_df.drop_duplicates(inplace=True, keep='first')
+        mutation_rates_gene_df.sort_values(by=["pos", "alt"], inplace=True)
         list_mutation_rates.append(mutation_rates_gene_df)
 
         # Log progress
@@ -355,8 +361,8 @@ def main(config, gff, fasta, mutation_rate_model, gene_list, outdir):
     mutation_rates_df = calculate_rates(mutation_rate_model, fasta, gff_db, gene_list)
 
     # Export mutation rates file
-    mutation_rates_df.to_csv("{}/{}".format(conf["OUTDIR"], "mutation_rates.csv"))
-    logger.info(f'Mutation rates file created here : {conf["OUTDIR"]}/mutation_rates.csv')
+    mutation_rates_df.to_csv("{}/{}".format(conf["OUTDIR"], "mutation_rates.tsv"), sep="\t", index=None)
+    logger.info(f'Mutation rates file created here : {conf["OUTDIR"]}/mutation_rates.tsv')
 
 if __name__ == "__main__":
 
