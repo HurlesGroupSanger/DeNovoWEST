@@ -1,8 +1,10 @@
 #!/usr/bin/env nextflow     
-// bsub -R 'select[mem>5000] rusage[mem=5000]' -M 5000 -J denovowest -o /lustre/scratch119/realdata/mdt2/teams/hurles/users/ed11/DNW/work/denovowest.%J.o -e /lustre/scratch119/realdata/mdt2/teams/hurles/users/ed11/DNW/work/denovowest.%J.e "nextflow run denovowest.nf -resume -w /lustre/scratch119/realdata/mdt2/teams/hurles/users/ed11/DNW/work"
+// bsub -R 'select[mem>5000] rusage[mem=5000]' -M 5000 -J denovowest -o /lustre/scratch123/hgi/mdt1/teams/hurles/ed11/DNW/out_rate_creation/after_migration/denovowest.%J.o -e /lustre/scratch123/hgi/mdt1/teams/hurles/ed11/DNW/out_rate_creation/after_migration/denovowest.%J.e "nextflow run denovowest.nf -resume -w /lustre/scratch123/hgi/mdt1/teams/hurles/ed11/DNW/out_rate_creation/after_migration"
 
 nextflow.enable.dsl=2
 
+include { RATES_TO_VCF } from './modules/annotation.nf'
+include { BCFTOOLS_CSQ } from './modules/annotation.nf'
 
 /*
  * Build the gffutils database from GFF file
@@ -144,4 +146,11 @@ workflow{
 
     // Merge rates files into one
     rate_merged_ch = MERGE_RATES(rate_creation_ch.collect())
+
+    // Turn rates file into VCF file
+    vcf_ch = RATES_TO_VCF(rate_creation_ch, params.genome_fasta + ".fai")
+
+    // Bcftools csq
+    bcftools_csq_ch = BCFTOOLS_CSQ(vcf_ch, params.gff, params.genome_fasta)
+
 } 
