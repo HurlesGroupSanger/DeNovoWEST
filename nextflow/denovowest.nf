@@ -3,116 +3,19 @@
 
 nextflow.enable.dsl=2
 
+include { GFFUTILS_DB } from './modules/rates.nf'
+include { CREATE_GENE_LIST } from './modules/rates.nf'
+include { SPLIT_GENE_LIST } from './modules/rates.nf'
+include { RATE_CREATION } from './modules/rates.nf'
+include { MERGE_RATES } from './modules/rates.nf'
+
 include { RATES_TO_VCF } from './modules/annotation.nf'
 include { BCFTOOLS_CSQ } from './modules/annotation.nf'
+include { BCFTOOLS_CSQ_FULL } from './modules/annotation.nf'
+include { VCF_TO_RATES } from './modules/annotation.nf'
+include { CADD } from './modules/annotation.nf'
+include { GNOMAD } from './modules/annotation.nf'
 
-/*
- * Build the gffutils database from GFF file
- */
-process GFFUTILS_DB {
-
-  input:
-  path gff_file
-
-  output:
-  path "${gff_file}.db"
-
-  script :
-  """
-  #!/usr/bin/env python
-  import gffutils
-  gff_db = gffutils.create_db("$gff_file", "${gff_file}.db", merge_strategy="create_unique")    
-  """
-}
-
-
-/*
- * Create gene list from the GFF file
- */
-process CREATE_GENE_LIST {
-
-  input:
-  path gff_db
-
-  output:
-  path "gene_list.tsv"
-
-  script :
-  """
-  #!/usr/bin/env python
-  import gffutils
-  gff_db = gffutils.FeatureDB('$gff_db', keep_order=True)
-  
-  with open("gene_list.tsv", "w") as f :
-    for gene in gff_db.all_features(featuretype="gene", order_by="start") :
-        print(gene.attributes)
-        f.write(str(gene.attributes['ID'][0]) + '\\n') 
-  """
-}
-
-
-/*
- * Split gene list for rate creation parallelisation
- */
-process SPLIT_GENE_LIST {
-
-    input :
-    path gene_list 
-    val split_step
-
-    output :
-    path 'chunk_*'
-
-    script :
-    """
-    split -l $split_step $gene_list chunk_
-    """
-
-}
-
-/*
- * Create rate file
- */
-process RATE_CREATION {
-
-    input :
-    path gene_list 
-    path gff_db
-    path fasta
-    path mutation_rate_model
-
-    output :
-    path "${gene_list}_mutation/mutation_rates.tsv"
-
-    script :
-    """
-    create_rates_file.py \
-      --gff $gff_db \
-      --fasta $fasta \
-      --mutation_rate_model $mutation_rate_model \
-      --gene_list $gene_list \
-      --outdir ${gene_list}_mutation
-    """
-}
-
-/*
- * Merge rate files 
- */
-process MERGE_RATES {
-
-  input : 
-  path rates, stageAs : "mutation_rates_*.tsv"
-  
-  output : 
-  path "merged_rates.tsv"
-
-  script : 
-  """
-  # Concatenates the tsv files and keep only the first header
-  awk 'FNR==1 && NR!=1{next;}{print}' $rates > merged_rates.tsv
-  """
-
-}
 
 
 
@@ -143,14 +46,21 @@ workflow{
 
     // Create rates files (one per split gene list)
     rate_creation_ch = RATE_CREATION(split_gene_list_ch.toSortedList().flatten(), gffutils_db_ch.first(), params.genome_fasta, params.mutation_rate_model)
-
+    
     // Merge rates files into one
-    rate_merged_ch = MERGE_RATES(rate_creation_ch.collect())
+    //rate_merged_ch = MERGE_RATES(rate_creation_ch.collect())
 
     // Turn rates file into VCF file
-    vcf_ch = RATES_TO_VCF(rate_creation_ch, params.genome_fasta + ".fai")
+    //vcf_ch = RATES_TO_VCF(rate_creation_ch, params.genome_fasta + ".fai") |
 
     // Bcftools csq
-    bcftools_csq_ch = BCFTOOLS_CSQ(vcf_ch, params.gff, params.genome_fasta)
+    //bcftools_csq_ch = BCFTOOLS_CSQ(vcf_ch, params.gff, params.genome_fasta)
+
+    //bcftools_csq_ch.view()
+    // Merge bcftools csq results with rates file
+    //rates_bcftools_csq_ch = VCF_TO_RATES(bcftools_csq_ch, rate_creation_ch)
+    rates_bcftools_csq_ch = BCFTOOLS_CSQ_FULL(rate_creation_ch, params.genome_fasta, params.genome_fasta + ".fai", params.gff )
+    rates_cadd_ch = CADD(rates_bcftools_csq_ch, params.cadd_file, params.cadd_file + ".tbi")
+    rates_gnomad_ch = GNOMAD(rates_cadd_ch, params.gnomad_file, params.gnomad_file + ".tbi" )
 
 } 
