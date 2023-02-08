@@ -38,7 +38,7 @@ This is a dictionary of weights made by looking at enrichment of that specific c
 *Rates:*
 
 This is a file with site specific mutation rates per gene which is also annotated with CADD score, MAF (gnomad), a boolean for whether the gene's s_het value is high (defined as ≥ 0.15), and a boolean for whether the variant lies in a missense contrained region (only for missense variants).
-You can download this file from ``` ftp://ftp.sanger.ac.uk/pub/project/ddd/rates ```.
+You can download this file from ``` ftp://ftp.sanger.ac.uk/pub/project/ddd/rates/all_rates_cadd_maf_shet_2020_03_05.txt.gz ```.
 
 *De novos:*
 
