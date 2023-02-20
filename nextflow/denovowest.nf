@@ -16,6 +16,7 @@ include { VCF_TO_RATES } from './modules/annotation.nf'
 include { CADD } from './modules/annotation.nf'
 include { GNOMAD } from './modules/annotation.nf'
 include { CONSTRAINTS } from './modules/annotation.nf'
+include { SHET } from './modules/annotation.nf'
 
 
 
@@ -53,8 +54,8 @@ workflow{
     rates_cadd_ch = CADD(rates_bcftools_csq_ch, params.cadd_file, params.cadd_file + ".tbi")
     rates_gnomad_ch = GNOMAD(rates_cadd_ch, params.gnomad_file, params.gnomad_file + ".tbi" )
     rates_constrained_ch = CONSTRAINTS(rates_gnomad_ch, params.gene_full_constraints, params.gene_region_constraints )
+    rates_shet_ch = SHET(rates_constrained_ch, params.shet)
 
     // Merge results
-    rates_merged_ch = MERGE_RATES(rates_constrained_ch.collect())
-
+    rates_merged_ch = MERGE_RATES(rates_shet_ch.collect())
 } 

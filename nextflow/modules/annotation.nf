@@ -130,3 +130,19 @@ process CONSTRAINTS {
     annotate_constraint.py  $rate_file $gene_full_constraints $gene_region_constraints mutation_rates_constrained.tsv
     """
 }
+
+process SHET {
+
+    input :
+    path rate_file 
+    path shet
+
+    output :
+    path "mutation_rates_shet.tsv"
+
+    script:
+    """
+    # Annotate shet
+    annotate_shet.py  $rate_file $shet mutation_rates_shet.tsv
+    """
+}
