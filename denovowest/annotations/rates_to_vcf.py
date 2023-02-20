@@ -1,6 +1,6 @@
 #!/usr/bin/env python
-import pandas as pd
 import click
+import pandas as pd
 
 
 @click.group()
@@ -38,9 +38,27 @@ def rates_to_vcf(rates, fasta, out_vcf):
 
     # Extract information from rates file and transform it in VCF format
     rates_df = pd.read_csv(rates, sep="\t")
+
+    # We need to sort the rates file otherwise bcftoolscsq fails
+    rates_df = rates_df.sort_values(["chrom", "pos"])
+
+    # Write VCF (including gene id in INFO field to distinguish between overlapping genes)
     with open(out_vcf, "a") as f:
         for idx, row in rates_df.iterrows():
-            f.write(f"{row.chrom}\t{row.pos}\t.\t{row.ref}\t{row.alt}\t.\t.\t.\n")
+            f.write(
+                f"{row.chrom}\t{row.pos}\t.\t{row.ref}\t{row.alt}\t.\t.\tGENE={row.symbol}\n"
+            )
+
+
+def extract_consequence(x):
+
+    # bcftoolscsq return sometimes empty consequences
+    try:
+        csq = x.split(";")[1].split("|")[0].replace("BCSQ=", "")
+    except IndexError as e:
+        csq = ""
+
+    return csq
 
 
 @cli.command()
@@ -57,7 +75,9 @@ def vcf_to_rates(vcf, rates, out_rates):
 
     # Read VCF
     if vcf.endswith("gz"):
-        vcf_df = pd.read_csv(vcf, sep="\t", comment="#", header=None, compression="gzip")
+        vcf_df = pd.read_csv(
+            vcf, sep="\t", comment="#", header=None, compression="gzip"
+        )
     else:
         vcf_df = pd.read_csv(vcf, sep="\t", comment="#", header=None)
     vcf_df.columns = "#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO".split("\t")
@@ -66,15 +86,18 @@ def vcf_to_rates(vcf, rates, out_rates):
     rates_df = pd.read_csv(rates, sep="\t")
 
     # Extract BCFtools consequence in a separate column
-    vcf_df["consequence"] = [x.split("|")[0].replace("BCSQ=", "") for x in vcf_df.INFO]
+    vcf_df["consequence"] = [extract_consequence(x) for x in vcf_df.INFO]
+
+    # Extract gene id to distinguish between overlapping genes
+    vcf_df["gene_id"] = [x.split(";")[0].replace("GENE=", "") for x in vcf_df.INFO]
 
     # Merge files
     out_rates_df = rates_df.merge(
-        vcf_df[["#CHROM", "POS", "REF", "ALT", "consequence"]],
-        left_on=["chrom", "pos", "ref", "alt"],
-        right_on=["#CHROM", "POS", "REF", "ALT"],
+        vcf_df[["#CHROM", "POS", "REF", "ALT", "consequence", "gene_id"]],
+        left_on=["chrom", "pos", "ref", "alt", "symbol"],
+        right_on=["#CHROM", "POS", "REF", "ALT", "gene_id"],
     )
-    out_rates_df.drop(["#CHROM", "POS", "REF", "ALT"], axis=1, inplace=True)
+    out_rates_df.drop(["#CHROM", "POS", "REF", "ALT", "gene_id"], axis=1, inplace=True)
 
     assert out_rates_df.shape[0] == rates_df.shape[0]
 
