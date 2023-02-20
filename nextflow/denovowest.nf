@@ -15,6 +15,7 @@ include { BCFTOOLS_CSQ_FULL } from './modules/annotation.nf'
 include { VCF_TO_RATES } from './modules/annotation.nf'
 include { CADD } from './modules/annotation.nf'
 include { GNOMAD } from './modules/annotation.nf'
+include { CONSTRAINTS } from './modules/annotation.nf'
 
 
 
@@ -47,20 +48,13 @@ workflow{
     // Create rates files (one per split gene list)
     rate_creation_ch = RATE_CREATION(split_gene_list_ch.toSortedList().flatten(), gffutils_db_ch.first(), params.genome_fasta, params.mutation_rate_model)
     
-    // Merge rates files into one
-    //rate_merged_ch = MERGE_RATES(rate_creation_ch.collect())
-
-    // Turn rates file into VCF file
-    //vcf_ch = RATES_TO_VCF(rate_creation_ch, params.genome_fasta + ".fai") |
-
-    // Bcftools csq
-    //bcftools_csq_ch = BCFTOOLS_CSQ(vcf_ch, params.gff, params.genome_fasta)
-
-    //bcftools_csq_ch.view()
-    // Merge bcftools csq results with rates file
-    //rates_bcftools_csq_ch = VCF_TO_RATES(bcftools_csq_ch, rate_creation_ch)
+    // Annotate rates file
     rates_bcftools_csq_ch = BCFTOOLS_CSQ_FULL(rate_creation_ch, params.genome_fasta, params.genome_fasta + ".fai", params.gff )
     rates_cadd_ch = CADD(rates_bcftools_csq_ch, params.cadd_file, params.cadd_file + ".tbi")
     rates_gnomad_ch = GNOMAD(rates_cadd_ch, params.gnomad_file, params.gnomad_file + ".tbi" )
+    rates_constrained_ch = CONSTRAINTS(rates_gnomad_ch, params.gene_full_constraints, params.gene_region_constraints )
+
+    // Merge results
+    rates_merged_ch = MERGE_RATES(rates_constrained_ch.collect())
 
 } 

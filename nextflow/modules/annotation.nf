@@ -113,3 +113,20 @@ process GNOMAD {
     annotate_gnomad.py  $rate_file $gnomad_file mutation_rates_gnomad.tsv
     """
 }
+
+process CONSTRAINTS {
+
+    input :
+    path rate_file 
+    path gene_full_constraints
+    path gene_region_constraints
+
+    output :
+    path "mutation_rates_constrained.tsv"
+
+    script:
+    """
+    # Annotate constraints
+    annotate_constraint.py  $rate_file $gene_full_constraints $gene_region_constraints mutation_rates_constrained.tsv
+    """
+}

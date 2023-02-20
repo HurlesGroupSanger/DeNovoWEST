@@ -92,16 +92,19 @@ process RATE_CREATION {
  */
 process MERGE_RATES {
 
+  publishDir "${params.outdir}/", mode: 'copy', overwrite: true
+
   input : 
   path rates, stageAs : "mutation_rates_*.tsv"
   
   output : 
-  path "merged_rates.tsv"
+  path "merged_rates.tsv.gz"
 
   script : 
   """
   # Concatenates the tsv files and keep only the first header
   awk 'FNR==1 && NR!=1{next;}{print}' $rates > merged_rates.tsv
+  gzip merged_rates.tsv
   """
 
 }
