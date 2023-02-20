@@ -4,6 +4,7 @@ import pandas as pd
 import click
 from pysam import VariantFile
 from itertools import groupby, count
+import numpy as np
 
 
 def load_gnomad(gnomad, chrom, start, end):
@@ -76,9 +77,14 @@ def annotate_gnomad(rates, gnomad, output):
             block_gnomad_df = load_gnomad(gnomad_df, chrom, start - 1, end)
             list_block_df.append(block_gnomad_df)
 
-        # Merge rates with Gnomad data
         gene_gnomad_df = pd.concat(list_block_df)
-        merged_gene_df = gene_rates_df.merge(gene_gnomad_df, how="left", on=["chrom", "pos", "ref", "alt"])
+
+        # Merge rates with Gnomad data
+        if gene_gnomad_df.empty:
+            merged_gene_df = gene_rates_df
+            gene_rates_df["maf"] = np.nan
+        else:
+            merged_gene_df = gene_rates_df.merge(gene_gnomad_df, how="left", on=["chrom", "pos", "ref", "alt"])
         list_merged_df.append(merged_gene_df)
 
     # Combine results for all genes
