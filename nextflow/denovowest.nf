@@ -9,14 +9,11 @@ include { SPLIT_GENE_LIST } from './modules/rates.nf'
 include { RATE_CREATION } from './modules/rates.nf'
 include { MERGE_RATES } from './modules/rates.nf'
 
-include { RATES_TO_VCF } from './modules/annotation.nf'
-include { BCFTOOLS_CSQ } from './modules/annotation.nf'
-include { BCFTOOLS_CSQ_FULL } from './modules/annotation.nf'
-include { VCF_TO_RATES } from './modules/annotation.nf'
-include { CADD } from './modules/annotation.nf'
-include { GNOMAD } from './modules/annotation.nf'
-include { CONSTRAINTS } from './modules/annotation.nf'
-include { SHET } from './modules/annotation.nf'
+include { BCFTOOLS_CSQ_FULL; BCFTOOLS_CSQ_FULL as DNM_BCFTOOLS_CSQ_FULL} from './modules/annotation.nf'
+include { CADD; CADD as DNM_CADD } from './modules/annotation.nf'
+include { GNOMAD; GNOMAD as DNM_GNOMAD } from './modules/annotation.nf'
+include { CONSTRAINTS; CONSTRAINTS as DNM_CONSTRAINTS} from './modules/annotation.nf'
+include { SHET; SHET as DNM_SHET } from './modules/annotation.nf'
 
 
 
@@ -50,7 +47,7 @@ workflow{
     rate_creation_ch = RATE_CREATION(split_gene_list_ch.toSortedList().flatten(), gffutils_db_ch.first(), params.genome_fasta, params.mutation_rate_model)
     
     // Annotate rates file
-    rates_bcftools_csq_ch = BCFTOOLS_CSQ_FULL(rate_creation_ch, params.genome_fasta, params.genome_fasta + ".fai", params.gff )
+    rates_bcftools_csq_ch = BCFTOOLS_CSQ_FULL(rate_creation_ch, params.genome_fasta, params.genome_fasta + ".fai", params.gff, gffutils_db_ch.first() )
     rates_cadd_ch = CADD(rates_bcftools_csq_ch, params.cadd_file, params.cadd_file + ".tbi")
     rates_gnomad_ch = GNOMAD(rates_cadd_ch, params.gnomad_file, params.gnomad_file + ".tbi" )
     rates_constrained_ch = CONSTRAINTS(rates_gnomad_ch, params.gene_full_constraints, params.gene_region_constraints )
@@ -58,4 +55,11 @@ workflow{
 
     // Merge results
     rates_merged_ch = MERGE_RATES(rates_shet_ch.collect())
+
+    // Annotate DNM file
+    dnm_bcftools_csq_ch = DNM_BCFTOOLS_CSQ_FULL(params.dnm, params.genome_fasta, params.genome_fasta + ".fai", params.gff,  gffutils_db_ch.first() )
+    dnm_cadd_ch = DNM_CADD(dnm_bcftools_csq_ch, params.cadd_file, params.cadd_file + ".tbi")
+    dnm_gnomad_ch = DNM_GNOMAD(dnm_cadd_ch, params.gnomad_file, params.gnomad_file + ".tbi" )
+    dnm_constrained_ch = DNM_CONSTRAINTS(dnm_gnomad_ch, params.gene_full_constraints, params.gene_region_constraints )
+    dnm_shet_ch = DNM_SHET(dnm_constrained_ch, params.shet)
 } 

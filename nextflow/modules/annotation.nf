@@ -57,6 +57,7 @@ process BCFTOOLS_CSQ_FULL {
     path fasta
     path fasta_index
     path gff
+    path gff_db
 
     output :
     path "mutation_rates_bcftoolscsq.tsv"
@@ -76,7 +77,7 @@ process BCFTOOLS_CSQ_FULL {
     mutation_rates.vcf
 
     # Turn back VCF into rates file
-    rates_to_vcf.py vcf-to-rates mutation_rates_bcftoolscsq.vcf.gz $rate_file mutation_rates_bcftoolscsq.tsv
+    rates_to_vcf.py vcf-to-rates mutation_rates_bcftoolscsq.vcf.gz $rate_file $gff_db mutation_rates_bcftoolscsq.tsv
     """
 }
 
