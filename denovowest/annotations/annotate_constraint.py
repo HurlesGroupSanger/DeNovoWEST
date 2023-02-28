@@ -55,14 +55,14 @@ def annotate_constraint(rates, geneconstraint, regionconstraint, outrates, thres
     rates_df["constrained"] = False
 
     # For each gene in rates file
-    for id_gene, gene_rates in rates_df.groupby("symbol"):
+    for id_gene, gene_rates in rates_df.groupby("gene_id"):
 
         # We do not consider the version of the gene here
         ensembl_id = id_gene.split(".")[0]
 
         # If the gene is not found in the constraint file, print as a warning
         if ensembl_id not in set(geneconstraint_df["ensembl_gene_id"]):
-            print(f"Could not find symbol {ensembl_id} in full constraint file")
+            print(f"Could not find id {ensembl_id} in full constraint file")
         # If the gene is found in the constraint file
         else:
             # Restrict the constraint data frame to current gene

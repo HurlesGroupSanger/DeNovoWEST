@@ -27,7 +27,7 @@ def annotate_shet(rates, shet, output, threshold):
     # For each gene
     list_merged_df = list()
     nb_gene_not_in_shet = 0
-    for gene_id_orig, gene_rates_df in rates_df.groupby("symbol"):
+    for gene_id_orig, gene_rates_df in rates_df.groupby("gene_id"):
 
         # Remove gene version if any
         gene_id = gene_id_orig.split(".")[0]
@@ -35,12 +35,12 @@ def annotate_shet(rates, shet, output, threshold):
         try:
             mean_shet = shet_df.loc[gene_id, "mean_s_het"]
             if mean_shet > threshold:
-                rates_df.loc[rates_df["symbol"] == gene_id_orig, "shethigh"] = True
+                rates_df.loc[rates_df["gene_id"] == gene_id_orig, "shethigh"] = True
 
         except KeyError:
             nb_gene_not_in_shet += 1
 
-    print(f"{nb_gene_not_in_shet}/{len(set(rates_df['symbol']))} genes from rates file not found in shet")
+    print(f"{nb_gene_not_in_shet}/{len(set(rates_df['gene_id']))} genes from rates file not found in shet")
 
     # Export results
     rates_df.to_csv(output, sep="\t", index=False)

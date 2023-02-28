@@ -65,7 +65,7 @@ def annotate_gnomad(rates, gnomad, output):
     gnomad_df = VariantFile(gnomad)
 
     list_merged_df = list()
-    for gene_id, gene_rates_df in rates_df.groupby("symbol"):
+    for gene_id, gene_rates_df in rates_df.groupby("gene_id"):
         chrom = gene_rates_df.chrom.values[0]
 
         # Split each gene in contiguous block (i.e. exons) and load gnomad data

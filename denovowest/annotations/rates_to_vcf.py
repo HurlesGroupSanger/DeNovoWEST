@@ -80,7 +80,7 @@ def rates_to_vcf(rates, fasta, out_vcf):
     rates_df = pd.read_csv(rates, sep="\t")
 
     # Filter duplicate variants
-    duplicates = rates_df[["symbol", "chrom", "pos", "ref", "alt"]].duplicated()
+    duplicates = rates_df[["gene_id", "chrom", "pos", "ref", "alt"]].duplicated()
     rates_df = rates_df[~duplicates]
 
     # We need to sort the rates file otherwise bcftoolscsq fails
@@ -89,9 +89,7 @@ def rates_to_vcf(rates, fasta, out_vcf):
     # Write VCF (including gene id in INFO field to distinguish between overlapping genes)
     with open(out_vcf, "a") as f:
         for idx, row in rates_df.iterrows():
-            f.write(
-                f"{row.chrom}\t{row.pos}\t.\t{row.ref}\t{row.alt}\t.\t.\tGENE={row.symbol}\n"
-            )
+            f.write(f"{row.chrom}\t{row.pos}\t.\t{row.ref}\t{row.alt}\t.\t.\tGENE={row.gene_id}\n")
 
 
 def extract_consequence(x, gff_db):
@@ -149,9 +147,7 @@ def vcf_to_rates(vcf, rates, gff_db, out_rates):
 
     # Read VCF
     if vcf.endswith("gz"):
-        vcf_df = pd.read_csv(
-            vcf, sep="\t", comment="#", header=None, compression="gzip"
-        )
+        vcf_df = pd.read_csv(vcf, sep="\t", comment="#", header=None, compression="gzip")
     else:
         vcf_df = pd.read_csv(vcf, sep="\t", comment="#", header=None)
     vcf_df.columns = "#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO".split("\t")
@@ -171,10 +167,10 @@ def vcf_to_rates(vcf, rates, gff_db, out_rates):
     # Merge files
     out_rates_df = rates_df.merge(
         vcf_df[["#CHROM", "POS", "REF", "ALT", "consequence", "gene_id"]],
-        left_on=["chrom", "pos", "ref", "alt", "symbol"],
+        left_on=["chrom", "pos", "ref", "alt", "gene_id"],
         right_on=["#CHROM", "POS", "REF", "ALT", "gene_id"],
     )
-    out_rates_df.drop(["#CHROM", "POS", "REF", "ALT", "gene_id"], axis=1, inplace=True)
+    out_rates_df.drop(["#CHROM", "POS", "REF", "ALT"], axis=1, inplace=True)
 
     assert out_rates_df.shape[0] == rates_df.shape[0]
 
