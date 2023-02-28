@@ -1,6 +1,46 @@
 #!/usr/bin/env python
 import click
+import gffutils
 import pandas as pd
+
+# Built from bcftools +split-vep -S -
+consequences_severities = {
+    "intergenic": 1,
+    "feature_truncation": 2,
+    "feature_elongation": 2,
+    "regulatory": 3,
+    "TF_binding_site": 4,
+    "TFBS": 4,
+    "downstream": 5,
+    "upstream": 5,
+    "non_coding_transcript": 6,
+    "non_coding": 6,
+    "intron": 7,
+    "NMD_transcript": 7,
+    "non_coding_transcript_exon": 8,
+    "5_prime_utr": 9,
+    "3_prime_utr": 9,
+    "coding_sequence": 10,
+    "mature_miRNA": 10,
+    "stop_retained": 11,
+    "start_retained": 11,
+    "synonymous": 11,
+    "incomplete_terminal_codon": 12,
+    "splice_region": 13,
+    "missense": 14,
+    "inframe": 14,
+    "protein_altering": 14,
+    "transcript_amplification": 15,
+    "exon_loss": 16,
+    "disruptive": 17,
+    "start_lost": 18,
+    "stop_lost": 18,
+    "stop_gained": 18,
+    "frameshift": 18,
+    "splice_acceptor": 19,
+    "splice_donor": 19,
+    "transcript_ablation": 20,
+}
 
 
 @click.group()
@@ -39,6 +79,10 @@ def rates_to_vcf(rates, fasta, out_vcf):
     # Extract information from rates file and transform it in VCF format
     rates_df = pd.read_csv(rates, sep="\t")
 
+    # Filter duplicate variants
+    duplicates = rates_df[["symbol", "chrom", "pos", "ref", "alt"]].duplicated()
+    rates_df = rates_df[~duplicates]
+
     # We need to sort the rates file otherwise bcftoolscsq fails
     rates_df = rates_df.sort_values(["chrom", "pos"])
 
@@ -50,12 +94,40 @@ def rates_to_vcf(rates, fasta, out_vcf):
             )
 
 
-def extract_consequence(x):
+def extract_consequence(x, gff_db):
 
-    # bcftoolscsq return sometimes empty consequences
+    # Get gene name(s)
+    gene_id = x.split(";")[0].replace("GENE=", "")
+    gene_names = gff_db[gene_id].attributes["gene_name"]
+
+    # gene_transcripts_id = list()
+    # for transcript in gff_db.children(gff_db[gene_id], featuretype="transcript"):
+    #     gene_transcripts_id.append(transcript.id)
+
+    # Look at all the consequences returned by bcftoolscsq
     try:
-        csq = x.split(";")[1].split("|")[0].replace("BCSQ=", "")
+        list_csq = x.split(";")[1].replace("BCSQ=", "").split(",")
+
+        # If there are multiple consequences, we take the worst one that
+        # corresponds to our gene of interest
+        # (we have multiple consequences when using multiple transcripts gff or even when using single transcripts like MANE, within splice regions)
+        worst_csq_value = 1
+        worst_csq = ""
+        for cur_csq in list_csq:
+            if cur_csq.split("|")[1] in gene_names:
+                csqs = cur_csq.split("|")[0]
+                for csq in csqs.split("&"):
+                    if consequences_severities[csq] > worst_csq_value:
+                        worst_csq_value = consequences_severities[csq]
+                        worst_csq = csqs
+
+        if worst_csq:
+            csq = worst_csq
+        else:
+            csq = ""
+
     except IndexError as e:
+        # bcftoolscsq return sometimes empty consequences
         csq = ""
 
     return csq
@@ -64,12 +136,14 @@ def extract_consequence(x):
 @cli.command()
 @click.argument("vcf")
 @click.argument("rates")
+@click.argument("gff_db")
 @click.argument("out_rates")
-def vcf_to_rates(vcf, rates, out_rates):
+def vcf_to_rates(vcf, rates, gff_db, out_rates):
     """Merge the VCF file annotated with bcftoolscsq with a rate file (tabular)
     Args:
         vcf (str): Path of the VCF file
         rates (str): Path to the rates file
+        gff_db (str) : Path to gffutils database
         out_rates (str): Path of the output rates file
     """
 
@@ -85,8 +159,11 @@ def vcf_to_rates(vcf, rates, out_rates):
     # Read rates
     rates_df = pd.read_csv(rates, sep="\t")
 
+    # Load gffutils database
+    gff_db = gffutils.FeatureDB(gff_db)
+
     # Extract BCFtools consequence in a separate column
-    vcf_df["consequence"] = [extract_consequence(x) for x in vcf_df.INFO]
+    vcf_df["consequence"] = [extract_consequence(x, gff_db) for x in vcf_df.INFO]
 
     # Extract gene id to distinguish between overlapping genes
     vcf_df["gene_id"] = [x.split(";")[0].replace("GENE=", "") for x in vcf_df.INFO]
