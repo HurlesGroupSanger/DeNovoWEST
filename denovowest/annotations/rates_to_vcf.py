@@ -29,6 +29,8 @@ consequences_severities = {
     "splice_region": 13,
     "missense": 14,
     "inframe": 14,
+    "inframe_insertion": 14,
+    "inframe_deletion": 14,
     "protein_altering": 14,
     "transcript_amplification": 15,
     "exon_loss": 16,
