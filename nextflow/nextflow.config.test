@@ -1,29 +1,25 @@
+includeConfig 'conf/local.conf'
+
 workDir = "/lustre/scratch123/hgi/mdt1/teams/hurles/ed11/DNW/out_rate_creation/test_workingdir"
 
 
 params {
-  outdir = '/lustre/scratch123/hgi/mdt1/teams/hurles/ed11/DNW/out_rate_creation/publish_dir/test'
   gff_file  = '/lustre/scratch123/hgi/mdt1/teams/hurles/ed11/DNW/DeNovoWEST/resources/MANE.GRCh38.v1.0.ensembl_genomic.btcsq_gffutils.db' 
+  gff = "/lustre/scratch123/hgi/mdt1/teams/hurles/ed11/DNW/DeNovoWEST/resources/MANE.GRCh38.v1.0.ensembl_genomic.btcsq.gff.gz"
   genome_fasta = "/lustre/scratch123/hgi/mdt1/teams/hurles/ed11/resources/GRCh38.primary_assembly.genome.fa"
-  split_step = 1 // Split the gene list every split_step genes 
-  mutation_rate_model = "/lustre/scratch123/hgi/mdt1/teams/hurles/ed11/DNW/DeNovoWEST/examples/rates/data/rates_model_dnn.tsv"
-  gene_list = "/lustre/scratch123/hgi/mdt1/teams/hurles/ed11/DNW/DeNovoWEST/examples/genelists/select_and_clinicalplus.tsv"
-  gff = "/lustre/scratch123/hgi/mdt1/teams/hurles/ed11/resources/MANE.GRCh38.v1.0.ensembl_genomic.btcsq.gff.gz"
+  mutation_rate_model = "/lustre/scratch123/hgi/mdt1/teams/hurles/ed11/DNW/DeNovoWEST/resources/rates_model_dnn.tsv"
   cadd_file="/lustre/scratch123/hgi/projects/ddd/users/sjl/B38_resources/CADD_v1.6/whole_genome_SNVs.tsv.gz"
   gnomad_file="/lustre/scratch123/hgi/projects/ddd/users/sjl/B38_resources/gnomad/gnomad.exomes.r2.1.1.sites.liftover_grch38.vcf.bgz"
-  gene_full_constraints="/nfs/users/nfs_e/ed11/lustre_ed11/DNW/DeNovoWEST/examples/annotations/data/constraint/genes_full_constraint_b38_13022023.tsv"
-  gene_region_constraints="/nfs/users/nfs_e/ed11/lustre_ed11/DNW/DeNovoWEST/examples/annotations/data/constraint/genes_regional_data_b38_13022023.tsv"
+  gene_full_constraints="/lustre/scratch123/hgi/mdt1/teams/hurles/ed11/DNW/DeNovoWEST/resources/genes_full_constraint_b38_27022023.tsv"
+  gene_region_constraints="/lustre/scratch123/hgi/mdt1/teams/hurles/ed11/DNW/DeNovoWEST/resources/genes_regional_data_b38_13022023.tsv"
+  shet="/lustre/scratch123/hgi/mdt1/teams/hurles/ed11/DNW/DeNovoWEST/resources/new_shet"
+
+  gene_list = "/lustre/scratch123/hgi/mdt1/teams/hurles/ed11/DNW/DeNovoWEST/examples/genelists/TARDBP.tsv"
+  split_step = 1 // Split the gene list every split_step genes 
+  outdir = '/lustre/scratch123/hgi/mdt1/teams/hurles/ed11/DNW/out_rate_creation/publish_dir/test'
+  dnm="/lustre/scratch123/hgi/mdt1/teams/hurles/ed11/DNW/DeNovoWEST/examples/DNM_hg38_MANE_min.tsv"
+
 }
 
 
 
-process {
-    executor = 'lsf'
-    queue = 'long'
-    memory = '5G'
-    conda = '/software/team29/ed11/miniconda3/envs/denovowest'
-}
-
-executor {
-  queueSize = 50
-}
