@@ -9,3 +9,4 @@ dependencies:
 - click
 - pyyaml 
 - pysam  
+- scipy
