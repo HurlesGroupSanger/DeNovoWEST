@@ -71,6 +71,37 @@ def get_expected_counts(rates_file, nmales, nfemales, outfile):
     expected_df.to_csv(outfile, sep="\t", index=False)
 
 
+@cli.command()
+@click.argument("dnm_file")
+@click.argument("outfile")
+def get_observed_counts(dnm_file, outfile):
+    """
+    Calculates the observed number of mutations in a DNM file
+
+    Args:
+        dnm_file (str): Path to a DNM file
+        outfile (str): Output file
+    """
+
+    # Load the DNM file
+    dnm_df = pd.read_csv(
+        dnm_file,
+        sep="\t",
+        dtype={"score": float, "chrom": str, "consequence": str},
+        usecols=["chrom", "ref", "alt", "consequence", "score", "shethigh", "constrained"],
+    )
+
+    # Filter out missense|nonsense with missing scores
+    dnm_df = dnm_df.loc[~(dnm_df.consequence.isin(["missense", "nonsense", "stop_gained"]) & dnm_df.score.isna())]
+
+    # Get observed number of mutations
+    observed_df = pd.concat(
+        [count_variants(dnm_df, condition, "obs") for condition in define_bins("obs")], axis=0, ignore_index=True
+    )
+
+    observed_df.to_csv(outfile, sep="\t", index=False)
+
+
 def get_X_scaling_factor(male_n: int, female_n: int):
     """
     Scaling factors take into account the number of males and females individuals in the cohort,
@@ -215,7 +246,8 @@ def generate_cadd_bins(lower_bound: float, upper_bound: float, bin_size: float) 
 
 
 def count_variants(df: pd.DataFrame, condition: str, mode: str) -> pd.DataFrame:
-    """_summary_
+    """
+    Count the expected or observed number of mutations in mutation rates or DNM file
 
     Args:
         df (pd.DataFrame): Observed DNM or rates file
