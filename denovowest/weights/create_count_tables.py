@@ -267,5 +267,28 @@ def count_variants(df: pd.DataFrame, condition: str, mode: str) -> pd.DataFrame:
     return count_df
 
 
+@cli.command()
+@click.argument("expected_file")
+@click.argument("observed_file")
+@click.argument("outfile")
+def merge_expected_observed(expected_file: str, observed_file: str, outfile: str):
+    """
+    Merge observed and expected number of mutations per bin, and compute their ratio.
+
+    Args:
+        expected_file (str): Path to the dataframe listing expected number of mutations per bin
+        observed_file (str): Path to the dataframe listing observed number of mutations per bin
+    """
+
+    df_expected = pd.read_csv(expected_file, sep="\t")
+    df_observed = pd.read_csv(observed_file, sep="\t")
+
+    df_merged = df_expected.merge(df_observed, on="bin", how="outer")
+
+    df_merged["obs_exp"] = df_merged["obs"] / df_merged["exp"]
+
+    df_merged.to_csv(outfile, sep="\t")
+
+
 if __name__ == "__main__":
     cli()
