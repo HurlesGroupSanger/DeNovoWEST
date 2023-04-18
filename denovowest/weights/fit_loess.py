@@ -4,116 +4,199 @@ import itertools
 import os
 import click
 import re
+
 from rpy2.robjects import Formula, FloatVector
 from rpy2.robjects.packages import importr
 import rpy2.robjects as ro
 
-SHET_BINS = ["shethigh == True", "shethigh == False"]
-MCR_BINS = ["constrained == True", "constrained == False"]
+
+SHET_VALUES = [True, False]
+CONSTRAINED_VALUES = [True, False]
+CSQ_SYNONYMOUS_VALUES = ["synonymous", "splice_donor|splice_acceptor|splice_lof", "missense"]
+CSQ_MISSENSE_VALUES = ["missense"]
+CSQ_NONSENSE_VALUES = ["nonsense|stop_gained"]
+
+CADD_MIN = 0
+CADD_MAX = 52.5
+# CADD_STEP = 0.001
+CADD_STEP = 0.1
 
 
 @click.command()
-@click.argument("count_table")
+@click.argument("obs_exp_table_path")
 @click.argument("outfile")
-def main(count_table: str, outfile: str):
+def main(obs_exp_table_path: str, outfile: str):
     """
+    Fits a loess regression using CADD score bins midpoint to infer expected and observed counts for every intermediary CADD score.
 
     Args:
-        count_table (str): Path to a table listing for each bin of variants the ratio observed/expected
+        obs_exp_table_path (str): Path to a table listing for each bin of variants the ratio observed/expected
         outfile (str): Path to the enrichment results
     """
 
-    count_table = pd.read_csv(count_table, sep="\t")
-    enrichment_df = adjust_enrichment(count_table)
-    enrichment_df.to_csv(outfile, sep="\t")
+    obs_exp_table = pd.read_csv(obs_exp_table_path, sep="\t")
+
+    # Builds the meta categories of mutations (not considering CADD score)
+    categories = define_categories()
+
+    # New CADD scores we want to infer the observed/expected ratio on
+    # TODO deport all code dedicated to CADD loess in separate function
+    new_cadd_scores = np.arange(CADD_MIN, CADD_MAX + CADD_STEP, CADD_STEP)
+
+    # For each category we want to run loess on
+    list_df_lowess = list()
+    for category in categories["lowess"]:
+        # Extract bins corresponding to each category
+        min_obs_exp_table = prepare_for_loess(obs_exp_table, category)
+        if min_obs_exp_table.empty:
+            print("No observed data for category ")
+            continue
+
+        # Run the loess regression
+        loess_prediction = fit_loess(
+            min_obs_exp_table, x="midpoint", y="obs_exp", w="obs", new_cadd_scores=new_cadd_scores
+        )
+
+        obs_exp_cadd_df = get_obs_exp_ratio_per_score(min_obs_exp_table, loess_prediction, new_cadd_scores)
+        list_df_lowess.append(obs_exp_cadd_df)
+
+    # Concatenate dataframes computed on each category
+    df_lowess = pd.concat(list_df_lowess, axis=0, ignore_index=True)
+    df_lowess.loc[df_lowess.obs_exp < 1, "obs_exp"] = 1  # TODO : Why ?
+
+    df_lowess.constrained = df_lowess.constrained.astype("boolean")
+    df_lowess.to_csv("tete.tsv", sep="\t")
+
+    # Compute frameshift and inframe variants observed/expected ratio per category, without any CADD score consideration
+    # df_meta = get_obs_exp_ratio(obs_exp_table, categories["inframe"], categories["frameshift"])
+    df_frameshift = get_obs_exp_ratio_frameshift(obs_exp_table, categories["frameshift"])
+    df_inframe = get_obs_exp_ratio_inframe(obs_exp_table, categories["inframe"])
+
+    # Compute for other variants (synonymous, splice regions)
+    df_other = get_obs_exp_ratio_other(obs_exp_table)
+
+    # Concatenate all indepents dataframes
+    res_df = pd.concat([df_lowess, df_frameshift, df_inframe, df_other], axis=0, ignore_index=True)
+
+    # Turn ratio into PPVs
+    res_df = positive_predictive_value(res_df)
+
+    # Ad there are some missing values in constrained columns, pandas turn boolean values to float automatically. We force boolean use here.
+    # res_df.constrained = res_df.constrained.astype("boolean")
+
+    # Export results
+    res_df.drop(["obs", "exp"], axis=1, inplace=True)
+    if "." in str(CADD_STEP):
+        res_df.score = res_df.score.round(len(str(CADD_STEP)) - str(CADD_STEP).index(".") - 1)
+    res_df.to_csv(outfile, sep="\t", index=False, na_rep="NA")
 
 
-def adjust_enrichment(count_table: pd.DataFrame) -> pd.DataFrame:
+def prepare_for_loess(obs_exp_table, category):
+    """
+    Retrieve all the CADD range bins corresponding to that category
 
-    bins = define_bins()
+    Args:
+        obs_exp_table (pd.DataFrame) : Table listing for each bin of variants the ratio observed/expected
+        category (dict): Description of the meta category we want to gather bins in
 
-    # fit lowess to missense and nonsense
-    df_lowess = pd.concat(
-        [fit_loess_missense_nonsense(count_table, condition) for condition in bins["lowess"]],
-        axis=0,
-        ignore_index=True,
+    Returns:
+        pd.DataFrame : Subset of obs_exp_table containing all bins falling in the input category
+
+    """
+
+    # Retrieve all the CADD range bins corresponding to that category
+    min_obs_exp_table = extract_bins_in_category(obs_exp_table, category)
+
+    # Get the midpoint score of each CADD range bin
+    min_obs_exp_table["midpoint"] = min_obs_exp_table["score"].apply(lambda x: get_CADD_midpoint(x))
+
+    # Sort table by ascending CADD midpoint, and keep only bins for which we observed at least one mutation
+    min_obs_exp_table = min_obs_exp_table.sort_values("midpoint").query("obs_exp > 0")
+
+    return min_obs_exp_table
+
+
+def extract_bins_in_category(obs_exp_table, category):
+    """
+    Retrieve all the CADD range bins corresponding to that category
+
+    Args:
+        obs_exp_table (pd.DataFrame) : Table listing for each bin of variants the ratio observed/expected
+        category (dict): Description of the meta category we want to gather bins in
+
+    Returns:
+        pd.DataFrame : Subset of obs_exp_table containing all bins falling in the input category
+
+    """
+
+    min_obs_exp_table = obs_exp_table
+    for key, value in category.items():
+        min_obs_exp_table = min_obs_exp_table.loc[min_obs_exp_table[key] == value]
+
+    return min_obs_exp_table
+
+
+def define_categories() -> list:
+    """
+    Builds the meta categories (not including CADD scores) used to categorize mutations.
+
+    Returns:
+        list: list of categories
+    """
+
+    categories = dict()
+
+    categories["inframe"] = define_inframe_categories()
+    categories["frameshift"] = define_frameshift_categories()
+    categories["lowess"] = define_lowess_categories()
+
+    return categories
+
+
+def define_inframe_categories():
+    """
+    Builds the categories containing inframe variants.
+
+    Returns:
+        list: list of categories
+    """
+    inframe_categories = list(itertools.product(SHET_VALUES, CSQ_MISSENSE_VALUES))
+
+    return categories_tuple_to_dict(inframe_categories, ["shethigh", "consequence"])
+
+
+def define_frameshift_categories():
+    """
+    Builds the categories containing frameshift variants.
+
+    Returns:
+        list: list of categories
+    """
+    frameshift_categories = list(itertools.product(SHET_VALUES, CSQ_NONSENSE_VALUES))
+    return categories_tuple_to_dict(frameshift_categories, ["shethigh", "consequence"])
+
+
+def define_lowess_categories():
+    """
+    Builds the categories containing inframe variants.
+
+    Returns:
+        list: list of categories
+    """
+    lowess_nonsenses = list(itertools.product(SHET_VALUES, CSQ_NONSENSE_VALUES))
+    lowess_missense = list(itertools.product(SHET_VALUES, CONSTRAINED_VALUES, CSQ_MISSENSE_VALUES))
+
+    return categories_tuple_to_dict(lowess_nonsenses, ["shethigh", "consequence"]) + categories_tuple_to_dict(
+        lowess_missense, ["shethigh", "constrained", "consequence"]
     )
 
-    # set values below 1 to 1
-    df_lowess.loc[df_lowess.obs_exp < 1, "obs_exp"] = 1
 
-    # add frameshifts and inframe
-    df_lowess = add_frameshifts_inframe(df_lowess, count_table, bins["inframe"], bins["frameshift"])
-
-    # concatenate lowess with count table
-    results = pd.concat(
-        [count_table[~count_table.bin.str.contains("nonsense|missense")], df_lowess], axis=0, ignore_index=True
-    )[["obs_exp", "score", "bin"]]
-    results.score = results.score if results.bin.str.contains("nonsense|missense").any() else np.nan
-
-    # get ppv
-    return positive_predictive_value(results)
+def categories_tuple_to_dict(categories, keys):
+    categories_dict = [dict(zip(keys, category)) for category in categories]
+    return categories_dict
 
 
-def define_bins() -> list:
-
-    bins = dict()
-    bins["inframe"] = define_inframe_bins()
-    bins["frameshift"] = define_frameshift_bins()
-    bins["lowess"] = define_lowess_bins()
-
-    return bins
-
-
-def define_inframe_bins():
-
-    inframe_bins = [
-        " and ".join(list(x)) for x in itertools.product(SHET_BINS, ['consequence.str.contains("missense")'])
-    ]
-
-    return inframe_bins
-
-
-def define_frameshift_bins():
-
-    frameshift_bins = list(itertools.product(SHET_BINS, ['consequence.str.contains("nonsense")']))
-    return frameshift_bins
-
-
-def define_lowess_bins():
-
-    lowess_nonsenses = list(itertools.product(SHET_BINS, ["nonsense"]))
-    lowess_missense = list(itertools.product(SHET_BINS, MCR_BINS, ["missense"]))
-
-    return lowess_nonsenses + lowess_missense
-
-
-def fit_loess_missense_nonsense(df, condition) -> pd.DataFrame:
-
-    try:
-        if "nonsense" in condition[1]:
-            df = df[df["bin"].str.contains(condition[0]) & df["bin"].str.contains("nonsense")]
-            condition = " and ".join(condition).replace("nonsense", 'cq.str.contains("nonsense")')
-        else:
-            df = df[
-                df["bin"].str.contains(condition[0])
-                & df["bin"].str.contains(condition[1])
-                & df["bin"].str.contains("missense")
-            ]
-            condition = " and ".join(condition).replace("missense", 'cq.str.contains("missense")')
-
-        df["midpoint"] = df["bin"].apply(lambda x: get_CADD_midpoint(x))
-
-        vals = np.arange(0, 52.5, 0.001)
-        df = fit_loess(df, x="midpoint", y="obs_exp", w="obs", new_vals=vals, condition=condition)
-
-        return df
-
-    except:
-        pass
-
-
-def get_CADD_midpoint(bin_name):
+def get_CADD_midpoint(cadd_range):
     """_summary_
 
     Args:
@@ -122,18 +205,33 @@ def get_CADD_midpoint(bin_name):
     Returns:
         _type_: _description_
     """
-    minimum = 3 if "missense" in bin_name else 3.75
-    cadd_lower_bound = [float(x) for x in re.findall(r"\d+(?:\.\d+)?", bin_name)][0]
-    return cadd_lower_bound + minimum
+
+    cadd_lb = float(cadd_range.split("-")[0])
+    cadd_ub = float(cadd_range.split("-")[1])
+
+    return (cadd_lb + cadd_ub) / 2
 
 
-def fit_loess(df, x, y, w, new_vals, span=1, condition=str):
+def fit_loess(obs_exp_table, x, y, w, new_cadd_scores, span=1):
+    """
+    Fit a loess regression between CADD score bins midpoints and the observed to expected mutations ratio.
 
+    Args:
+        obs_exp_table (pd.DataFrame): Table listing for each category of variants the ratio observed/expected
+        x (list): CADD bins midpoints scores (e.g. 7.5 if CADD bin represents variants with a CADD score between 5 and 10])
+        y (list): Observed/expected mutation ratio for each bin
+        w (list): Weights used in the regression model, number of observed mutations for each bin
+        new_cadd_scores (list): New "continuous" CADD scores for which we will infer the observed/expected ratio thanks to loess
+        span (int, optional): TODO. Defaults to 1.
+
+
+    Returns:
+        pd.DataFrame: Table with observed/expected ratio for each continuous CADD score
+    """
     rstats = importr("stats")
 
-    df = df.sort_values(x).query("obs_exp > 0")
-
-    x, y, w, vals = map(FloatVector, [df[x], df[y], df[w], new_vals])
+    # Prepare model
+    x, y, w, vals = map(FloatVector, [obs_exp_table[x], obs_exp_table[y], obs_exp_table[w], new_cadd_scores])
 
     fmla = Formula("y ~ x")
     env = fmla.environment
@@ -142,50 +240,114 @@ def fit_loess(df, x, y, w, new_vals, span=1, condition=str):
     env["w"] = w
     env["vals"] = vals
 
+    # Run loess
     model = rstats.loess(fmla, weights=w, span=span)
-    # fitted = np.array(model.rx2('fitted'))
-
     prediction = ro.r["predict"](model, vals)
 
-    new_df = pd.DataFrame({"obs_exp": prediction, "bin": [condition] * len(prediction), "score": new_vals.round(3)})
-    new_df["bin"] = new_df["bin"] + " and score == " + new_df["score"].astype(str)
+    return prediction
 
-    min_predicted, max_predicted = new_df.obs_exp.min(), new_df.obs_exp.max()
+
+def get_obs_exp_ratio_per_score(obs_exp_table, loess_prediction, new_cadd_scores):
+    """_summary_
+
+    Args:
+        obs_exp_table (_type_): _description_
+        loess_prediction (_type_): _description_
+        new_cadd_scores (_type_): _description_
+
+    Returns:
+        _type_: _description_
+    """
+    # Build the observed/expected ratio table for each intermediate CADD score
+    res_df = pd.DataFrame(
+        {
+            "consequence": [obs_exp_table["consequence"].iloc[0]] * len(loess_prediction),
+            "score": new_cadd_scores,
+            "constrained": [obs_exp_table["constrained"].iloc[0]] * len(loess_prediction),
+            "shethigh": [obs_exp_table["shethigh"].iloc[0]] * len(loess_prediction),
+            "obs_exp": loess_prediction,
+        }
+    )
+
+    # Get the minimum and maximum observed/expected ratio across all bins
+    min_predicted, max_predicted = res_df.obs_exp.min(), res_df.obs_exp.max()
+
+    # Get the CADD score that corresponds
     min_score, max_score = (
-        new_df[new_df.obs_exp == min_predicted].score.min(),
-        new_df[new_df.obs_exp == max_predicted].score.max(),
+        res_df[res_df.obs_exp == min_predicted].score.min(),
+        res_df[res_df.obs_exp == max_predicted].score.max(),
     )
-    new_df["obs_exp"] = np.select(
-        [new_df.score < min_score, new_df.score > max_score], [min_predicted, max_predicted], default=new_df.obs_exp
+    res_df["obs_exp"] = np.select(
+        [res_df.score < min_score, res_df.score > max_score], [min_predicted, max_predicted], default=res_df.obs_exp
     )
 
-    return new_df
+    return res_df
 
 
-def add_frameshifts_inframe(df, count_table, inframe_bins, frameshift_bins) -> pd.DataFrame:
+def get_obs_exp_ratio_frameshift(obs_exp_table, frameshift_categories):
+    """TODO"""
 
-    df_original = df.copy()
+    df = pd.DataFrame(columns=obs_exp_table.columns)
+    for category in frameshift_categories:
+        min_obs_exp_table = extract_bins_in_category(obs_exp_table, category)
+        max_obs_exp = min_obs_exp_table.obs_exp.max()
 
-    # frameshifts
-    for condition in frameshift_bins:
-        df_temp = df[(df["bin"].str.contains(condition[0])) & (df["bin"].str.contains("nonsense"))]
-        max_obs_exp = df_temp.obs_exp.max()
-        condition = " and ".join(condition).replace("nonsense", "frameshift")
-        df = df.append({"obs_exp": max_obs_exp, "bin": condition, "score": np.nan}, ignore_index=True)
+        df = df.append(
+            {
+                "consequence": "frameshift",
+                "score": np.NaN,
+                "constrained": np.NaN,
+                "shethigh": min_obs_exp_table["shethigh"].iloc[0],
+                "obs_exp": max_obs_exp,
+            },
+            ignore_index=True,
+        )
 
-    # inframe
-    df_temp = count_table[count_table["bin"].isin(inframe_bins)]
-    df_temp["bin"] = df_temp["bin"].str.replace("missense", "inframe")
+    return df
 
-    df = df.append(df_temp, ignore_index=True).query('bin.str.contains("frameshift") | bin.str.contains("inframe")')
 
-    return pd.concat([df_original, df], axis=0, ignore_index=True)
+def get_obs_exp_ratio_inframe(obs_exp_table, inframe_categories):
+    """TODO"""
+
+    df = pd.DataFrame(columns=obs_exp_table.columns)
+    for category in inframe_categories:
+        min_obs_exp_table = extract_bins_in_category(obs_exp_table, category)
+        max_obs_exp = min_obs_exp_table.obs_exp.max()
+
+        df = df.append(
+            {
+                "consequence": "inframe",
+                "score": np.NaN,
+                "constrained": np.NaN,
+                "shethigh": min_obs_exp_table["shethigh"].iloc[0],
+                "obs_exp": max_obs_exp,
+            },
+            ignore_index=True,
+        )
+
+    return df
+
+
+def get_obs_exp_ratio_other(obs_exp_table):
+    """ """
+
+    df = obs_exp_table.loc[(~obs_exp_table["consequence"].str.contains("nonsense|missense"))]
+    return df
 
 
 def positive_predictive_value(df) -> pd.DataFrame:
+    """TODO
 
+    Args:
+        df (_type_): _description_
+
+    Returns:
+        pd.DataFrame: _description_
+    """
     odds_ratio = df.obs_exp - df.obs_exp.min() + 1
-    df["ppv"] = np.select([df.bin.str.contains("synonymous")], [0.001], default=(odds_ratio - 1) / odds_ratio)
+    df["ppv"] = np.select(
+        [df["consequence"].str.contains("synonymous")], [0.001], default=(odds_ratio - 1) / odds_ratio
+    )
 
     return df
 
