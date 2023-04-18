@@ -3,8 +3,6 @@ import numpy as np
 import itertools
 import click
 
-SHET_BINS = ["shethigh == True", "shethigh == False"]
-MCR_BINS = ["constrained == True", "constrained == False"]
 
 LOWER_BOUND_CADD_MISSENSE = 6
 UPPER_BOUND_CADD_MISSENSE = 30
@@ -15,6 +13,17 @@ BINSIZE_CADD_NONSENSE_SHETLOW = 7.5
 LOWER_BOUND_CADD_NONSENSE_SHETHIGH = 15
 UPPER_BOUND_CADD_NONSENSE_SHETHIGH = 45
 BINSIZE_CADD_NONSENSE_SHETHIGH = 15
+
+MIN_SCORE = 0
+MAX_SCORE = 50
+
+SHET_VALUES = [True, False]
+CONSTRAINED_VALUES = [True, False]
+CSQ_SYNONYMOUS_VALUES = ["synonymous", "splice_donor|splice_acceptor|splice_lof", "missense"]
+CSQ_MISSENSE_VALUES = ["missense"]
+CSQ_NONSENSE_VALUES = ["nonsense|stop_gained"]
+
+NA = ["NA"]
 
 
 @click.group()
@@ -29,14 +38,16 @@ def cli():
 @click.argument("outfile")
 def get_expected_counts(rates_file, nmales, nfemales, outfile):
     """
-    Calculates the expected number of mutations per gene given a categorized mutability rate file and
-    the number of males and females individual in the cohort.
+    Calculates the expected number of mutations in the cohort per category, given an annotated mutability rate file and
+    the number of males and females individual in the cohort. Mutations are classified in bins according
+    to several variables : functional consequence, CADD score and whether they fall in a constrained region
+    or a high/low shet gene.
 
     Args:
-        rates_file (str): Path to a mutation rates file
+        rates_file (str): Path to the annotated mutation rates file
         nmales (int): Number of males individuals in the cohort
         nfemales (int): Number of females individuals in the cohort
-        outfile (str): Output file
+        outfile (str): Path to the output table listing the expected number of mutations per category
     """
 
     nmales = int(nmales)
@@ -50,7 +61,7 @@ def get_expected_counts(rates_file, nmales, nfemales, outfile):
         usecols=["chrom", "ref", "alt", "consequence", "score", "prob", "shethigh", "constrained"],
     )
 
-    # Filter out missense|nonsense with missing scores
+    # Filter out missense|nonsense loci with missing CADD score
     rates_df = rates_df.loc[
         ~(rates_df.consequence.isin(["missense", "nonsense", "stop_gained"]) & rates_df.score.isna())
     ]
@@ -63,10 +74,8 @@ def get_expected_counts(rates_file, nmales, nfemales, outfile):
     )
 
     # Get expected number of mutations
-    expected_df = pd.concat(
-        [count_variants(rates_df, condition, "exp") for condition in define_bins("exp")], axis=0, ignore_index=True
-    )
-
+    bins = define_bins()
+    expected_df = create_expected_counts_table(rates_df, bins)
     expected_df.to_csv(outfile, sep="\t", index=False)
 
 
@@ -94,9 +103,8 @@ def get_observed_counts(dnm_file, outfile):
     dnm_df = dnm_df.loc[~(dnm_df.consequence.isin(["missense", "nonsense", "stop_gained"]) & dnm_df.score.isna())]
 
     # Get observed number of mutations
-    observed_df = pd.concat(
-        [count_variants(dnm_df, condition, "obs") for condition in define_bins("obs")], axis=0, ignore_index=True
-    )
+    bins = define_bins()
+    observed_df = pd.concat([count_variants(dnm_df, condition, "obs") for condition in bins], axis=0, ignore_index=True)
 
     observed_df.to_csv(outfile, sep="\t", index=False)
 
@@ -128,73 +136,52 @@ def get_X_scaling_factor(male_n: int, female_n: int):
     return x_factor
 
 
-def define_bins(mode: str) -> list:
+def define_bins() -> list:
     """
-    Builds a query combining different attributes (CADD score, shet, consequence etc...) to create bins into each
-    variant/loci will be categorized.
-
-    Args:
-        mode (str): exp for expected, obs for observed
+    Builds the bins used to categorize mutations.
 
     Returns:
-        list: list of bins (defined by their query)
+        list: list of bins
     """
 
-    synonymous_splice_inframe_bins = define_bins_synonymous(mode)
+    synonymous_splice_inframe_bins = define_bins_synonymous()
     missense_bins = define_bins_missense()
     nonsense_bins = define_bins_nonsense()
 
-    return [" and ".join(list(x)) for x in synonymous_splice_inframe_bins + missense_bins + nonsense_bins]
+    return itertools.chain(synonymous_splice_inframe_bins, missense_bins, nonsense_bins)
 
 
-def define_bins_synonymous(mode):
+def define_bins_synonymous():
     """
-    Builds a query combining different attributes (shet, consequence) to create meta bins for synonymous variants
+    Builds the bins containing variants having a synonymous functional consequence.
+    CADD score is not considered here.
+
+    Returns:
+        list: list of bins
     """
 
-    if mode == "obs":
-
-        synonymous_splice_inframe = list(
-            itertools.product(
-                SHET_BINS,
-                [
-                    f'consequence.str.contains("{cq}")'
-                    for cq in ["synonymous", "splice_donor|splice_acceptor|splice_lof", "missense"]
-                ],
-                ["(ref.str.len() - alt.str.len()) == 0"],
-            )
-        )
-    else:
-        synonymous_splice_inframe = list(
-            itertools.product(
-                SHET_BINS,
-                [
-                    f'consequence.str.contains("{cq}")'
-                    for cq in ["synonymous", "splice_donor|splice_acceptor|splice_lof", "missense"]
-                ],
-            )
-        )
-
+    synonymous_splice_inframe = list(itertools.product(CSQ_SYNONYMOUS_VALUES, NA, NA, SHET_VALUES))
     return synonymous_splice_inframe
 
 
 def define_bins_missense():
     """
-    Builds a query combining different attributes (CADD, shet, consequence etc..) to create bins for missense variants
+    Builds the bins containing variants having a missense functional consequence
+
+    Returns:
+        list: list of bins
     """
 
     cadd_missense = generate_cadd_bins(LOWER_BOUND_CADD_MISSENSE, UPPER_BOUND_CADD_MISSENSE, BINSIZE_CADD_MISSENSE)
 
-    missense_bins = list(
-        itertools.product(cadd_missense, SHET_BINS, MCR_BINS, ['consequence.str.contains("missense")'])
-    )
+    missense_bins = list(itertools.product(CSQ_MISSENSE_VALUES, cadd_missense, CONSTRAINED_VALUES, SHET_VALUES))
 
     return missense_bins
 
 
 def define_bins_nonsense():
     """
-    Builds a query combining different attributes (CADD, shet, consequence etc..) to create bins for nonsense variants
+    Builds the bins containing variants having a nonsense functional consequence
     """
 
     cadd_nonsense_low = generate_cadd_bins(
@@ -204,17 +191,10 @@ def define_bins_nonsense():
         LOWER_BOUND_CADD_NONSENSE_SHETHIGH, UPPER_BOUND_CADD_NONSENSE_SHETHIGH, BINSIZE_CADD_NONSENSE_SHETHIGH
     )
 
-    nonsense_bins = list(
-        itertools.product(
-            cadd_nonsense_high, ["shethigh == True"], ['consequence.str.contains("nonsense|stop_gained")']
-        )
-    ) + list(
-        itertools.product(
-            cadd_nonsense_low, ["shethigh == False"], ['consequence.str.contains("nonsense|stop_gained")']
-        )
-    )
+    nonsense_bins_shethigh = list(itertools.product(CSQ_NONSENSE_VALUES, cadd_nonsense_high, NA, [SHET_VALUES[0]]))
+    nonsense_bins_shetlow = list(itertools.product(CSQ_NONSENSE_VALUES, cadd_nonsense_low, NA, [SHET_VALUES[1]]))
 
-    return nonsense_bins
+    return itertools.chain(nonsense_bins_shethigh, nonsense_bins_shetlow)
 
 
 def generate_cadd_bins(lower_bound: float, upper_bound: float, bin_size: float) -> list:
@@ -233,24 +213,34 @@ def generate_cadd_bins(lower_bound: float, upper_bound: float, bin_size: float) 
         list: list of CADD scores bins
     """
 
-    lower_bin = [f'score.between(0, {lower_bound}, inclusive="left")']
-    upper_bin = [f"score >= {upper_bound}"]
+    lower_bin = [[MIN_SCORE, lower_bound]]
+    upper_bin = [[upper_bound, MAX_SCORE]]
 
-    intermediate_bin = [
-        f'score.between({step}, {min(step + lower_bound, upper_bound)}, inclusive="left")'
-        for step in np.arange(lower_bound, upper_bound, bin_size)
-    ]
+    intermediate_bin = [[step, step + bin_size] for step in np.arange(lower_bound, upper_bound, bin_size)]
 
     return itertools.chain(lower_bin, intermediate_bin, upper_bin)
 
 
-def count_variants(df: pd.DataFrame, condition: str, mode: str) -> pd.DataFrame:
+def create_expected_counts_table(rates_df: pd.DataFrame, bins: list):
     """
-    Count the expected or observed number of mutations in mutation rates or DNM file
+    Calculate and assign expected number of mutations per bin.
 
     Args:
-        df (pd.DataFrame): Observed DNM or rates file
-        condition (str): Formal description of the bin
+        rates_df (pd.DataFrame): mutatation rates data frame
+        bins (list): list of bins
+    """
+
+    expected_df = pd.concat([count_variants(rates_df, bin, "exp") for bin in bins], axis=0, ignore_index=True)
+    return expected_df
+
+
+def count_variants(df: pd.DataFrame, bin: list, mode: str) -> pd.DataFrame:
+    """
+    Calculate the expected or count the observed number of mutations in mutation rates or DNM file
+
+    Args:
+        df (pd.DataFrame): Mutation rates or DNM data frame
+        bin (list): List of bins
         mode (str): exp for expected, obs for observed
 
     Returns:
@@ -258,12 +248,35 @@ def count_variants(df: pd.DataFrame, condition: str, mode: str) -> pd.DataFrame:
         the observed or expected number of mutations falling in it
     """
 
+    # TODO : replace bin list per dict to make it more explicit
+    filter_consequence = df.consequence.str.contains(bin[0])
+
+    try:
+        filter_score = (df.score >= bin[1][0]) & (df.score < bin[1][1])
+        score_range = f"{bin[1][0]}-{bin[1][1]}"
+    except TypeError as e:
+        filter_score = True
+        score_range = NA
+
+    filter_constrained = df.constrained == bin[2]
+    filter_shet = df.shethigh == bin[3]
+
+    min_df = df.loc[filter_consequence & filter_score & filter_constrained & filter_shet]
+
     if mode == "exp":
-        count_df = pd.DataFrame({"bin": condition, "exp": df.query(condition)["exp"].sum()}, index=[0])
+        res = min_df["exp"].sum()
     else:
-        count_df = pd.DataFrame({"bin": condition, "obs": len(df.query(condition))}, index=[0])
+        res = len(min_df)
+
+    count_df = pd.DataFrame(
+        {"consequence": bin[0], "score": score_range, "constrained": bin[2], "shethigh": bin[3], mode: res}, index=[0]
+    )
 
     return count_df
+
+
+def filter_df(df, bin):
+    df = df.loc[df.consequence.str.contains(bin[0]) & df]
 
 
 @cli.command()
@@ -282,11 +295,11 @@ def merge_expected_observed(expected_file: str, observed_file: str, outfile: str
     df_expected = pd.read_csv(expected_file, sep="\t")
     df_observed = pd.read_csv(observed_file, sep="\t")
 
-    df_merged = df_expected.merge(df_observed, on="bin", how="outer")
+    df_merged = df_expected.merge(df_observed, on=["consequence", "score", "constrained", "shethigh"], how="outer")
 
     df_merged["obs_exp"] = df_merged["obs"] / df_merged["exp"]
 
-    df_merged.to_csv(outfile, sep="\t")
+    df_merged.to_csv(outfile, sep="\t", index=False)
 
 
 if __name__ == "__main__":
