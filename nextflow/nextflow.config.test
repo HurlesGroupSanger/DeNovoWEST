@@ -1,4 +1,4 @@
-includeConfig 'conf/local.conf'
+includeConfig 'conf/lsf.conf'
 
 workDir = "/lustre/scratch123/hgi/mdt1/teams/hurles/ed11/DNW/out_rate_creation/test_workingdir"
 
@@ -14,10 +14,15 @@ params {
   gene_region_constraints="/lustre/scratch123/hgi/mdt1/teams/hurles/ed11/DNW/DeNovoWEST/resources/genes_regional_data_b38_13022023.tsv"
   shet="/lustre/scratch123/hgi/mdt1/teams/hurles/ed11/DNW/DeNovoWEST/resources/new_shet"
 
-  gene_list = "/lustre/scratch123/hgi/mdt1/teams/hurles/ed11/DNW/DeNovoWEST/examples/genelists/TARDBP.tsv"
+  gene_list = "/lustre/scratch123/hgi/mdt1/teams/hurles/ed11/DNW/DeNovoWEST/examples/genelists/SAMD11_KLHL17.tsv"
   split_step = 1 // Split the gene list every split_step genes 
   outdir = '/lustre/scratch123/hgi/mdt1/teams/hurles/ed11/DNW/out_rate_creation/publish_dir/test'
   dnm="/lustre/scratch123/hgi/mdt1/teams/hurles/ed11/DNW/DeNovoWEST/examples/DNM_hg38_MANE_min.tsv"
+
+  weights {
+    n_males = 100
+    n_females = 100
+  }
 
 }
 

@@ -9,3 +9,6 @@ ENSG00000155657.29 (TTN) has both a MANE Select and a Mane Plus Clinical transcr
 
 ## overlapping.tsv
 ENSG00000116218.13 (NPHS2) and ENSG00000162779.22 (AXDND1) are overlapping genes. Used to check that annotation is gene specific.
+
+## SAMD11_KLHL17.tsv
+Used to test weight creation as DNM_hg38_MANE_min.tsv contains variants in those genes  

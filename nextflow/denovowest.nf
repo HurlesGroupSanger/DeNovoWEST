@@ -15,6 +15,12 @@ include { GNOMAD; GNOMAD as DNM_GNOMAD } from './modules/annotation.nf'
 include { CONSTRAINTS; CONSTRAINTS as DNM_CONSTRAINTS} from './modules/annotation.nf'
 include { SHET; SHET as DNM_SHET } from './modules/annotation.nf'
 
+include { GET_EXPECTED_COUNTS } from './modules/weights.nf'
+include { MERGE_EXPECTED } from './modules/weights.nf'
+include { GET_OBSERVED_COUNTS } from './modules/weights.nf'
+include { MERGE_COUNTS } from './modules/weights.nf'
+include { LOESS } from './modules/weights.nf'
+
 
 
 
@@ -62,4 +68,18 @@ workflow{
     dnm_gnomad_ch = DNM_GNOMAD(dnm_cadd_ch, params.gnomad_file, params.gnomad_file + ".tbi" )
     dnm_constrained_ch = DNM_CONSTRAINTS(dnm_gnomad_ch, params.gene_full_constraints, params.gene_region_constraints )
     dnm_shet_ch = DNM_SHET(dnm_constrained_ch, params.shet)
+
+    // Weights
+    expected_ch = GET_EXPECTED_COUNTS(rates_shet_ch, params.weights.n_males, params.weights.n_females)
+    expected_merged_ch = MERGE_EXPECTED(expected_ch.collect())
+
+    observed_ch = GET_OBSERVED_COUNTS(dnm_shet_ch)
+
+    merged_counts_ch = MERGE_COUNTS(expected_merged_ch, observed_ch)
+
+    weights_ch = LOESS(merged_counts_ch)
+
+
+
+
 } 
