@@ -11,7 +11,8 @@ import numpy as np
 
 
 from utils import init_log, log_configuration, CONSEQUENCES_MAPPING
-from weights import assign_weights
+from weights import assign_weights, get_indel_weights
+from probabilities import get_pvalue
 
 
 def load_weights(weightsfile: str):
@@ -173,7 +174,7 @@ def correct_for_x_chrom(rates, male_n, female_n):
     return rates
 
 
-def run_simulation(dnm_df: pd.DataFrame, rates_df: pd.DataFrame):
+def run_simulations(dnm_df: pd.DataFrame, rates_df: pd.DataFrame, nsim: int, indel_weights: list, pvalcap: float):
     """_summary_
 
     Args:
@@ -181,18 +182,100 @@ def run_simulation(dnm_df: pd.DataFrame, rates_df: pd.DataFrame):
         rates_df (pd.DataFrame): _description_
     """
 
-    print("toto")
+    genes = dnm_df.gene_id.unique()
+    results = []
+    for gene in genes:
+        simulation_results = run_simulation(rates_df, dnm_df, gene, nsim, indel_weights, pvalcap)
+        if simulation_results:
+            results.append(simulation_results)
+
+    return results
 
 
-def export_results(results_df: pd.DataFrame, output: str):
+def run_simulation(rates_df, dnm_df, gene_id, nsim, indel_weights, pvalcap):
     """_summary_
 
     Args:
-        results_df (pd.DataFrame): _description_
+        rates_df (_type_): _description_
+        dnm_df (_type_): _description_
+        gene (_type_): _description_
+        nsim (_type_): _description_
+        pvalcap (_type_): _description_
+    """
+
+    logger = logging.getLogger("logger")
+
+    if gene_id not in rates_df.gene_id.unique():
+        logger.info("could not find " + str(gene_id))
+        return
+
+    logger.info("testing" + str(gene_id))
+
+    generates = rates_df.loc[rates_df.gene_id == gene_id]
+    generates = get_indel_rates(generates, indel_weights)
+
+    s_obs = dnm_df[dnm_df.gene_id == gene_id].ppv.sum()
+    pval, info, s_exp = get_pvalue(generates, s_obs, nsim, pvalcap)
+
+    return (gene_id, s_exp, s_obs, pval, info)
+
+
+def get_indel_rates(generates, indel_weights):
+    """_summary_
+
+    Args:
+        generates (_type_): _description_
+        indel_weights (_type_): _description_
+
+    Returns:
+        _type_: _description_
+    """
+
+    # Get the overall probability of missense and nonsense mutation across the gene
+    missense_rate = generates[generates.consequence == "missense"].prob.sum()
+    nonsense_rate = generates[generates.consequence == "nonsense"].prob.sum()
+    # TODO : Where does those factors come from ?
+    inframe_rate = missense_rate * 0.03
+    frameshift_rate = nonsense_rate * 1.3
+
+    # Get the weights associated to frameshift and inframe indels
+    shethigh = generates.shethigh.iloc[0]
+    frameshift_weight = float(
+        indel_weights.loc[
+            (indel_weights.consequence == "frameshift")
+            & (indel_weights.constrained == False)
+            & (indel_weights.shethigh == shethigh)
+        ].ppv
+    )
+    inframe_weight = float(
+        indel_weights.loc[
+            (indel_weights.consequence == "inframe")
+            & (indel_weights.constrained == False)
+            & (indel_weights.shethigh == shethigh)
+        ].ppv
+    )
+
+    # Add the weights to the rates dataframe
+    indelrates = pd.DataFrame(
+        [
+            ["inframe", inframe_rate, inframe_weight, False, shethigh],
+            ["frameshift", frameshift_rate, frameshift_weight, False, shethigh],
+        ],
+        columns=["consequence", "prob", "ppv", "constrained", "shethigh"],
+    )
+    generates = generates.append(indelrates, ignore_index=True)
+    return generates
+
+
+def export_results(results: list, output: str):
+    """_summary_
+
+    Args:
+        results (list): _description_
         output (str): _description_
     """
 
-    df = pd.DataFrame.from_records(results_df, columns=["symbol", "hgnc_id", "expected", "observed", "p-value", "info"])
+    df = pd.DataFrame.from_records(results, columns=["symbol", "expected", "observed", "p-value", "info"])
     df.to_csv(output, sep="\t", index=False)
 
 
@@ -205,7 +288,7 @@ def export_results(results_df: pd.DataFrame, output: str):
 @click.option(
     "--pvalcap", default=1.0, type=float, help="Stop simulations if cumulative p-value > pvalcap"
 )  # TODO more details
-@click.option("--nsim", default=10e9, type=int, help="Minimum number of simulations for each gene ")
+@click.option("--nsim", default=10, type=int, help="Minimum number of simulations for each gene ")
 @click.option("--output", default="enrichment_results.tsv")
 def main(dnm, rates, weights, nmales, nfemales, pvalcap, nsim, output):
     """#TODO
@@ -225,12 +308,19 @@ def main(dnm, rates, weights, nmales, nfemales, pvalcap, nsim, output):
     log_configuration(click.get_current_context().params)
 
     weights_df = load_weights(weights)
+
     dnm_df = prepare_dnm(dnm, weights_df)
     rates_df = prepare_rates(rates, weights_df, nmales, nfemales)
 
-    results_df = run_simulation(dnm_df, rates_df, nsim, pvalcap)
+    dnm_df.to_csv("debug/dnm_new_format.tsv", sep="\t", index=False)
+    rates_df.to_csv("debug/rates_new_format.tsv", sep="\t", index=False)
 
-    export_results(results_df, output)
+    indel_weights = get_indel_weights(weights_df)
+    indel_weights.to_csv("debug/indelweights_new_format.tsv", sep="\t", index=False)
+
+    results = run_simulations(dnm_df, rates_df, nsim, indel_weights, pvalcap)
+
+    export_results(results, output)
 
 
 if __name__ == "__main__":

@@ -17,6 +17,8 @@ CONSEQUENCES_MAPPING = {
     "conserved_exon_terminus_variant": "splice_lof",
 }
 
+N_MUTATION_MAX_SIM = 250
+
 
 def init_log():
     """Initialize logging configuration"""

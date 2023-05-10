@@ -41,17 +41,159 @@ def assign_standard_weights(df, weights_df):
     df["score_rounded"] = df.score.round(3)
 
     # Merge on consequence, score, constraints and shethigh in order to retrieve the weights to assign to each variant
-    weighted_df = df.merge(
-        weights_df,
-        left_on=["consequence", "score_rounded", "constrained", "shethigh"],
-        right_on=["consequence", "score", "constrained", "shethigh"],
-        how="left",
+    # weighted_df = df.merge(
+    #     weights_df,
+    #     left_on=["consequence", "#", "constrained", "shethigh"],
+    #     right_on=["consequence", "score", "constrained", "shethigh"],
+    #     how="left",
+    # )
+    missense_weighted_df = assign_weights_missense(df, weights_df)
+    nonsense_weighted_df = assign_weights_nonsense(df, weights_df)
+    synonymous_weighted_df = assign_weights_synonymous(df, weights_df)
+    splicelof_weighted_df = assign_weights_splicelof(df, weights_df)
+    inframe_weighted_df = assign_weights_inframe(df, weights_df)
+    frameshift_weighted_df = assign_weights_frameshift(df, weights_df)
+
+    weighted_df = pd.concat(
+        [
+            missense_weighted_df,
+            nonsense_weighted_df,
+            synonymous_weighted_df,
+            splicelof_weighted_df,
+            inframe_weighted_df,
+            frameshift_weighted_df,
+        ]
     )
-    assert df.shape[0] == weighted_df.shape[0]
+
+    # TODO : Further check here (splice_region not handled)
+    assert weighted_df.shape[0] <= df.shape[0]
 
     # Clean merging residuals
     weighted_df.drop(["score_y", "score_rounded"], axis=1, inplace=True)
     weighted_df.rename({"score_x": "score"}, axis=1, inplace=True)
+
+    return weighted_df
+
+
+def assign_weights_missense(df, weights_df):
+    """_summary_
+
+    Args:
+        df (_type_): _description_
+        weights_df (_type_): _description_
+    """
+
+    min_df = df.loc[df.consequence == "missense"]
+    weighted_df = min_df.merge(
+        weights_df,
+        left_on=["consequence", "constrained", "shethigh", "score_rounded"],
+        right_on=["consequence", "constrained", "shethigh", "score"],
+        how="left",
+    )
+    assert weighted_df.shape[0] == min_df.shape[0]
+
+    return weighted_df
+
+
+def assign_weights_nonsense(df, weights_df):
+    """_summary_
+
+    Args:
+        df (_type_): _description_
+        weights_df (_type_): _description_
+    """
+
+    min_df = df.loc[df.consequence == "nonsense"]
+    # TODO : Explain why we are not setting the constraint information to nan for nonsense mutations
+    min_df.constrained = np.NaN
+    min_df.constrained = min_df.constrained.astype(object)
+    weighted_df = min_df.merge(
+        weights_df,
+        left_on=["consequence", "constrained", "shethigh", "score_rounded"],
+        right_on=["consequence", "constrained", "shethigh", "score"],
+        how="left",
+    )
+    assert weighted_df.shape[0] == min_df.shape[0]
+
+    return weighted_df
+
+
+def assign_weights_synonymous(df, weights_df):
+    """_summary_
+
+    Args:
+        df (_type_): _description_
+        weights_df (_type_): _description_
+    """
+
+    min_df = df.loc[df.consequence == "synonymous"]
+    weighted_df = min_df.merge(
+        weights_df,
+        left_on=["consequence", "constrained", "shethigh"],
+        right_on=["consequence", "constrained", "shethigh"],
+        how="left",
+    )
+    assert weighted_df.shape[0] == min_df.shape[0]
+
+    return weighted_df
+
+
+def assign_weights_splicelof(df, weights_df):
+    """_summary_
+
+    Args:
+        df (_type_): _description_
+        weights_df (_type_): _description_
+    """
+
+    min_df = df.loc[df.consequence == "splice_lof"]
+    weighted_df = min_df.merge(
+        weights_df,
+        left_on=["consequence", "constrained", "shethigh"],
+        right_on=["consequence", "constrained", "shethigh"],
+        how="left",
+    )
+    assert weighted_df.shape[0] == min_df.shape[0]
+
+    return weighted_df
+
+
+def assign_weights_inframe(df, weights_df):
+    """_summary_
+
+    Args:
+        df (_type_): _description_
+        weights_df (_type_): _description_
+    """
+
+    min_df = df.loc[df.consequence == "inframe"]
+    weighted_df = min_df.merge(
+        weights_df,
+        left_on=["consequence", "constrained", "shethigh"],
+        right_on=["consequence", "constrained", "shethigh"],
+        how="left",
+    )
+    assert weighted_df.shape[0] == min_df.shape[0]
+
+    return weighted_df
+
+
+def assign_weights_frameshift(df, weights_df):
+    """_summary_
+
+    Args:
+        df (_type_): _description_
+        weights_df (_type_): _description_
+    """
+
+    min_df = df.loc[df.consequence == "frameshift"]
+    weighted_df = min_df.merge(
+        weights_df,
+        left_on=["consequence", "constrained", "shethigh"],
+        right_on=["consequence", "constrained", "shethigh"],
+        how="left",
+    )
+    assert weighted_df.shape[0] == min_df.shape[0]
 
     return weighted_df
 
@@ -82,6 +224,8 @@ def assign_outlier_weights(df, weights_df):
             max_score,
             df["ppv"],
         )
+
+    return df
 
 
 def get_max_score(combination, df):
