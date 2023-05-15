@@ -1,0 +1,233 @@
+---
+title: "Figure1"
+author: "Joanna Kaplanis and Kaitlin Samocha"
+date: "21/08/2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r, message=FALSE}
+# load required libraries
+library(data.table)
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+library(ggrepel)
+
+#color palette 
+myColors <- c("black", '#56B4E9', "gray", "#E69F00")
+names(myColors) <- c('consensus', 'discordant', 'none', 'novel')
+colScale <- scale_colour_manual(name = "diag_group",values = myColors)
+
+# filepaths
+resfile <- "../input/extended_denovoWEST_results.tab"
+dnmfile <- '../input/DDD_RUMC_GDX_denovos_cadd_shet_wweights_2020_01_17.txt.gz'
+id_sex_filepath <- '../input/fordist_joint_dnm_ID_sex_2019_08_30.txt'
+
+# counts per study
+Nddd <- 9858
+Nnjm <- 2417
+Ngdx <- 18783
+N_all <- Nddd + Ngdx + Nnjm
+
+atsize = 15
+ltsize = 17
+```
+
+#Figure 1(a)  
+
+```{r, fig.align='center'}
+#compare mupit to denovo WEST
+ngenes <- 18762
+th <- 0.025/ngenes
+res_mup <- fread(resfile,sep = "\t")
+
+#ignore undiagnosed analysis here
+res_mup <- res_mup[!is.na(res_mup$denovoWEST_p_full),]
+res_mup$lg10denovoWEST <- -log10(res_mup$denovoWEST_p_full)
+res_mup$mup_pval[res_mup$mup_pval<10^(-16)] <- 10^(-16)
+res_mup$lg10mup <- -log10(res_mup$mup_pval)
+
+n_mupit <- sum(res_mup$mup_pval<=th/2 & res_mup$denovoWEST_p_full>th & !is.na(res_mup$mup_pval) & !is.na(res_mup$denovoWEST_p_full))
+n_new <- sum(res_mup$mup_pval>th/2 & res_mup$denovoWEST_p_full<=th & !is.na(res_mup$mup_pval) & !is.na(res_mup$denovoWEST_p_full))
+n_both <- sum(res_mup$mup_pval<=th/2 & res_mup$denovoWEST_p_full<=th & !is.na(res_mup$mup_pval) & !is.na(res_mup$denovoWEST_p_full))
+
+res_mup$nonsyn_count <- res_mup$lofcount + res_mup$missense_variant
+p <- ggplot(res_mup, aes(x = lg10mup,y = lg10denovoWEST, col = diag_group)) + 
+        geom_point(data = res_mup[!(res_mup$diag_group == "consensus")],aes(x = lg10mup, y = lg10denovoWEST, size = nonsyn_count), alpha = 0.9) + 
+        geom_point(data = res_mup[(res_mup$diag_group == "consensus")],aes(x = lg10mup, y = lg10denovoWEST, size = nonsyn_count), alpha = 0.55) +
+        colScale+ geom_hline(yintercept = -log10(th), linetype = "dashed",color = "gray43") + 
+        geom_vline(xintercept = -log10(th/2),linetype = "dashed",color = "gray43") +
+        geom_abline(intercept = 0, slope = 1, color = "gray43",linetype = "dotted")  + 
+        xlab("-log10(mupit p-value)") + ylab("-log10(DeNovo WEST p-value)")+theme_classic() + 
+        theme(legend.position = "top",legend.text = element_text(size = 14),legend.title = element_blank(),axis.text=element_text(size=atsize),axis.title=element_text(size=ltsize)) 
+
+pdf("fig1a.pdf",width = 7,height = 6)
+p + annotate(geom = "text",x = 9, y = 17, label = toString(n_both),color = "gray43",size = 8) +
+      annotate(geom = "text",x = 2.5, y = 17, label = toString(n_new),color = "gray43",size = 8) +
+      annotate(geom = "text",x = 9, y = 0.5, label = toString(n_mupit),color = "gray43",size = 8)
+dev.off()
+```
+
+#Figure 1(b)  
+
+```{r, fig.align='center'}
+# denovoWEST p-value bins
+pval_5bins_gene_category_diagnostic_lists <- res_mup %>%
+  filter(sig==TRUE) %>%
+  mutate(pvalbin = ifelse(diag_group=='consensus', case_when(denovoWEST_p_full < th & denovoWEST_p_full > th/10^2 ~ '1.3e-6 to 1.3e-8',
+                             denovoWEST_p_full < th/10^2 & denovoWEST_p_full > th/10^4 ~ '1.3e-8 to 1.3e-10',
+                             denovoWEST_p_full < th/10^4 & denovoWEST_p_full > th/10^6 ~ '1.3e-10 to 1.3e-12',
+                             denovoWEST_p_full < th/10^6 & denovoWEST_p_full > 1e-14 ~ '1.3e-12 to 1e-14',
+                             denovoWEST_p_full <= 1e-14 ~ '< 1e-14'), case_when(denovoWEST_p_ud < th & denovoWEST_p_ud > th/10^2 ~ '1.3e-6 to 1.3e-8',
+                             denovoWEST_p_ud < th/10^2 & denovoWEST_p_ud >th/10^4 ~ '1.3e-8 to 1.3e-10',
+                             denovoWEST_p_ud < th/10^4 & denovoWEST_p_ud > th/10^6 ~ '1.3e-10 to 1.3e-12',
+                             denovoWEST_p_ud < th/10^6 & denovoWEST_p_ud > 1e-14 ~ '1.3e-12 to 1e-14',
+                             denovoWEST_p_ud <= 1e-14 ~ '< 1e-14'))) %>%
+  group_by(pvalbin, diag_group) %>%
+  tally()
+
+pval_5bins_gene_category_diagnostic_lists$pvalbin <- factor(pval_5bins_gene_category_diagnostic_lists$pvalbin, levels=c('1.3e-6 to 1.3e-8','1.3e-8 to 1.3e-10','1.3e-10 to 1.3e-12','1.3e-12 to 1e-14', '< 1e-14'))
+pval_5bins_gene_category_diagnostic_lists$diag_group <- factor(pval_5bins_gene_category_diagnostic_lists$diag_group, levels=c('novel', 'discordant', 'consensus'))
+
+pdf("fig1b.pdf",width = 7,height = 4)
+ggplot(pval_5bins_gene_category_diagnostic_lists, aes(x=pvalbin, y=n, fill=diag_group)) +
+  geom_bar(stat = 'identity') +
+  theme_classic() +
+  scale_fill_manual(values=c("#E69F00","#56B4E9","black")) +
+  theme(axis.text.x  = element_text(size=atsize), axis.text.y = element_text(size=atsize), axis.title = element_text(size=ltsize), legend.title = element_blank(), legend.text = element_text(size=atsize), axis.line = element_blank(), axis.ticks.x = element_blank()) +
+  scale_y_continuous('Number of genes',breaks=seq(0,150,25), labels=seq(0,150,25)) +
+  scale_x_discrete('p-value bins', labels=c('1.3e-6 to\n1.3e-8', '1.3e-8 to\n1.3e-10', '1.3e-10 to\n1.3e-12', '1.3e-13 to\n1e-14', '\u2264 1e-14')) +
+  theme(legend.position = "none")
+dev.off()
+```
+
+#Figure 1(c)
+
+```{r, fig.align='center'}
+
+#color palette 
+novcol <- c("darkblue", 'darkred')
+names(myColors) <- c('pEnrich','pGoF')
+gofScale <- scale_colour_manual(name = "min p:",values = novcol)
+
+novel <- res_mup[res_mup$diag_group == "novel",]
+novel$gofsig <- 'pEnrich'
+novel$gofsig[novel$denovoWEST_p_ud != novel$enrich_all_p_ud] <- 'pMEC'
+novel$lg10p <- -log10(novel$denovoWEST_p_ud)
+novel$nonsyn <- novel$lofcount+novel$missense_variant
+
+#PTV count vs missense with p-value as size
+pdf("fig1c.pdf",width = 7,height = 6)
+ggplot(novel,aes(x=missense_variant,y = lofcount)) +
+  geom_point(alpha = 0.5,aes(size = lg10p,color = gofsig)) + theme_classic()+
+  geom_label_repel(aes(label = symbol,color = gofsig),box.padding   = 0.25,point.padding = 0.5,size =3.0,show.legend = F) +
+  xlab("Number of missense DNMs") + ylab("Number of PTV DNMs")+ 
+  labs(colour = "min p:",size = "-log10(p-value)") +
+  xlim(-1,18) +ylim(-1,18)+ gofScale +
+  theme(axis.text=element_text(size=atsize),
+        axis.title=element_text(size=ltsize),legend.position = "top",legend.text = element_text(size = 14),legend.title=element_text(size=atsize)) 
+dev.off()
+```
+
+#Figure 1(d)  
+
+```{r}
+# load de novo mutations
+all <- read.table(dnmfile, stringsAsFactors = F, sep = '\t', header = T)
+
+# determine fraction of cases with nonsynonymous DNM in each gene category
+# all consensus known, significant discordant known, significant novel
+nodoublecount_fractioncase <- all %>%
+  filter((symbol %in% subset(res_mup, diag_group=='consensus' | sig==TRUE)$symbol) & !(consequence %in% c('coding_sequence_variant', 'stop_retained_variant', 'synonymous_variant'))) %>%
+  mutate(diag_list = case_when(symbol %in% subset(res_mup, diag_group=='consensus')$symbol ~ 'consensus',
+                             symbol %in% subset(res_mup, diag_group=='discordant' & sig==TRUE)$symbol ~ 'discordant',
+                             symbol %in% subset(res_mup, diag_group=='novel')$symbol ~ 'novel')) %>%
+  group_by(id, diag_list) %>%
+  tally() %>%
+  spread(diag_list, n) %>%
+  replace(., is.na(.), 0) %>%
+  mutate(person_cat = ifelse(consensus>0, 'consensus', ifelse(discordant>0, 'discordant', 'novel'))) %>%
+  group_by(person_cat) %>%
+  tally() %>%
+  mutate(fractioncase_all = n/N_all)
+
+nodoublecount_fractioncase
+```
+
+```{r, fig.align='center'}
+# expected fraction of cases with a diagnostic coding de novo mutation -- estimated by Hilary Martin
+fractioncase_all_dnv <- 0.486
+
+# determining the remaining fraction of cases
+nodoublecount_fractioncase <- add_row(nodoublecount_fractioncase,
+                                        person_cat=c('remaining', 'not de novo'),
+                                        n=c(NA, NA),
+                                        fractioncase_all=c(fractioncase_all_dnv-sum(nodoublecount_fractioncase$fractioncase_all), 1-fractioncase_all_dnv))
+nodoublecount_fractioncase$person_cat <- factor(nodoublecount_fractioncase$person_cat, levels = c('not de novo', 'remaining', 'novel', 'discordant', 'consensus'))
+
+# plot the fraction of cases
+pdf("fig1d.pdf",width = 2.25,height = 4)
+ggplot(nodoublecount_fractioncase, aes(x=1, y=fractioncase_all, fill=person_cat))+
+  geom_bar(stat='identity') +
+  labs(y='Fraction of cases', x='', title='') +
+  theme_classic() +
+theme(legend.position= "none", axis.text.x  = element_blank(), axis.text.y = element_text(size=atsize), axis.title = element_text(size=ltsize), axis.line.x = element_blank(), axis.ticks.x = element_blank(), axis.line.y = element_blank()) +
+  scale_fill_manual(values = rev(c("black", '#56B4E9', "#E69F00", "#009E73", 'lightgray')))
+dev.off()
+
+pdf("fig1d_legend.pdf",width = 8,height = 4)
+ggplot(nodoublecount_fractioncase, aes(x=1, y=fractioncase_all, fill=person_cat))+
+  geom_bar(stat='identity') +
+  labs(y='Fraction of cases', x='', title='') +
+  theme_classic() +
+theme(legend.title = element_blank(), axis.text.x  = element_blank(), axis.text.y = element_text(size=atsize), axis.title = element_text(size=ltsize), legend.text = element_text(size=atsize), axis.line.x = element_blank(), axis.ticks.x = element_blank(), axis.line.y = element_blank()) +
+  scale_fill_manual(values = rev(c("black", '#56B4E9', "#E69F00", "#009E73", 'lightgray'))) + theme(legend.position = "top")
+dev.off()
+```
+
+#Figure 1(e)  
+
+```{r, fig.align='center'}
+# need to load sex metadata
+id_sex <- read.table(id_sex_filepath, stringsAsFactors = F, sep = '\t', header = T)
+female_ids <- subset(id_sex, sex=='F')$id
+male_ids <- subset(id_sex, sex=='M')$id
+
+N_female <- length(female_ids)
+N_male <- length(male_ids)
+
+# split fraction of cases by sex
+nodoublecount_fractioncase_by_sex <- all %>%
+  filter((symbol %in% subset(res_mup, diag_group=='consensus' | sig==TRUE)$symbol) & !(consequence %in% c('coding_sequence_variant', 'stop_retained_variant', 'synonymous_variant'))) %>%
+  mutate(diag_list = case_when(symbol %in% subset(res_mup, diag_group=='consensus')$symbol ~ 'consensus',
+                             symbol %in% subset(res_mup, diag_group=='discordant' & sig==TRUE)$symbol ~ 'discordant',
+                             symbol %in% subset(res_mup, diag_group=='novel')$symbol ~ 'novel')) %>%
+  mutate(sex = case_when(id %in% female_ids ~ 'female',
+                         id %in% male_ids ~ 'male')) %>%
+  group_by(id, sex, diag_list) %>%
+  tally() %>%
+  spread(diag_list, n) %>%
+  replace(., is.na(.), 0) %>%
+  mutate(person_cat = ifelse(consensus>0, 'consensus', ifelse(discordant>0, 'discordant', 'novel'))) %>%
+  group_by(person_cat, sex) %>%
+  tally() %>%
+  mutate(fractioncase = case_when(sex=='female' ~ n/N_female,
+                                  sex=='male' ~ n/N_male))
+
+nodoublecount_fractioncase_by_sex$person_cat <- factor(nodoublecount_fractioncase_by_sex$person_cat, levels = c('novel', 'discordant', 'consensus'))
+
+pdf("fig1e.pdf",width = 3,height = 4)
+ggplot(nodoublecount_fractioncase_by_sex, aes(x=sex, y=fractioncase, fill=person_cat))+
+  geom_bar(stat='identity') +
+  labs(y='Fraction of cases', x='', title='') +
+  theme_classic() +
+  ylim(c(0,0.3)) +
+theme(legend.title = element_blank(), axis.text.x  = element_text(size = atsize), axis.text.y = element_text(size=atsize), axis.title = element_text(size=ltsize), legend.text = element_text(size=atsize), axis.line.x = element_blank(), axis.ticks.x = element_blank(), axis.line.y = element_blank()) +
+  scale_fill_manual(values = rev(c("black", '#56B4E9', "#E69F00"))) + theme(legend.position = "none")
+dev.off()
+```
+
