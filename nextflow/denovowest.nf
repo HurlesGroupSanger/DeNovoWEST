@@ -27,13 +27,13 @@ include { LOESS } from './modules/weights.nf'
 workflow{ 
 
 
-    // If the input provided is already a gffutils database file, no need to create it
-    if (params.gff_file.endsWith(".db")) {
-      gffutils_db_ch = Channel.fromPath(params.gff_file)
+    // DEBUG and TEST only : avoid to create gffutils database every time
+    if (params.containsKey("gff_db")) {
+      gffutils_db_ch = Channel.fromPath(params.gff_db)
     }
-    // If it is a gff, then create the database
+    // Create gffutils database
     else {
-      gff_ch = Channel.fromPath(params.gff_file)
+      gff_ch = Channel.fromPath(params.gff)
       gffutils_db_ch = GFFUTILS_DB(gff_ch) 
     }
 
@@ -53,31 +53,40 @@ workflow{
     rate_creation_ch = RATE_CREATION(split_gene_list_ch.toSortedList().flatten(), gffutils_db_ch.first(), params.genome_fasta, params.mutation_rate_model)
     
     // Annotate rates file
-    rates_bcftools_csq_ch = BCFTOOLS_CSQ_FULL(rate_creation_ch, params.genome_fasta, params.genome_fasta + ".fai", params.gff, gffutils_db_ch.first() )
-    rates_cadd_ch = CADD(rates_bcftools_csq_ch, params.cadd_file, params.cadd_file + ".tbi")
-    rates_gnomad_ch = GNOMAD(rates_cadd_ch, params.gnomad_file, params.gnomad_file + ".tbi" )
-    rates_constrained_ch = CONSTRAINTS(rates_gnomad_ch, params.gene_full_constraints, params.gene_region_constraints )
-    rates_shet_ch = SHET(rates_constrained_ch, params.shet)
+    if (params.containsKey("annotation"))
+    {
+      rates_bcftools_csq_ch = BCFTOOLS_CSQ_FULL(rate_creation_ch, params.genome_fasta, params.genome_fasta + ".fai", params.gff, gffutils_db_ch.first() )
+      rates_cadd_ch = CADD(rates_bcftools_csq_ch, params.cadd_file, params.cadd_file + ".tbi")
+      rates_gnomad_ch = GNOMAD(rates_cadd_ch, params.gnomad_file, params.gnomad_file + ".tbi" )
+      rates_constrained_ch = CONSTRAINTS(rates_gnomad_ch, params.gene_full_constraints, params.gene_region_constraints )
+      rates_shet_ch = SHET(rates_constrained_ch, params.shet)
+    }
 
     // Merge results
-    rates_merged_ch = MERGE_RATES(rates_shet_ch.collect())
+    // rates_merged_ch = MERGE_RATES(rates_shet_ch.collect())
 
     // Annotate DNM file
-    dnm_bcftools_csq_ch = DNM_BCFTOOLS_CSQ_FULL(params.dnm, params.genome_fasta, params.genome_fasta + ".fai", params.gff,  gffutils_db_ch.first() )
-    dnm_cadd_ch = DNM_CADD(dnm_bcftools_csq_ch, params.cadd_file, params.cadd_file + ".tbi")
-    dnm_gnomad_ch = DNM_GNOMAD(dnm_cadd_ch, params.gnomad_file, params.gnomad_file + ".tbi" )
-    dnm_constrained_ch = DNM_CONSTRAINTS(dnm_gnomad_ch, params.gene_full_constraints, params.gene_region_constraints )
-    dnm_shet_ch = DNM_SHET(dnm_constrained_ch, params.shet)
+    if (params.containsKey("annotation"))
+    {
+      dnm_bcftools_csq_ch = DNM_BCFTOOLS_CSQ_FULL(params.dnm, params.genome_fasta, params.genome_fasta + ".fai", params.gff,  gffutils_db_ch.first() )
+      dnm_cadd_ch = DNM_CADD(dnm_bcftools_csq_ch, params.cadd_file, params.cadd_file + ".tbi")
+      dnm_gnomad_ch = DNM_GNOMAD(dnm_cadd_ch, params.gnomad_file, params.gnomad_file + ".tbi" )
+      dnm_constrained_ch = DNM_CONSTRAINTS(dnm_gnomad_ch, params.gene_full_constraints, params.gene_region_constraints )
+      dnm_shet_ch = DNM_SHET(dnm_constrained_ch, params.shet)
+    }
 
     // Weights
-    expected_ch = GET_EXPECTED_COUNTS(rates_shet_ch, params.weights.n_males, params.weights.n_females)
-    expected_merged_ch = MERGE_EXPECTED(expected_ch.collect())
+    if (params.containsKey("weights"))
+    {
+      expected_ch = GET_EXPECTED_COUNTS(rates_shet_ch, params.weights.n_males, params.weights.n_females)
+      expected_merged_ch = MERGE_EXPECTED(expected_ch.collect())
 
-    observed_ch = GET_OBSERVED_COUNTS(dnm_shet_ch)
+      observed_ch = GET_OBSERVED_COUNTS(dnm_shet_ch)
 
-    merged_counts_ch = MERGE_COUNTS(expected_merged_ch, observed_ch)
+      merged_counts_ch = MERGE_COUNTS(expected_merged_ch, observed_ch)
 
-    weights_ch = LOESS(merged_counts_ch)
+      weights_ch = LOESS(merged_counts_ch)
+    }
 
 
 

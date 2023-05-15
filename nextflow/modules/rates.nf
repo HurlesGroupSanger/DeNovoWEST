@@ -36,8 +36,7 @@ process CREATE_GENE_LIST {
   gff_db = gffutils.FeatureDB('$gff_db', keep_order=True)
   
   with open("gene_list.tsv", "w") as f :
-    for gene in gff_db.all_features(featuretype="gene", order_by="start") :
-        print(gene.attributes)
+    for gene in gff_db.all_features(featuretype="gene") :
         f.write(str(gene.attributes['ID'][0]) + '\\n') 
   """
 }
@@ -67,6 +66,8 @@ process SPLIT_GENE_LIST {
  */
 process RATE_CREATION {
 
+    publishDir "${params.outdir}/rates/split/", mode: 'symlink', overwrite: true
+
     input :
     path gene_list 
     path gff_db
@@ -92,7 +93,7 @@ process RATE_CREATION {
  */
 process MERGE_RATES {
 
-  publishDir "${params.outdir}/", mode: 'copy', overwrite: true
+  publishDir "${params.outdir}/rates/", mode: 'copy', overwrite: true
 
   input : 
   path rates, stageAs : "mutation_rates_*.tsv"
