@@ -1,0 +1,34 @@
+includeConfig 'conf/lsf.conf'
+
+Date now = new Date()
+
+workDir = "/lustre/scratch123/hgi/mdt1/teams/hurles/ed11/DNW/out_rate_creation/b37_workingdir"
+
+params {
+  gff = "/lustre/scratch123/hgi/mdt1/teams/hurles/ed11/resources/Homo_sapiens.GRCh37.87.chr.protein_coding.gff3.gz"
+  genome_fasta = "/lustre/scratch123/hgi/mdt1/teams/hurles/ed11/resources/Homo_sapiens.GRCh37.dna.primary_assembly.fa"
+  mutation_rate_model = "/lustre/scratch123/hgi/mdt1/teams/hurles/ed11/DNW/DeNovoWEST/resources/rates_model_dnn.tsv"
+
+  split_step = 100 // Split the gene list every split_step genes 
+  outdir = '/lustre/scratch123/hgi/mdt1/teams/hurles/ed11/DNW/out_rate_creation/publish_dir/b37'
+
+  tracedir = '/lustre/scratch123/hgi/mdt1/teams/hurles/ed11/DNW/out_rate_creation/tracedir/b37'
+  timestamp = now.format("yyyyMMdd-HH-mm-ss")
+
+}
+
+timeline {
+    enabled = true
+    file = "${params.tracedir}/${params.timestamp}_timeline.html"
+}
+report {
+    enabled = true
+    file = "${params.tracedir}/${params.timestamp}_report.html"
+}
+
+
+
+
+
+
+

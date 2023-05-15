@@ -56,7 +56,6 @@ def load_gene_list(conf, gff_db, column=0):
     logger = logging.getLogger("logger")
 
     if "GENE_LIST" in conf.keys():
-
         logger.info(f"Getting gene list from : {conf['GENE_LIST']}")
 
         gene_list_file = conf["GENE_LIST"]
@@ -67,7 +66,6 @@ def load_gene_list(conf, gff_db, column=0):
         else:
             gene_list = list(pd.read_csv(gene_list_file, sep="\t").loc[:, column].values)
     else:
-
         logger.info(f"Getting all genes in : {conf['GFF']}")
         gene_list = list()
         for gene in gff_db.all_features(featuretype="gene", order_by="start"):
@@ -109,7 +107,8 @@ def load_gff(gff_file, gff_db_path):
 
 
 def get_alternates(seq, range_model):
-    """For a given kmer, returns all alternate codons with a different central nucleotide.
+    """
+    For a given kmer, returns all alternative kmers with a different central nucleotide.
 
     Args:
         seq (str): kmer string
@@ -118,7 +117,6 @@ def get_alternates(seq, range_model):
     Returns:
         list: list of alternates codons
     """
-
     # We generate all possible SNPs
     list_alternates = list()
     for nucleotide in ["A", "C", "T", "G"]:
@@ -127,7 +125,6 @@ def get_alternates(seq, range_model):
 
     # Remove the WT sequence from the list
     list_alternates = list(set(list_alternates) - set([seq]))
-    assert len(list_alternates) == 3
 
     return list_alternates
 
@@ -159,7 +156,6 @@ def calculate_rates_cds(gene, start, mutation_rate_model, seq, range_model):
     list_mutations = list()
     # For each nucleotide in the sequence
     for i in range(range_model, len(cur_seq) - range_model):
-
         # We get the kmer centered on the current nucleotide
         ref = str(cur_seq[i - range_model : i + range_model + 1])
 
@@ -168,7 +164,11 @@ def calculate_rates_cds(gene, start, mutation_rate_model, seq, range_model):
 
         # For the three alternate kmers we compute the mutation rate
         for alt in list_alternates:
-            mutation_rate = mutation_rate_model.loc[ref + "_" + alt, "mu_snp"]
+            try:
+                mutation_rate = mutation_rate_model.loc[ref + "_" + alt, "mu_snp"]
+            except KeyError as e:
+                # Ambiguous nucleotides
+                continue
 
             ref_nuc = ref[range_model]
             alt_nuc = alt[range_model]
@@ -244,21 +244,18 @@ def calculate_rates(mutation_rate_model, fasta, gff_db, gene_list):
     list_mutation_rates = list()
     cpt = 1
     # Loop through all CDS of interest to generate mutation rates
-    for gene in gff_db.all_features(featuretype="gene", order_by="start"):
-
+    for gene in gff_db.all_features(featuretype="gene"):
         # Skip gene if not in user provided gene list
-        if gene.attributes["ID"][0] not in gene_list:
+        gene_id = gene.attributes["ID"][0]
+        if gene_id not in gene_list:
             continue
 
-        # logger.info(gene.attributes["ID"][0])
-
-        list_mutation_rates_gene = list()  # Store mutation rates for the current gene
-        list_cds_boundaries = (
-            list()
-        )  # Store CDS boundaries to avoid calculating rates for same CDS in several transcripts
-        for transcript in gff_db.children(gene, featuretype="transcript", order_by="start"):
+        # Store mutation rates for the current gene
+        list_mutation_rates_gene = list()
+        # Store CDS boundaries to avoid calculating rates for same CDS in several transcripts
+        list_cds_boundaries = list()
+        for transcript in gff_db.children(gene, level=1):
             for cds in gff_db.children(transcript, featuretype="CDS", order_by="start"):
-
                 # We add an offset to CDS region to consider loci such as splicing sites (default is 50),
                 # the range model so that we get the neighboring nucleotides and we correct for python 0-index
                 start = cds.start - CDS_OFFSET - range_model - 1
@@ -281,10 +278,13 @@ def calculate_rates(mutation_rate_model, fasta, gff_db, gene_list):
                 list_mutation_rates_gene += list_mutation_rates_cds
 
         # For each gene we build a data frame and remove possible duplicated values
-        mutation_rates_gene_df = pd.DataFrame(list_mutation_rates_gene)
-        mutation_rates_gene_df.drop_duplicates(inplace=True, keep="first")
-        mutation_rates_gene_df.sort_values(by=["pos", "alt"], inplace=True)
-        list_mutation_rates.append(mutation_rates_gene_df)
+        if list_mutation_rates_gene:
+            mutation_rates_gene_df = pd.DataFrame(list_mutation_rates_gene)
+            mutation_rates_gene_df.drop_duplicates(inplace=True, keep="first")
+            mutation_rates_gene_df.sort_values(by=["pos", "alt"], inplace=True)
+            list_mutation_rates.append(mutation_rates_gene_df)
+        else:
+            logger.warning(f"No mutations found for gene {gene_id}")
 
         # Log progress
         if cpt % 100 == 0:
@@ -367,5 +367,4 @@ def main(config, gff, fasta, mutation_rate_model, gene_list, outdir):
 
 
 if __name__ == "__main__":
-
     main()
