@@ -56,9 +56,9 @@ def annotate_constraint(rates, geneconstraint, regionconstraint, outrates, thres
 
     # For each gene in rates file
     for id_gene, gene_rates in rates_df.groupby("gene_id"):
-
         # We do not consider the version of the gene here
         ensembl_id = id_gene.split(".")[0]
+        ensembl_id = ensembl_id.replace("gene:", "")
 
         # If the gene is not found in the constraint file, print as a warning
         if ensembl_id not in set(geneconstraint_df["ensembl_gene_id"]):
@@ -71,7 +71,6 @@ def annotate_constraint(rates, geneconstraint, regionconstraint, outrates, thres
 
             # If there is only one constained region in this gene
             if cur_geneconstraint_df.iloc[0]["n_regions"] == 1:
-
                 # Compute the probability that a random variable with chi-square distribution is greater than overall_chisq
                 genep_value = chi2.sf(cur_geneconstraint_df["overall_chisq"], df=1)
 
@@ -102,5 +101,4 @@ def annotate_constraint(rates, geneconstraint, regionconstraint, outrates, thres
 
 
 if __name__ == "__main__":
-
     annotate_constraint()

@@ -95,10 +95,14 @@ def rates_to_vcf(rates, fasta, out_vcf):
 
 
 def extract_consequence(x, gff_db):
-
     # Get gene name(s)
     gene_id = x.split(";")[0].replace("GENE=", "")
-    gene_names = gff_db[gene_id].attributes["gene_name"]
+
+    # TODO : Handle the case where this field is missing or has a different name, find a clever way to support all gff
+    try:
+        gene_names = gff_db[gene_id].attributes["gene_name"]
+    except KeyError:
+        gene_names = gff_db[gene_id].attributes["Name"]
 
     # gene_transcripts_id = list()
     # for transcript in gff_db.children(gff_db[gene_id], featuretype="transcript"):

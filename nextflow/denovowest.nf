@@ -53,20 +53,27 @@ workflow{
     rate_creation_ch = RATE_CREATION(split_gene_list_ch.toSortedList().flatten(), gffutils_db_ch.first(), params.genome_fasta, params.mutation_rate_model)
     
     // Annotate rates file
-    if (params.containsKey("annotation"))
+    if (params.containsKey("annotation") and (params.annotate_rates))
     {
       rates_bcftools_csq_ch = BCFTOOLS_CSQ_FULL(rate_creation_ch, params.genome_fasta, params.genome_fasta + ".fai", params.gff, gffutils_db_ch.first() )
-      rates_cadd_ch = CADD(rates_bcftools_csq_ch, params.annotation.cadd_file, params.annotation.cadd_file + ".tbi")
-      rates_gnomad_ch = GNOMAD(rates_cadd_ch, params.annotation.gnomad_file, params.annotation.gnomad_file + ".tbi" )
-      rates_constrained_ch = CONSTRAINTS(rates_gnomad_ch, params.annotation.gene_full_constraints, params.annotation.gene_region_constraints )
-      rates_shet_ch = SHET(rates_constrained_ch, params.annotation.shet)
+      if (params.annotation.containsKey("cadd_file")){
+        rates_annotated_ch = CADD(rates_bcftools_csq_ch, params.annotation.cadd_file, params.annotation.cadd_file + ".tbi")
+      }
+      //rates_gnomad_ch = GNOMAD(rates_cadd_ch, params.annotation.gnomad_file, params.annotation.gnomad_file + ".tbi" )
+      if (params.annotation.containsKey("gene_full_constraints")){
+        rates_constrained_ch = CONSTRAINTS(rates_annotated_ch, params.annotation.gene_full_constraints, params.annotation.gene_region_constraints )
+      }
+      
+      if (params.annotation.containsKey("shet")){
+        rates_shet_ch = SHET(rates_constrained_ch, params.annotation.shet)
+      }
     }
 
     // Merge results
     // rates_merged_ch = MERGE_RATES(rates_shet_ch.collect())
 
     // Annotate DNM file
-    if (params.containsKey("annotation"))
+    if (params.containsKey("annotation") and (params.annotate_dnm))
     {
       dnm_bcftools_csq_ch = DNM_BCFTOOLS_CSQ_FULL(params.dnm, params.genome_fasta, params.genome_fasta + ".fai", params.gff,  gffutils_db_ch.first() )
       dnm_cadd_ch = DNM_CADD(dnm_bcftools_csq_ch, params.annotation.cadd_file, params.annotation.cadd_file + ".tbi")

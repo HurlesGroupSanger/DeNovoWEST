@@ -60,13 +60,18 @@ def annotate_cadd(rates, cadd, output):
     # Load rates file
     rates_df = pd.read_table(rates)
 
+    # Depending on the gff, chromosome can be defined as "chrX" or just "X"
+    if str(rates_df.iloc[0].chrom).startswith("chr"):
+        add_chr = True
+    else:
+        add_chr = False
+
     # Load cadd file
     cadd_df = pysam.TabixFile(cadd)
 
     # For each gene
     list_merged_df = list()
     for gene_id, gene_rates_df in rates_df.groupby("gene_id"):
-
         chrom = str(gene_rates_df.chrom.values[0]).replace("chr", "")
 
         # Split each gene in contiguous block (i.e. exons) and load CADD scores
@@ -80,7 +85,8 @@ def annotate_cadd(rates, cadd, output):
 
         # Merge rates with CADD score
         gene_cadd_df = pd.concat(list_block_df)
-        gene_cadd_df.chrom = "chr" + gene_cadd_df.chrom
+        if add_chr:
+            gene_cadd_df.chrom = "chr" + gene_cadd_df.chrom
         merged_gene_df = gene_rates_df.merge(gene_cadd_df, how="left", on=["chrom", "pos", "ref", "alt"])
         list_merged_df.append(merged_gene_df)
 
@@ -90,5 +96,4 @@ def annotate_cadd(rates, cadd, output):
 
 
 if __name__ == "__main__":
-
     merged_df = annotate_cadd()

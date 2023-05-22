@@ -5,12 +5,23 @@ Date now = new Date()
 workDir = "/lustre/scratch123/hgi/mdt1/teams/hurles/ed11/DNW/out_rate_creation/b37_workingdir"
 
 params {
-  gff = "/lustre/scratch123/hgi/mdt1/teams/hurles/ed11/resources/Homo_sapiens.GRCh37.87.chr.protein_coding.gff3.gz"
-  genome_fasta = "/lustre/scratch123/hgi/mdt1/teams/hurles/ed11/resources/Homo_sapiens.GRCh37.dna.primary_assembly.fa"
+  //gff = "/lustre/scratch123/hgi/mdt1/teams/hurles/ed11/resources/b37/Homo_sapiens.GRCh37.87.chr.protein_coding.gff3.gz"
+  gff = "/nfs/users/nfs_e/ed11/lustre_ed11/DNW/DeNovoWEST/examples/rates/input/Homo_sapiens.GRCh37.87.DDX3X_SCN5A.gff3"
+  genome_fasta = "/lustre/scratch123/hgi/mdt1/teams/hurles/ed11/resources/b37/Homo_sapiens.GRCh37.dna.primary_assembly.fa"
   mutation_rate_model = "/lustre/scratch123/hgi/mdt1/teams/hurles/ed11/DNW/DeNovoWEST/resources/rates_model_dnn.tsv"
 
   split_step = 100 // Split the gene list every split_step genes 
   outdir = '/lustre/scratch123/hgi/mdt1/teams/hurles/ed11/DNW/out_rate_creation/publish_dir/b37'
+
+
+  annotate_rates = true
+  annotate_dnm = false
+  annotation {
+    cadd_file = "/lustre/scratch123/hgi/mdt1/teams/hurles/ed11/resources/b37/cadd_1.4_whole_genome_SNVs.tsv.gz"
+    shet = "/lustre/scratch123/hgi/mdt1/teams/hurles/ed11/resources/b37/shet.tsv"
+    gene_full_constraints="/lustre/scratch123/hgi/mdt1/teams/hurles/ed11/resources/b37/gene_missense_cleaned_chisq_0.0_metrics_2016_10_05.tsv"
+    gene_region_constraints="/lustre/scratch123/hgi/mdt1/teams/hurles/ed11/resources/b37/genes_regional_data_cleaned_chisq_0.0_metrics_2016_10_05.tsv"
+  }
 
   tracedir = '/lustre/scratch123/hgi/mdt1/teams/hurles/ed11/DNW/out_rate_creation/tracedir/b37'
   timestamp = now.format("yyyyMMdd-HH-mm-ss")

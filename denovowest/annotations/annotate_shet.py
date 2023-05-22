@@ -28,9 +28,9 @@ def annotate_shet(rates, shet, output, threshold):
     list_merged_df = list()
     nb_gene_not_in_shet = 0
     for gene_id_orig, gene_rates_df in rates_df.groupby("gene_id"):
-
         # Remove gene version if any
         gene_id = gene_id_orig.split(".")[0]
+        gene_id = gene_id.replace("gene:", "")
 
         try:
             mean_shet = shet_df.loc[gene_id, "mean_s_het"]
@@ -47,5 +47,4 @@ def annotate_shet(rates, shet, output, threshold):
 
 
 if __name__ == "__main__":
-
     merged_df = annotate_shet()
