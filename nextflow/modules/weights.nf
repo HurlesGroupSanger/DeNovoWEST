@@ -82,6 +82,8 @@ process LOESS {
 
     publishDir "${params.outdir}/weights/", mode: 'copy', overwrite: true
 
+    conda "/software/team29/ed11/miniconda3/envs/rpy2"
+
     input:
     path merged_counts
 

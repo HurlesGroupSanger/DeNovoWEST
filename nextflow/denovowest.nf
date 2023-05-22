@@ -56,10 +56,10 @@ workflow{
     if (params.containsKey("annotation"))
     {
       rates_bcftools_csq_ch = BCFTOOLS_CSQ_FULL(rate_creation_ch, params.genome_fasta, params.genome_fasta + ".fai", params.gff, gffutils_db_ch.first() )
-      rates_cadd_ch = CADD(rates_bcftools_csq_ch, params.cadd_file, params.cadd_file + ".tbi")
-      rates_gnomad_ch = GNOMAD(rates_cadd_ch, params.gnomad_file, params.gnomad_file + ".tbi" )
-      rates_constrained_ch = CONSTRAINTS(rates_gnomad_ch, params.gene_full_constraints, params.gene_region_constraints )
-      rates_shet_ch = SHET(rates_constrained_ch, params.shet)
+      rates_cadd_ch = CADD(rates_bcftools_csq_ch, params.annotation.cadd_file, params.annotation.cadd_file + ".tbi")
+      rates_gnomad_ch = GNOMAD(rates_cadd_ch, params.annotation.gnomad_file, params.annotation.gnomad_file + ".tbi" )
+      rates_constrained_ch = CONSTRAINTS(rates_gnomad_ch, params.annotation.gene_full_constraints, params.annotation.gene_region_constraints )
+      rates_shet_ch = SHET(rates_constrained_ch, params.annotation.shet)
     }
 
     // Merge results
@@ -69,10 +69,10 @@ workflow{
     if (params.containsKey("annotation"))
     {
       dnm_bcftools_csq_ch = DNM_BCFTOOLS_CSQ_FULL(params.dnm, params.genome_fasta, params.genome_fasta + ".fai", params.gff,  gffutils_db_ch.first() )
-      dnm_cadd_ch = DNM_CADD(dnm_bcftools_csq_ch, params.cadd_file, params.cadd_file + ".tbi")
-      dnm_gnomad_ch = DNM_GNOMAD(dnm_cadd_ch, params.gnomad_file, params.gnomad_file + ".tbi" )
-      dnm_constrained_ch = DNM_CONSTRAINTS(dnm_gnomad_ch, params.gene_full_constraints, params.gene_region_constraints )
-      dnm_shet_ch = DNM_SHET(dnm_constrained_ch, params.shet)
+      dnm_cadd_ch = DNM_CADD(dnm_bcftools_csq_ch, params.annotation.cadd_file, params.annotation.cadd_file + ".tbi")
+      dnm_gnomad_ch = DNM_GNOMAD(dnm_cadd_ch, params.annotation.gnomad_file, params.annotation.gnomad_file + ".tbi" )
+      dnm_constrained_ch = DNM_CONSTRAINTS(dnm_gnomad_ch, params.annotation.gene_full_constraints, params.annotation.gene_region_constraints )
+      dnm_shet_ch = DNM_SHET(dnm_constrained_ch, params.annotation.shet)
     }
 
     // Weights

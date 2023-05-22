@@ -1,0 +1,28 @@
+nextflow_process {
+
+    name "Test Process GFFUTILS_DB"
+    script "modules/rates.nf"
+    process "GFFUTILS_DB"
+
+    test("Should create a gffutils database") {
+
+        when {
+            process {
+                """
+                input[0] = file("tests/test_data/rates/input/Homo_sapiens.GRCh37.87.DDX3X_SCN5A.gff3")
+                """
+            }
+        }
+
+        then {
+            //check if test case succeeded
+            assert process.success
+            //analyze trace file
+            assert process.trace.tasks().size() == 1
+
+			with(process.out.gffutils_db_ch) {
+				assert path(get(0)).md5 == "3ae773c9a0570dd03083baad575f77ad"
+			}
+        }
+    }
+}

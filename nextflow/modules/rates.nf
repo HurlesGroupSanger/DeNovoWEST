@@ -7,7 +7,7 @@ process GFFUTILS_DB {
   path gff_file
 
   output:
-  path "${gff_file}.db"
+  path "${gff_file}.db", emit : gffutils_db_ch
 
   script :
   """
