@@ -13,6 +13,8 @@ CONSEQUENCES_MAPPING = {
     "synonymous_variant": "synonymous",
     "splice_acceptor_variant": "splice_lof",
     "splice_donor_variant": "splice_lof",
+    "splice_acceptor": "splice_lof",
+    "splice_donor": "splice_lof",
     "splice_region_variant": "splice_region",
     "conserved_exon_terminus_variant": "splice_lof",
 }

@@ -312,11 +312,11 @@ def main(dnm, rates, weights, nmales, nfemales, pvalcap, nsim, output):
     dnm_df = prepare_dnm(dnm, weights_df)
     rates_df = prepare_rates(rates, weights_df, nmales, nfemales)
 
-    dnm_df.to_csv("debug/dnm_new_format.tsv", sep="\t", index=False)
-    rates_df.to_csv("debug/rates_new_format.tsv", sep="\t", index=False)
+    # dnm_df.to_csv("debug/dnm_new_format.tsv", sep="\t", index=False)
+    # rates_df.to_csv("debug/rates_new_format.tsv", sep="\t", index=False)
 
     indel_weights = get_indel_weights(weights_df)
-    indel_weights.to_csv("debug/indelweights_new_format.tsv", sep="\t", index=False)
+    # indel_weights.to_csv("debug/indelweights_new_format.tsv", sep="\t", index=False)
 
     results = run_simulations(dnm_df, rates_df, nsim, indel_weights, pvalcap)
 
