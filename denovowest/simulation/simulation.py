@@ -56,16 +56,16 @@ def filter_on_consequences(df: pd.DataFrame):
     filt = df.consequence.isin(CONSEQUENCES_MAPPING.keys())
     kept_df = df.loc[filt]
 
-    logger.info(f"Before consequence filtering : {df.shape[0]} DNMs")
+    logger.info(f"Before consequence filtering : {df.shape[0]} records")
 
     discarded_df = df.loc[~filt]
     if not discarded_df.empty:
         count_discarded = discarded_df["consequence"].value_counts()
-        logger.warning(f"{discarded_df.shape[0]}/{df.shape[0]} DNMs were discarded ")
+        logger.warning(f"{discarded_df.shape[0]}/{df.shape[0]} records were discarded")
     else:
-        logger.info("All DNM have an acceptable consequence.")
+        logger.info("All records have an acceptable consequence.")
 
-    logger.info(f"After consequence filtering : {kept_df.shape[0]} DNMs")
+    logger.info(f"After consequence filtering : {kept_df.shape[0]} records")
 
     return kept_df
 
@@ -98,6 +98,10 @@ def prepare_rates(ratesfile: str, weights_df: pd.DataFrame, nmales: int, nfemale
     """
 
     rates_df = pd.read_csv(ratesfile, sep="\t", dtype={"chrom": str, "pos": int, "score": float})
+
+    rates_df = filter_on_consequences(rates_df)
+    rates_df = assign_meta_consequences(rates_df)
+
     rates_df = compute_expected_number_of_mutations(rates_df, nmales, nfemales)
     rates_df = assign_weights(rates_df, weights_df)
 
@@ -106,7 +110,7 @@ def prepare_rates(ratesfile: str, weights_df: pd.DataFrame, nmales: int, nfemale
 
 def compute_expected_number_of_mutations(rates_df: pd.DataFrame, nmales: int, nfemales: int):
     """
-    The rates file associates each possible variant with a mutation probability.
+    TODO : need some more explanation
     Args:
         rates_df (pd.DataFrame): _description_
         nmales (int): _description_
@@ -209,7 +213,7 @@ def run_simulation(rates_df, dnm_df, gene_id, nsim, indel_weights, pvalcap):
         logger.info("could not find " + str(gene_id))
         return
 
-    logger.info("testing" + str(gene_id))
+    logger.info(f"Testing {gene_id}")
 
     generates = rates_df.loc[rates_df.gene_id == gene_id]
     generates = get_indel_rates(generates, indel_weights)

@@ -16,7 +16,12 @@ CONSEQUENCES_MAPPING = {
     "splice_acceptor": "splice_lof",
     "splice_donor": "splice_lof",
     "splice_region_variant": "splice_region",
+    "splice_region": "splice_region",
     "conserved_exon_terminus_variant": "splice_lof",
+    "start_lost": "missense",
+    "stop_lost": "missense",
+    "stop_retained": "synonymous",
+    "synonymous": "synonymous",
 }
 
 N_MUTATION_MAX_SIM = 250
