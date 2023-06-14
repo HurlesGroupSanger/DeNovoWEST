@@ -22,10 +22,33 @@ include { MERGE_COUNTS } from './modules/weights.nf'
 include { LOESS } from './modules/weights.nf'
 
 include { SIMULATION } from './modules/simulation.nf'
+include { MERGE_SIMULATION } from './modules/simulation.nf'
 
 
 
 workflow{ 
+
+    /////////////////////////// 
+    // DEFAULT_CONFIGURATION //
+    ///////////////////////////
+
+    if (!params.containsKey("annotate_rates")) {
+      params.annotate_rates = true
+    }
+    if (!params.containsKey("annotate_dnm")) {
+      params.annotate_dnm = true
+    }
+    if (!params.annotation.containsKey("annotate_bcftoolscsq")) {
+      params.annotation.annotate_bcftoolscsq = true
+    }
+    if (!params.containsKey("run_simulation")) {
+      params.run_simulation = true
+    }
+
+
+    ///////////////////////////////// 
+    // GFF UTILS DATABASE CREATION //
+    /////////////////////////////////
 
 
     // DEBUG and TEST only : avoid to create gffutils database every time
@@ -47,9 +70,16 @@ workflow{
       gene_list_ch = CREATE_GENE_LIST(gffutils_db_ch)
     }
 
+    ///////////////////////// 
+    // RATES FILE CREATION //
+    /////////////////////////
+
+    // If the user provide a rates file we split it in smaller rates files
     if (params.containsKey("rates")) {
       rates_ch =  Channel.fromPath(params.rates)
+      //TODO : create a process that split rates file
     }
+    // Otherwise we generate rates files from the GFF file
     else
     {
       // Split gene list in smaller lists
@@ -60,65 +90,101 @@ workflow{
     }
 
 
+    /////////////////////////// 
+    // RATES FILE ANNOTATION //
+    ///////////////////////////
     
     // Annotate rates file
     if (params.containsKey("annotation") and params.containsKey("annotate_rates") and (params.annotate_rates))
     {
-      rates_bcftools_csq_ch = BCFTOOLS_CSQ_FULL(rates_ch, params.genome_fasta, params.genome_fasta + ".fai", params.gff, gffutils_db_ch.first() )
-      if (params.annotation.containsKey("cadd_file")){
-        rates_annotated_ch = CADD(rates_bcftools_csq_ch, params.annotation.cadd_file, params.annotation.cadd_file + ".tbi")
+      rates_annotated_ch = rates_ch
+      
+      if (params.annotation.containsKey("annotate_bcftoolscsq") and (params.annotation.annotate_bcftoolscsq)) {
+        rates_annotated_ch = BCFTOOLS_CSQ_FULL(rates_annotated_ch, params.genome_fasta, params.genome_fasta + ".fai", params.gff, gffutils_db_ch.first() )
       }
-      //rates_gnomad_ch = GNOMAD(rates_cadd_ch, params.annotation.gnomad_file, params.annotation.gnomad_file + ".tbi" )
+      
+      if (params.annotation.containsKey("cadd_file")){
+        rates_annotated_ch = CADD(rates_annotated_ch, params.annotation.cadd_file, params.annotation.cadd_file + ".tbi")
+      }
       if (params.annotation.containsKey("gene_full_constraints")){
-        rates_constrained_ch = CONSTRAINTS(rates_annotated_ch, params.annotation.gene_full_constraints, params.annotation.gene_region_constraints )
+        rates_annotated_ch = CONSTRAINTS(rates_annotated_ch, params.annotation.gene_full_constraints, params.annotation.gene_region_constraints )
       }
       
       if (params.annotation.containsKey("shet")){
-        rates_shet_ch = SHET(rates_constrained_ch, params.annotation.shet)
+        rates_annotated_ch = SHET(rates_annotated_ch, params.annotation.shet, "rates")
       }
     }
+    // If the rates file is already annotated, nothing to do
     else {
-      rates_annotated_ch = Channel.fromPath(params.rates)
+      rates_annotated_ch = rates_ch
     }
 
     // Merge results
     // rates_merged_ch = MERGE_RATES(rates_shet_ch.collect())
 
+    ///////////////////////// 
+    // DNM FILE ANNOTATION //
+    /////////////////////////
+
+    dnm_ch = Channel.fromPath(params.dnm)
+
     // Annotate DNM file
     if (params.containsKey("annotation") and params.containsKey("annotate_dnm") and (params.annotate_dnm))
     {
-      dnm_bcftools_csq_ch = DNM_BCFTOOLS_CSQ_FULL(params.dnm, params.genome_fasta, params.genome_fasta + ".fai", params.gff,  gffutils_db_ch.first() )
-      dnm_cadd_ch = DNM_CADD(dnm_bcftools_csq_ch, params.annotation.cadd_file, params.annotation.cadd_file + ".tbi")
-      dnm_gnomad_ch = DNM_GNOMAD(dnm_cadd_ch, params.annotation.gnomad_file, params.annotation.gnomad_file + ".tbi" )
-      dnm_constrained_ch = DNM_CONSTRAINTS(dnm_gnomad_ch, params.annotation.gene_full_constraints, params.annotation.gene_region_constraints )
-      dnm_shet_ch = DNM_SHET(dnm_constrained_ch, params.annotation.shet)
+      dnm_annotated_ch = dnm_ch
+
+      if (params.annotation.containsKey("annotate_bcftoolscsq") and (params.annotation.annotate_bcftoolscsq)) {
+        dnm_annotated_ch = DNM_BCFTOOLS_CSQ_FULL(dnm_annotated_ch, params.genome_fasta, params.genome_fasta + ".fai", params.gff,  gffutils_db_ch.first() )
+      }
+      
+      if (params.annotation.containsKey("cadd_file")){
+        dnm_annotated_ch = DNM_CADD(dnm_annotated_ch, params.annotation.cadd_file, params.annotation.cadd_file + ".tbi")
+      }
+
+      if (params.annotation.containsKey("gene_full_constraints")){
+        dnm_annotated_ch = DNM_CONSTRAINTS(dnm_annotated_ch, params.annotation.gene_full_constraints, params.annotation.gene_region_constraints )
+      }
+
+      if (params.annotation.containsKey("shet")){
+        dnm_annotated_ch = DNM_SHET(dnm_annotated_ch, params.annotation.shet, "dnm")
+      }
     }
+    // If the DNM file is already annotated, nothing to do
     else
     {
-      dnm_annotated_ch = Channel.fromPath(params.dnm)
+      dnm_annotated_ch = dnm_ch
     }
 
-    // Weights
+    ////////////////////// 
+    // WEIGHTS CREATION //
+    //////////////////////
+
+
     if (params.containsKey("weights"))
     {
       weights_ch = Channel.fromPath(params.weights)
     }
     else
     {
-      expected_ch = GET_EXPECTED_COUNTS(rates_shet_ch, params.nmales, params.nfemales)
+      expected_ch = GET_EXPECTED_COUNTS(rates_annotated_ch, params.nmales, params.nfemales)
       expected_merged_ch = MERGE_EXPECTED(expected_ch.collect())
 
-      observed_ch = GET_OBSERVED_COUNTS(dnm_shet_ch)
+      observed_ch = GET_OBSERVED_COUNTS(dnm_annotated_ch)
 
       merged_counts_ch = MERGE_COUNTS(expected_merged_ch, observed_ch)
 
       weights_ch = LOESS(merged_counts_ch)
     }
 
+    //////////////// 
+    // SIMULATION //
+    ////////////////
+
     if (params.run_simulation)
     {
-      //simulation_ch = SIMULATION(dnm_annotated_ch, rates_annotated_ch, weights_ch, params.nmales, params.nfemales)
-      simulation_ch = SIMULATION(dnm_annotated_ch, rates_annotated_ch, weights_ch, params.nmales, params.nfemales)
+      simulation_ch = dnm_annotated_ch.combine(rates_annotated_ch).combine(weights_ch)
+      simulation_ch = SIMULATION(simulation_ch, params.nmales, params.nfemales)
+      MERGE_SIMULATION(simulation_ch.collect())
     }
 
 

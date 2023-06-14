@@ -137,13 +137,14 @@ process SHET {
     input :
     path rate_file 
     path shet
+    val type
 
     output :
-    path "mutation_rates_shet.tsv"
+    path "${type}_shet.tsv"
 
     script:
     """
     # Annotate shet
-    annotate_shet.py  $rate_file $shet mutation_rates_shet.tsv
+    annotate_shet.py  $rate_file $shet ${type}_shet.tsv
     """
 }

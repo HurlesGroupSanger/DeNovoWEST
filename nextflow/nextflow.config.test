@@ -23,10 +23,9 @@ params {
   }
 
 
-  weights {
-    n_males = 100
-    n_females = 100
-  }
+  nmales = 100
+  nfemales = 100
+
 
 }
 
