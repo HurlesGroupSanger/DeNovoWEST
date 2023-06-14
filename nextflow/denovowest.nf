@@ -103,14 +103,14 @@ workflow{
       rates_annotated_ch = rates_ch
       
       if (params.annotation.containsKey("annotate_bcftoolscsq") and (params.annotation.annotate_bcftoolscsq)) {
-        rates_annotated_ch = BCFTOOLS_CSQ_FULL(rates_annotated_ch, params.genome_fasta, params.genome_fasta + ".fai", params.gff, gffutils_db_ch.first() )
+        rates_annotated_ch = BCFTOOLS_CSQ_FULL(rates_annotated_ch, params.genome_fasta, params.genome_fasta + ".fai", params.gff, gffutils_db_ch.first(), "rates" )
       }
       
       if (params.annotation.containsKey("cadd_file")){
-        rates_annotated_ch = CADD(rates_annotated_ch, params.annotation.cadd_file, params.annotation.cadd_file + ".tbi")
+        rates_annotated_ch = CADD(rates_annotated_ch, params.annotation.cadd_file, params.annotation.cadd_file + ".tbi", "rates")
       }
       if (params.annotation.containsKey("gene_full_constraints")){
-        rates_annotated_ch = CONSTRAINTS(rates_annotated_ch, params.annotation.gene_full_constraints, params.annotation.gene_region_constraints )
+        rates_annotated_ch = CONSTRAINTS(rates_annotated_ch, params.annotation.gene_full_constraints, params.annotation.gene_region_constraints, "rates")
       }
       
       if (params.annotation.containsKey("shet")){
@@ -137,15 +137,15 @@ workflow{
       dnm_annotated_ch = dnm_ch
 
       if (params.annotation.containsKey("annotate_bcftoolscsq") and (params.annotation.annotate_bcftoolscsq)) {
-        dnm_annotated_ch = DNM_BCFTOOLS_CSQ_FULL(dnm_annotated_ch, params.genome_fasta, params.genome_fasta + ".fai", params.gff,  gffutils_db_ch.first() )
+        dnm_annotated_ch = DNM_BCFTOOLS_CSQ_FULL(dnm_annotated_ch, params.genome_fasta, params.genome_fasta + ".fai", params.gff,  gffutils_db_ch.first(), "dnm" )
       }
       
       if (params.annotation.containsKey("cadd_file")){
-        dnm_annotated_ch = DNM_CADD(dnm_annotated_ch, params.annotation.cadd_file, params.annotation.cadd_file + ".tbi")
+        dnm_annotated_ch = DNM_CADD(dnm_annotated_ch, params.annotation.cadd_file, params.annotation.cadd_file + ".tbi", "dnm")
       }
 
       if (params.annotation.containsKey("gene_full_constraints")){
-        dnm_annotated_ch = DNM_CONSTRAINTS(dnm_annotated_ch, params.annotation.gene_full_constraints, params.annotation.gene_region_constraints )
+        dnm_annotated_ch = DNM_CONSTRAINTS(dnm_annotated_ch, params.annotation.gene_full_constraints, params.annotation.gene_region_constraints, "dnm")
       }
 
       if (params.annotation.containsKey("shet")){
