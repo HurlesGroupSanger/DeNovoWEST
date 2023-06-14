@@ -58,7 +58,7 @@ def annotate_cadd(rates, cadd, output):
     """
 
     # Load rates file
-    rates_df = pd.read_table(rates)
+    rates_df = pd.read_table(rates, dtype={"chrom": str, "pos": int, "ref": str, "alt": str})
 
     # Depending on the gff, chromosome can be defined as "chrX" or just "X"
     if str(rates_df.iloc[0].chrom).startswith("chr"):
