@@ -41,8 +41,8 @@ process MERGE_EXPECTED {
     #!/usr/bin/env python
     import sys
     import pandas as pd
-    args = "${expected_counts}".split(" ")
-    list_df = [pd.read_csv(filename, sep="\t") for filename in args[1:]]
+    expected_counts_files = "${expected_counts}".split(" ")
+    list_df = [pd.read_csv(filename, sep="\t") for filename in expected_counts_files]
 
     # Sum up the expected values on each gene
     s = pd.Series()
