@@ -44,6 +44,9 @@ workflow{
     if (!params.containsKey("run_simulation")) {
       params.run_simulation = true
     }
+    if (!params.containsKey("run_weights_creation")) {
+      params.run_weights_creation = true
+    }
 
 
     ///////////////////////////////// 
@@ -164,7 +167,7 @@ workflow{
     {
       weights_ch = Channel.fromPath(params.weights)
     }
-    else
+    else if (params.run_weights_creation)
     {
       expected_ch = GET_EXPECTED_COUNTS(rates_annotated_ch, params.nmales, params.nfemales)
       expected_merged_ch = MERGE_EXPECTED(expected_ch.collect())
