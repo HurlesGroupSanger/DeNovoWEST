@@ -235,6 +235,8 @@ def get_indel_rates(generates, indel_weights):
         _type_: _description_
     """
 
+    logger = logging.getLogger("logger")
+
     # Get the overall probability of missense and nonsense mutation across the gene
     missense_rate = generates[generates.consequence == "missense"].prob.sum()
     nonsense_rate = generates[generates.consequence == "nonsense"].prob.sum()
@@ -244,20 +246,29 @@ def get_indel_rates(generates, indel_weights):
 
     # Get the weights associated to frameshift and inframe indels
     shethigh = generates.shethigh.iloc[0]
-    frameshift_weight = float(
-        indel_weights.loc[
-            (indel_weights.consequence == "frameshift")
-            & (indel_weights.constrained == False)
-            & (indel_weights.shethigh == shethigh)
-        ].ppv
-    )
-    inframe_weight = float(
-        indel_weights.loc[
-            (indel_weights.consequence == "inframe")
-            & (indel_weights.constrained == False)
-            & (indel_weights.shethigh == shethigh)
-        ].ppv
-    )
+    try:
+        frameshift_weight = float(
+            indel_weights.loc[
+                (indel_weights.consequence == "frameshift")
+                & (indel_weights.constrained == False)
+                & (indel_weights.shethigh == shethigh)
+            ].ppv
+        )
+    except TypeError:
+        logger.warning("No frameshift ppv found in weight file")
+        frameshift_weight = np.NaN
+
+    try:
+        inframe_weight = float(
+            indel_weights.loc[
+                (indel_weights.consequence == "inframe")
+                & (indel_weights.constrained == False)
+                & (indel_weights.shethigh == shethigh)
+            ].ppv
+        )
+    except TypeError:
+        logger.warning("No inframe ppv found in weight file")
+        inframe_weight = np.NaN
 
     # Add the weights to the rates dataframe
     indelrates = pd.DataFrame(
