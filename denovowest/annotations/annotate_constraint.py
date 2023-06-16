@@ -21,7 +21,9 @@ def set_constraints_loci(region, gene_rates, threshold, ratio):
 
     # Set constrained status to True to every loci in the region which has as missense consequence
     gene_rates.loc[
-        (gene_rates.pos >= region.start) & ((gene_rates.pos <= region.end)) & ((gene_rates.consequence == "missense")),
+        (gene_rates.pos >= region.cds_start)
+        & ((gene_rates.pos <= region.cds_end))
+        & ((gene_rates.consequence == "missense")),
         "constrained",
     ] = True
 
