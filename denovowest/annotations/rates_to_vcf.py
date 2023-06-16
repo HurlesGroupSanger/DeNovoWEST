@@ -157,9 +157,10 @@ def vcf_to_rates(vcf, rates, gff_db, out_rates):
     else:
         vcf_df = pd.read_csv(vcf, sep="\t", comment="#", header=None)
     vcf_df.columns = "#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO".split("\t")
+    vcf_df["#CHROM"] = vcf_df["#CHROM"].astype(str)
 
     # Read rates
-    rates_df = pd.read_csv(rates, sep="\t")
+    rates_df = pd.read_csv(rates, sep="\t", dtype={"chrom": str})
 
     # Load gffutils database
     gff_db = gffutils.FeatureDB(gff_db)
