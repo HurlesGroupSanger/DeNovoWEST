@@ -4,6 +4,7 @@ import pandas as pd
 import numpy as np
 import itertools
 import click
+import utils
 
 
 LOWER_BOUND_CADD_MISSENSE = 6
@@ -21,9 +22,9 @@ MAX_SCORE = 50
 
 SHET_VALUES = [True, False]
 CONSTRAINED_VALUES = [True, False]
-CSQ_SYNONYMOUS_VALUES = ["synonymous", "splice_donor|splice_acceptor|splice_lof", "missense"]
+CSQ_SYNONYMOUS_VALUES = ["synonymous", "splice_lof", "missense"]
 CSQ_MISSENSE_VALUES = ["missense"]
-CSQ_NONSENSE_VALUES = ["nonsense|stop_gained"]
+CSQ_NONSENSE_VALUES = ["nonsense"]
 
 NA = ["NA"]
 
@@ -40,17 +41,19 @@ def cli():
 @click.argument("outfile")
 def get_expected_counts(rates_file, nmales, nfemales, outfile):
     """
-    Calculates the expected number of mutations in the cohort per category, given an annotated mutability rate file and
-    the number of males and females individual in the cohort. Mutations are classified in bins according
+    Calculates the expected number of mutations in the cohort per category, given an annotated mutation rates file and
+    the number of males and females individuals in the cohort. Mutations are classified in bins according
     to several variables : functional consequence, CADD score and whether they fall in a constrained region
     or a high/low shet gene.
 
     Args:
         rates_file (str): Path to the annotated mutation rates file
-        nmales (int): Number of males individuals in the cohort
-        nfemales (int): Number of females individuals in the cohort
+        nmales (int): Number of male individuals in the cohort
+        nfemales (int): Number of female individuals in the cohort
         outfile (str): Path to the output table listing the expected number of mutations per category
     """
+
+    utils.init_log()
 
     nmales = int(nmales)
     nfemales = int(nfemales)
@@ -59,14 +62,26 @@ def get_expected_counts(rates_file, nmales, nfemales, outfile):
     rates_df = pd.read_csv(
         rates_file,
         sep="\t",
-        dtype={"score": float, "prob": float, "chrom": str, "consequence": str},
-        usecols=["chrom", "ref", "alt", "consequence", "score", "prob", "shethigh", "constrained"],
+        dtype={
+            "chrom": str,
+            "pos": int,
+            "ref": str,
+            "alt": str,
+            "consequence": str,
+            "score": float,
+            "prob": float,
+            "shethigh": bool,
+            "constrained": bool,
+        },
+        usecols=["chrom", "pos", "ref", "alt", "consequence", "score", "prob", "shethigh", "constrained"],
     )
 
+    # Only a subset of functional consequences are used
+    rates_df = utils.filter_on_consequences(rates_df)
+    rates_df = utils.assign_meta_consequences(rates_df)
+
     # Filter out missense|nonsense loci with missing CADD score
-    rates_df = rates_df.loc[
-        ~(rates_df.consequence.isin(["missense", "nonsense", "stop_gained"]) & rates_df.score.isna())
-    ]
+    rates_df = rates_df.loc[~(rates_df.consequence.isin(["missense", "nonsense"]) & rates_df.score.isna())]
 
     # Adjust mutation rates by chromosomal scaling factor
     autosomal_factor = 2 * (nmales + nfemales)
@@ -93,16 +108,31 @@ def get_observed_counts(dnm_file, outfile):
         outfile (str): Output file
     """
 
+    utils.init_log()
+
     # Load the DNM file
     dnm_df = pd.read_csv(
         dnm_file,
         sep="\t",
-        dtype={"score": float, "chrom": str, "consequence": str},
-        usecols=["chrom", "ref", "alt", "consequence", "score", "shethigh", "constrained"],
+        dtype={
+            "chrom": str,
+            "pos": int,
+            "ref": str,
+            "alt": str,
+            "consequence": str,
+            "score": float,
+            "shethigh": bool,
+            "constrained": bool,
+        },
+        usecols=["chrom", "pos", "ref", "alt", "consequence", "score", "shethigh", "constrained"],
     )
 
+    # Only a subset of functional consequences are used
+    dnm_df = utils.filter_on_consequences(dnm_df)
+    dnm_df = utils.assign_meta_consequences(dnm_df)
+
     # Filter out missense|nonsense with missing scores
-    dnm_df = dnm_df.loc[~(dnm_df.consequence.isin(["missense", "nonsense", "stop_gained"]) & dnm_df.score.isna())]
+    dnm_df = dnm_df.loc[~(dnm_df.consequence.isin(["missense", "nonsense"]) & dnm_df.score.isna())]
 
     # Get observed number of mutations
     bins = define_bins()
@@ -251,34 +281,40 @@ def count_variants(df: pd.DataFrame, bin: list, mode: str) -> pd.DataFrame:
     """
 
     # TODO : replace bin list per dict to make it more explicit
-    filter_consequence = df.consequence.str.contains(bin[0])
+    filter_consequence = df.consequence == bin[0]
 
+    # Add score filter for bins using the score information (e.g. missense)
     try:
         filter_score = (df.score >= bin[1][0]) & (df.score < bin[1][1])
         score_range = f"{bin[1][0]}-{bin[1][1]}"
     except TypeError as e:
         filter_score = True
-        score_range = NA
+        score_range = "NA"
 
-    filter_constrained = df.constrained == bin[2]
+    # Some bins (e.g. synonymous variants) do not use the constraint regions information
+    if bin[2] == "NA":
+        filter_constrained = True
+    else:
+        filter_constrained = df.constrained == bin[2]
+
+    # All bins use the shet information
     filter_shet = df.shethigh == bin[3]
 
+    # Get only variants falling in the current bin
     min_df = df.loc[filter_consequence & filter_score & filter_constrained & filter_shet]
 
+    # Count number of expected or observed variants in the bin
     if mode == "exp":
         res = min_df["exp"].sum()
     else:
         res = len(min_df)
 
+    # Store this result in a data frame
     count_df = pd.DataFrame(
         {"consequence": bin[0], "score": score_range, "constrained": bin[2], "shethigh": bin[3], mode: res}, index=[0]
     )
 
     return count_df
-
-
-def filter_df(df, bin):
-    df = df.loc[df.consequence.str.contains(bin[0]) & df]
 
 
 @cli.command()

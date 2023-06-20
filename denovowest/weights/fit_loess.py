@@ -14,14 +14,14 @@ import rpy2.robjects as ro
 
 SHET_VALUES = [True, False]
 CONSTRAINED_VALUES = [True, False]
-CSQ_SYNONYMOUS_VALUES = ["synonymous", "splice_donor|splice_acceptor|splice_lof", "missense"]
+CSQ_SYNONYMOUS_VALUES = ["synonymous", "splice_lof", "missense"]
 CSQ_MISSENSE_VALUES = ["missense"]
-CSQ_NONSENSE_VALUES = ["nonsense|stop_gained"]
+CSQ_NONSENSE_VALUES = ["nonsense"]
 
 CADD_MIN = 0
 CADD_MAX = 52.5
-# CADD_STEP = 0.001
-CADD_STEP = 0.1
+CADD_STEP = 0.001
+# CADD_STEP = 0.1
 
 
 @click.command()
