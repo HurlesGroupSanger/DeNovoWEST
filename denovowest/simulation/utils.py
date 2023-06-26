@@ -5,6 +5,7 @@ import logging.config
 
 CONSEQUENCES_MAPPING = {
     "frameshift_variant": "frameshift",
+    "frameshift": "frameshift",
     "inframe_insertion": "inframe",
     "inframe_deletion": "inframe",
     "missense_variant": "missense",
