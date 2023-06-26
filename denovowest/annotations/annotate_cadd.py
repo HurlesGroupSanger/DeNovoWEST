@@ -79,15 +79,22 @@ def annotate_cadd(rates, cadd, output):
         list_block_df = list()
         for _, block in groupby(sorted(set(gene_rates_df["pos"])), key=lambda n, c=count(): n - next(c)):
             start, end = as_range(block)
-
-            block_cadd_df = load_cadd(cadd_df, chrom, start - 1, end)
-            list_block_df.append(block_cadd_df)
+            try:
+                block_cadd_df = load_cadd(cadd_df, chrom, start - 1, end)
+                list_block_df.append(block_cadd_df)
+            except ValueError:
+                continue
 
         # Merge rates with CADD score
-        gene_cadd_df = pd.concat(list_block_df)
-        if add_chr:
-            gene_cadd_df.chrom = "chr" + gene_cadd_df.chrom
-        merged_gene_df = gene_rates_df.merge(gene_cadd_df, how="left", on=["chrom", "pos", "ref", "alt"])
+        if list_block_df:
+            gene_cadd_df = pd.concat(list_block_df)
+            if add_chr:
+                gene_cadd_df.chrom = "chr" + gene_cadd_df.chrom
+
+            merged_gene_df = gene_rates_df.merge(gene_cadd_df, how="left", on=["chrom", "pos", "ref", "alt"])
+        else:
+            merged_gene_df = gene_rates_df
+
         list_merged_df.append(merged_gene_df)
 
     # Combine results for all genes
