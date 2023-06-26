@@ -9,6 +9,10 @@ include { SPLIT_GENE_LIST } from './modules/rates.nf'
 include { RATE_CREATION } from './modules/rates.nf'
 include { MERGE_RATES } from './modules/rates.nf'
 
+include { FILTER_DNM } from './modules/dnm.nf'
+include { PUBLISH_DNM } from './modules/dnm.nf'
+
+
 include { BCFTOOLS_CSQ_FULL; BCFTOOLS_CSQ_FULL as DNM_BCFTOOLS_CSQ_FULL} from './modules/annotation.nf'
 include { CADD; CADD as DNM_CADD } from './modules/annotation.nf'
 include { GNOMAD; GNOMAD as DNM_GNOMAD } from './modules/annotation.nf'
@@ -116,6 +120,10 @@ workflow{
       if (params.annotation.containsKey("shet")){
         rates_annotated_ch = SHET(rates_annotated_ch, params.annotation.shet, "rates")
       }
+
+      if (params.annotation.containsKey("gnomad_file")){
+        rates_annotated_ch = GNOMAD(rates_annotated_ch, params.annotation.gnomad_file, params.annotation.gnomad_file + ".tbi", "rates")
+      }
     }
     // If the rates file is already annotated, nothing to do
     else {
@@ -123,39 +131,46 @@ workflow{
     }
 
     // Merge results
-    // rates_merged_ch = MERGE_RATES(rates_shet_ch.collect())
+    rates_merged_ch = MERGE_RATES(rates_annotated_ch.collect())
 
     ///////////////////////// 
     // DNM FILE ANNOTATION //
     /////////////////////////
 
-    dnm_ch = Channel.fromPath(params.dnm)
+    if (params.containsKey("dnm")) {
 
-    // Annotate DNM file
-    if (params.containsKey("annotation") and params.containsKey("annotate_dnm") and (params.annotate_dnm))
-    {
-      dnm_annotated_ch = dnm_ch
+      dnm_ch = Channel.fromPath(params.dnm)
 
-      if (params.annotation.containsKey("annotate_bcftoolscsq") and (params.annotation.annotate_bcftoolscsq)) {
-        dnm_annotated_ch = DNM_BCFTOOLS_CSQ_FULL(dnm_annotated_ch, params.genome_fasta, params.genome_fasta + ".fai", params.gff,  gffutils_db_ch.first(), "dnm" )
-      }
-      
-      if (params.annotation.containsKey("cadd_file")){
-        dnm_annotated_ch = DNM_CADD(dnm_annotated_ch, params.annotation.cadd_file, params.annotation.cadd_file + ".tbi", "dnm")
-      }
+      dnm_ch = FILTER_DNM(dnm_ch, gene_list_ch)
 
-      if (params.annotation.containsKey("gene_full_constraints")){
-        dnm_annotated_ch = DNM_CONSTRAINTS(dnm_annotated_ch, params.annotation.gene_full_constraints, params.annotation.gene_region_constraints, "dnm")
-      }
+      // Annotate DNM file
+      if (params.containsKey("annotation") and params.containsKey("annotate_dnm") and (params.annotate_dnm))
+      {
+        dnm_annotated_ch = dnm_ch
 
-      if (params.annotation.containsKey("shet")){
-        dnm_annotated_ch = DNM_SHET(dnm_annotated_ch, params.annotation.shet, "dnm")
+        if (params.annotation.containsKey("annotate_bcftoolscsq") and (params.annotation.annotate_bcftoolscsq)) {
+          dnm_annotated_ch = DNM_BCFTOOLS_CSQ_FULL(dnm_annotated_ch, params.genome_fasta, params.genome_fasta + ".fai", params.gff,  gffutils_db_ch.first(), "dnm" )
+        }
+        
+        if (params.annotation.containsKey("cadd_file")){
+          dnm_annotated_ch = DNM_CADD(dnm_annotated_ch, params.annotation.cadd_file, params.annotation.cadd_file + ".tbi", "dnm")
+        }
+
+        if (params.annotation.containsKey("gene_full_constraints")){
+          dnm_annotated_ch = DNM_CONSTRAINTS(dnm_annotated_ch, params.annotation.gene_full_constraints, params.annotation.gene_region_constraints, "dnm")
+        }
+
+        if (params.annotation.containsKey("shet")){
+          dnm_annotated_ch = DNM_SHET(dnm_annotated_ch, params.annotation.shet, "dnm")
+        }
+
+        PUBLISH_DNM(dnm_annotated_ch)
       }
-    }
-    // If the DNM file is already annotated, nothing to do
-    else
-    {
-      dnm_annotated_ch = dnm_ch
+      // If the DNM file is already annotated, nothing to do
+      else
+      {
+        dnm_annotated_ch = dnm_ch
+      }
     }
 
     ////////////////////// 
