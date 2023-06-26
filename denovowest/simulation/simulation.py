@@ -53,6 +53,11 @@ def filter_on_consequences(df: pd.DataFrame):
     """
 
     logger = logging.getLogger("logger")
+
+    # TODO : Replace with better consequence extraction
+    # When bcftools report several consequences separated by the character "&", we extract the first one
+    df.consequence = [csq.split("&")[0] if isinstance(csq, str) else csq for csq in list(df.consequence)]
+
     filt = df.consequence.isin(CONSEQUENCES_MAPPING.keys())
     kept_df = df.loc[filt]
 
