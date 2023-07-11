@@ -21,7 +21,7 @@ process GFFUTILS_DB {
 /*
  * Create gene list from the GFF file
  */
-process CREATE_GENE_LIST {
+process CREATE_GENE_LIST_FROM_GFF {
 
   input:
   path gff_db
@@ -40,6 +40,24 @@ process CREATE_GENE_LIST {
         f.write(str(gene.attributes['ID'][0]) + '\\n') 
   """
 }
+
+/*
+ * Create gene list from the GFF file
+ */
+process CREATE_GENE_LIST_FROM_RATES {
+
+  input:
+  path rates_ch
+
+  output:
+  path "gene_list.tsv"
+
+  script :
+  """
+  zcat $rates_ch | tail -n +2 | cut -f1 | sort | uniq > gene_list.tsv
+  """
+}
+
 
 
 /*
@@ -106,6 +124,29 @@ process MERGE_RATES {
   # Concatenates the tsv files and keep only the first header
   awk 'FNR==1 && NR!=1{next;}{print}' $rates > merged_rates.tsv
   gzip merged_rates.tsv
+  """
+
+}
+
+/*
+ * Split rate files 
+ */
+process SPLIT_RATES {
+
+  input : 
+  path gene_list
+  path rates
+
+  
+  output : 
+  path "${gene_list}_mutation_rates.tsv"
+
+  script : 
+  """
+  # Extract header
+  zcat $rates | head -n 1 > ${gene_list}_mutation_rates.tsv
+  # Keep only the rows where gene is in gene_list
+  zcat $rates | awk 'FNR==NR {values[\$1]; next} \$1 in values' $gene_list - >> ${gene_list}_mutation_rates.tsv
   """
 
 }

@@ -4,10 +4,12 @@
 nextflow.enable.dsl=2
 
 include { GFFUTILS_DB } from './modules/rates.nf'
-include { CREATE_GENE_LIST } from './modules/rates.nf'
+include { CREATE_GENE_LIST_FROM_GFF} from './modules/rates.nf'
+include { CREATE_GENE_LIST_FROM_RATES} from './modules/rates.nf'
 include { SPLIT_GENE_LIST } from './modules/rates.nf'
 include { RATE_CREATION } from './modules/rates.nf'
 include { MERGE_RATES } from './modules/rates.nf'
+include { SPLIT_RATES } from './modules/rates.nf'
 
 include { FILTER_DNM } from './modules/dnm.nf'
 include { PUBLISH_DNM } from './modules/dnm.nf'
@@ -42,8 +44,11 @@ workflow{
     if (!params.containsKey("annotate_dnm")) {
       params.annotate_dnm = true
     }
-    if (!params.annotation.containsKey("annotate_bcftoolscsq")) {
-      params.annotation.annotate_bcftoolscsq = true
+    if (params.annotate_dnm || params.annotate_rates) {
+
+      if (!params.annotation.containsKey("annotate_bcftoolscsq")) {
+        params.annotation.annotate_bcftoolscsq = true
+      }
     }
     if (!params.containsKey("run_simulation")) {
       params.run_simulation = true
@@ -52,20 +57,26 @@ workflow{
       params.run_weights_creation = true
     }
 
+    ///////////////////////////////////////
+    // TODO : Check config file validity //
+    ///////////////////////////////////////
+
 
     ///////////////////////////////// 
     // GFF UTILS DATABASE CREATION //
     /////////////////////////////////
 
-
-    // DEBUG and TEST only : avoid to create gffutils database every time
-    if (params.containsKey("gff_db")) {
-      gffutils_db_ch = Channel.fromPath(params.gff_db)
-    }
-    // Create gffutils database
-    else {
-      gff_ch = Channel.fromPath(params.gff)
-      gffutils_db_ch = GFFUTILS_DB(gff_ch) 
+    if (params.annotate_rates || params.annotate_dnm)
+    {
+      // DEBUG and TEST only : avoid to create gffutils database every time
+      if (params.containsKey("gff_db")) {
+        gffutils_db_ch = Channel.fromPath(params.gff_db)
+      }
+      // Create gffutils database
+      else {
+        gff_ch = Channel.fromPath(params.gff)
+        gffutils_db_ch = GFFUTILS_DB(gff_ch) 
+      }
     }
 
     // If a gene list is provided we use it
@@ -74,8 +85,20 @@ workflow{
     }
     // Otherwise we create one from the gff file
     else {
-      gene_list_ch = CREATE_GENE_LIST(gffutils_db_ch)
+
+      if (params.containsKey("gff_db") || params.containsKey("gff"))
+      {
+        gene_list_ch = CREATE_GENE_LIST_FROM_GFF(gffutils_db_ch)
+      }
+      else if (params.containsKey("rates"))
+      {
+        rates_ch =  Channel.fromPath(params.rates)
+        gene_list_ch = CREATE_GENE_LIST_FROM_RATES(rates_ch)
+      }
     }
+
+    // Split gene list in smaller lists
+    split_gene_list_ch = SPLIT_GENE_LIST(gene_list_ch, params.split_step)
 
     ///////////////////////// 
     // RATES FILE CREATION //
@@ -83,17 +106,19 @@ workflow{
 
     // If the user provide a rates file we split it in smaller rates files
     if (params.containsKey("rates")) {
-      rates_ch =  Channel.fromPath(params.rates)
-      //TODO : create a process that split rates file
+      
+      rates_ch = SPLIT_RATES(split_gene_list_ch.toSortedList().flatten(), params.rates)
     }
     // Otherwise we generate rates files from the GFF file
     else
     {
-      // Split gene list in smaller lists
-      split_gene_list_ch = SPLIT_GENE_LIST(gene_list_ch, params.split_step)
-
       // Create rates files (one per split gene list)
       rates_ch = RATE_CREATION(split_gene_list_ch.toSortedList().flatten(), gffutils_db_ch.first(), params.genome_fasta, params.mutation_rate_model)
+
+      // If the point was to generate a rates file with no annotation, we simply merge the unannotated individual rates file
+      if (!(params.containsKey("annotation") and params.containsKey("annotate_rates") and (params.annotate_rates))) {
+            rates_merged_ch = MERGE_RATES(rates_ch.collect())
+      }
     }
 
 
@@ -124,14 +149,16 @@ workflow{
       if (params.annotation.containsKey("gnomad_file")){
         rates_annotated_ch = GNOMAD(rates_annotated_ch, params.annotation.gnomad_file, params.annotation.gnomad_file + ".tbi", "rates")
       }
+
+      // Merge results
+      rates_merged_ch = MERGE_RATES(rates_annotated_ch.collect())
     }
     // If the rates file is already annotated, nothing to do
-    else {
-      rates_annotated_ch = rates_ch
+    else if (params.containsKey("rates")){
+        rates_annotated_ch = rates_ch
     }
 
-    // Merge results
-    rates_merged_ch = MERGE_RATES(rates_annotated_ch.collect())
+
 
     ///////////////////////// 
     // DNM FILE ANNOTATION //
@@ -141,6 +168,7 @@ workflow{
 
       dnm_ch = Channel.fromPath(params.dnm)
 
+      // TODO : Case where we want to provide only annotated rates and annotated dnm, do not need gene list
       dnm_ch = FILTER_DNM(dnm_ch, gene_list_ch)
 
       // Annotate DNM file
@@ -162,6 +190,10 @@ workflow{
 
         if (params.annotation.containsKey("shet")){
           dnm_annotated_ch = DNM_SHET(dnm_annotated_ch, params.annotation.shet, "dnm")
+        }
+
+        if (params.annotation.containsKey("gnomad_file")){
+          dnm_annotated_ch = GNOMAD(dnm_annotated_ch, params.annotation.gnomad_file, params.annotation.gnomad_file + ".tbi", "dnm")
         }
 
         PUBLISH_DNM(dnm_annotated_ch)
