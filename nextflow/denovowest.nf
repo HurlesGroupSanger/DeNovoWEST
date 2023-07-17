@@ -169,7 +169,7 @@ workflow{
       dnm_ch = Channel.fromPath(params.dnm)
 
       // TODO : Case where we want to provide only annotated rates and annotated dnm, do not need gene list
-      dnm_ch = FILTER_DNM(dnm_ch, gene_list_ch)
+      //dnm_ch = FILTER_DNM(dnm_ch, gene_list_ch)
 
       // Annotate DNM file
       if (params.containsKey("annotation") and params.containsKey("annotate_dnm") and (params.annotate_dnm))

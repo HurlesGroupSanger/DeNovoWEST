@@ -2,8 +2,10 @@ import logging.config
 import logging
 import pandas as pd
 
+
 CONSEQUENCES_MAPPING = {
     "frameshift_variant": "frameshift",
+    "frameshift": "frameshift",
     "inframe_insertion": "inframe",
     "inframe_deletion": "inframe",
     "missense_variant": "missense",
@@ -21,6 +23,9 @@ CONSEQUENCES_MAPPING = {
     "stop_lost": "missense",
     "stop_retained": "synonymous",
     "synonymous": "synonymous",
+    "nonsense": "nonsense",
+    "splice_lof": "splice_lof",
+    "inframe": "inframe",
 }
 
 
@@ -33,6 +38,11 @@ def filter_on_consequences(df: pd.DataFrame):
     """
 
     logger = logging.getLogger("logger")
+
+    # TODO : Replace with better consequence extraction
+    # When bcftools report several consequences separated by the character "&", we extract the first one
+    df.consequence = [csq.split("&")[0] if isinstance(csq, str) else csq for csq in list(df.consequence)]
+
     filt = df.consequence.isin(CONSEQUENCES_MAPPING.keys())
     kept_df = df.loc[filt]
 

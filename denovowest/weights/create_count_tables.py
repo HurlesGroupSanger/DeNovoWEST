@@ -18,7 +18,8 @@ UPPER_BOUND_CADD_NONSENSE_SHETHIGH = 45
 BINSIZE_CADD_NONSENSE_SHETHIGH = 15
 
 MIN_SCORE = 0
-MAX_SCORE = 50
+MAX_SCORE = 100
+
 
 SHET_VALUES = [True, False]
 CONSTRAINED_VALUES = [True, False]
@@ -80,9 +81,6 @@ def get_expected_counts(rates_file, nmales, nfemales, outfile):
     rates_df = utils.filter_on_consequences(rates_df)
     rates_df = utils.assign_meta_consequences(rates_df)
 
-    # Filter out missense|nonsense loci with missing CADD score
-    rates_df = rates_df.loc[~(rates_df.consequence.isin(["missense", "nonsense"]) & rates_df.score.isna())]
-
     # Adjust mutation rates by chromosomal scaling factor
     autosomal_factor = 2 * (nmales + nfemales)
     x_factor = get_X_scaling_factor(nmales, nfemales)
@@ -130,9 +128,6 @@ def get_observed_counts(dnm_file, outfile):
     # Only a subset of functional consequences are used
     dnm_df = utils.filter_on_consequences(dnm_df)
     dnm_df = utils.assign_meta_consequences(dnm_df)
-
-    # Filter out missense|nonsense with missing scores
-    dnm_df = dnm_df.loc[~(dnm_df.consequence.isin(["missense", "nonsense"]) & dnm_df.score.isna())]
 
     # Get observed number of mutations
     bins = define_bins()
@@ -280,6 +275,10 @@ def count_variants(df: pd.DataFrame, bin: list, mode: str) -> pd.DataFrame:
         the observed or expected number of mutations falling in it
     """
 
+    # Filter out missense|nonsense with missing scores (only for bins including the score)
+    if bin[1] != "NA":
+        df = df.loc[~(df.consequence.isin(["missense", "nonsense"]) & df.score.isna())]
+
     # TODO : replace bin list per dict to make it more explicit
     filter_consequence = df.consequence == bin[0]
 
@@ -287,6 +286,14 @@ def count_variants(df: pd.DataFrame, bin: list, mode: str) -> pd.DataFrame:
     try:
         filter_score = (df.score >= bin[1][0]) & (df.score < bin[1][1])
         score_range = f"{bin[1][0]}-{bin[1][1]}"
+
+        # TODO : Improve hardcoded handling of upper bins
+        if bin[0] == "missense" and bin[1][1] == 100:
+            score_range = "30+"
+
+        if bin[0] == "nonsense" and bin[1][1] == 100:
+            score_range = "45+"
+
     except TypeError as e:
         filter_score = True
         score_range = "NA"
@@ -300,8 +307,15 @@ def count_variants(df: pd.DataFrame, bin: list, mode: str) -> pd.DataFrame:
     # All bins use the shet information
     filter_shet = df.shethigh == bin[3]
 
+    # For the broad categories, non SNP variants are excluded from DNM file to compute weights
+    if (mode == "obs") and (bin[0] in ["synonymous", "splice_lof", "missense"]) and (score_range == "NA"):
+        df = get_variant_size(df)
+        filter_size = df["size"] == 0
+    else:
+        filter_size = True
+
     # Get only variants falling in the current bin
-    min_df = df.loc[filter_consequence & filter_score & filter_constrained & filter_shet]
+    min_df = df.loc[filter_consequence & filter_score & filter_constrained & filter_shet & filter_size]
 
     # Count number of expected or observed variants in the bin
     if mode == "exp":
@@ -315,6 +329,30 @@ def count_variants(df: pd.DataFrame, bin: list, mode: str) -> pd.DataFrame:
     )
 
     return count_df
+
+
+def get_variant_size(df):
+    """_summary_
+
+    Args:
+        df (_type_): _description_
+    """
+
+    for idx, row in df.iterrows():
+        try:
+            len_ref = len(row.ref)
+        except TypeError:
+            len_ref = 0
+
+        try:
+            len_alt = len(row.alt)
+        except TypeError:
+            len_alt = 0
+
+        size = len_alt - len_ref
+        df.loc[idx, "size"] = size
+
+    return df
 
 
 @cli.command()

@@ -23,6 +23,9 @@ CONSEQUENCES_MAPPING = {
     "stop_lost": "missense",
     "stop_retained": "synonymous",
     "synonymous": "synonymous",
+    "nonsense": "nonsense",
+    "splice_lof": "splice_lof",
+    "inframe": "inframe",
 }
 
 N_MUTATION_MAX_SIM = 250

@@ -62,7 +62,7 @@ process MERGE_EXPECTED {
 
 process MERGE_COUNTS {
 
-    publishDir "${params.outdir}/weights/", mode: 'symlink'
+    publishDir "${params.outdir}/weights/", pattern: 'merged_counts.tsv', mode: 'copy', overwrite:true
 
 
     input:

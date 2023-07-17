@@ -14,12 +14,11 @@ import rpy2.robjects as ro
 
 SHET_VALUES = [True, False]
 CONSTRAINED_VALUES = [True, False]
-CSQ_SYNONYMOUS_VALUES = ["synonymous", "splice_lof", "missense"]
 CSQ_MISSENSE_VALUES = ["missense"]
 CSQ_NONSENSE_VALUES = ["nonsense"]
 
 CADD_MIN = 0
-CADD_MAX = 52.5
+CADD_MAX = 50
 CADD_STEP = 0.001
 # CADD_STEP = 0.1
 
@@ -67,7 +66,6 @@ def main(obs_exp_table_path: str, outfile: str):
     df_lowess.loc[df_lowess.obs_exp < 1, "obs_exp"] = 1  # TODO : Why ?
 
     df_lowess.constrained = df_lowess.constrained.astype("boolean")
-    df_lowess.to_csv("tete.tsv", sep="\t")
 
     # Compute frameshift and inframe variants observed/expected ratio per category, without any CADD score consideration
     # df_meta = get_obs_exp_ratio(obs_exp_table, categories["inframe"], categories["frameshift"])
@@ -108,9 +106,12 @@ def prepare_for_loess(obs_exp_table, category):
 
     # Retrieve all the CADD range bins corresponding to that category
     min_obs_exp_table = extract_bins_in_category(obs_exp_table, category)
+    min_obs_exp_table = min_obs_exp_table.loc[~min_obs_exp_table.score.isna()]
 
     # Get the midpoint score of each CADD range bin
-    min_obs_exp_table["midpoint"] = min_obs_exp_table["score"].apply(lambda x: get_CADD_midpoint(x))
+    min_obs_exp_table["midpoint"] = min_obs_exp_table["score"].apply(
+        lambda x: get_CADD_midpoint(x, category["consequence"])
+    )
 
     # Sort table by ascending CADD midpoint, and keep only bins for which we observed at least one mutation
     min_obs_exp_table = min_obs_exp_table.sort_values("midpoint").query("obs_exp > 0")
@@ -198,7 +199,7 @@ def categories_tuple_to_dict(categories, keys):
     return categories_dict
 
 
-def get_CADD_midpoint(cadd_range):
+def get_CADD_midpoint(cadd_range, consequence):
     """_summary_
 
     Args:
@@ -208,13 +209,25 @@ def get_CADD_midpoint(cadd_range):
         _type_: _description_
     """
 
-    cadd_lb = float(cadd_range.split("-")[0])
-    cadd_ub = float(cadd_range.split("-")[1])
+    # TODO : handle hardcoded upper bins properly
+    if "+" in cadd_range:
+        cadd_lb = float(cadd_range.replace("+", ""))
+        if consequence == "missense":
+            midpoint = cadd_lb + 3
+        if consequence == "nonsense":
+            midpoint = cadd_lb + 3.75
 
-    return (cadd_lb + cadd_ub) / 2
+    else:
+        cadd_lb = float(cadd_range.split("-")[0])
+        if consequence == "missense":
+            midpoint = cadd_lb + 3
+        if consequence == "nonsense":
+            midpoint = cadd_lb + 3.75
+
+    return midpoint
 
 
-def fit_loess(obs_exp_table, x, y, w, new_cadd_scores, span=1):
+def fit_loess(obs_exp_table, x, y, w, new_cadd_scores, span=0.99):
     """
     Fit a loess regression between CADD score bins midpoints and the observed to expected mutations ratio.
 
@@ -244,6 +257,13 @@ def fit_loess(obs_exp_table, x, y, w, new_cadd_scores, span=1):
 
     # Run loess
     model = rstats.loess(fmla, weights=w, span=span)
+    # model_dict = dict(zip(model.names, list(model)))
+    # print(x)
+    # print(y)
+    # print(w)
+    # print(model_dict.keys())
+    # print(model_dict["fitted"])
+
     prediction = ro.r["predict"](model, vals)
 
     return prediction
@@ -314,6 +334,8 @@ def get_obs_exp_ratio_inframe(obs_exp_table, inframe_categories):
     df = pd.DataFrame(columns=obs_exp_table.columns)
     for category in inframe_categories:
         min_obs_exp_table = extract_bins_in_category(obs_exp_table, category)
+        min_obs_exp_table = min_obs_exp_table.loc[min_obs_exp_table.score.isna()]
+
         max_obs_exp = min_obs_exp_table.obs_exp.max()
 
         df = df.append(
