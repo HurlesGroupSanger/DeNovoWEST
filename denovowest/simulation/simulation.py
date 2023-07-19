@@ -253,11 +253,7 @@ def get_indel_rates(generates, indel_weights):
     shethigh = generates.shethigh.iloc[0]
     try:
         frameshift_weight = float(
-            indel_weights.loc[
-                (indel_weights.consequence == "frameshift")
-                & (indel_weights.constrained == False)
-                & (indel_weights.shethigh == shethigh)
-            ].ppv
+            indel_weights.loc[(indel_weights.consequence == "frameshift") & (indel_weights.shethigh == shethigh)].ppv
         )
     except TypeError:
         logger.warning("No frameshift ppv found in weight file")
@@ -265,11 +261,7 @@ def get_indel_rates(generates, indel_weights):
 
     try:
         inframe_weight = float(
-            indel_weights.loc[
-                (indel_weights.consequence == "inframe")
-                & (indel_weights.constrained == False)
-                & (indel_weights.shethigh == shethigh)
-            ].ppv
+            indel_weights.loc[(indel_weights.consequence == "inframe") & (indel_weights.shethigh == shethigh)].ppv
         )
     except TypeError:
         logger.warning("No inframe ppv found in weight file")

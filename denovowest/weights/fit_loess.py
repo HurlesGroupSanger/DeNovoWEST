@@ -54,8 +54,14 @@ def main(obs_exp_table_path: str, outfile: str):
             continue
 
         # Run the loess regression
+        # TODO : find out about the different use of span parameter and its sensitivity
+        if category["consequence"] == "nonsense":
+            span = 1
+        elif category["consequence"] == "missense":
+            span = 0.99
+
         loess_prediction = fit_loess(
-            min_obs_exp_table, x="midpoint", y="obs_exp", w="obs", new_cadd_scores=new_cadd_scores
+            min_obs_exp_table, x="midpoint", y="obs_exp", w="obs", new_cadd_scores=new_cadd_scores, span=span
         )
 
         obs_exp_cadd_df = get_obs_exp_ratio_per_score(min_obs_exp_table, loess_prediction, new_cadd_scores)
@@ -69,7 +75,7 @@ def main(obs_exp_table_path: str, outfile: str):
 
     # Compute frameshift and inframe variants observed/expected ratio per category, without any CADD score consideration
     # df_meta = get_obs_exp_ratio(obs_exp_table, categories["inframe"], categories["frameshift"])
-    df_frameshift = get_obs_exp_ratio_frameshift(obs_exp_table, categories["frameshift"])
+    df_frameshift = get_obs_exp_ratio_frameshift(df_lowess, categories["frameshift"])
     df_inframe = get_obs_exp_ratio_inframe(obs_exp_table, categories["inframe"])
 
     # Compute for other variants (synonymous, splice regions)

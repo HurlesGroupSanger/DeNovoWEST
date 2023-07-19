@@ -129,8 +129,10 @@ def assign_weights_synonymous(df, weights_df):
     """
 
     min_df = df.loc[df.consequence == "synonymous"]
+    weights_df_copy = weights_df.copy()
+    weights_df_copy.constrained = False
     weighted_df = min_df.merge(
-        weights_df,
+        weights_df_copy,
         left_on=["consequence", "constrained", "shethigh"],
         right_on=["consequence", "constrained", "shethigh"],
         how="left",
@@ -149,8 +151,10 @@ def assign_weights_splicelof(df, weights_df):
     """
 
     min_df = df.loc[df.consequence == "splice_lof"]
+    weights_df_copy = weights_df.copy()
+    weights_df_copy.constrained = False
     weighted_df = min_df.merge(
-        weights_df,
+        weights_df_copy,
         left_on=["consequence", "constrained", "shethigh"],
         right_on=["consequence", "constrained", "shethigh"],
         how="left",
@@ -169,8 +173,10 @@ def assign_weights_inframe(df, weights_df):
     """
 
     min_df = df.loc[df.consequence == "inframe"]
+    weights_df_copy = weights_df.copy()
+    weights_df_copy.constrained = False
     weighted_df = min_df.merge(
-        weights_df,
+        weights_df_copy,
         left_on=["consequence", "constrained", "shethigh"],
         right_on=["consequence", "constrained", "shethigh"],
         how="left",
@@ -189,8 +195,10 @@ def assign_weights_frameshift(df, weights_df):
     """
 
     min_df = df.loc[df.consequence == "frameshift"]
+    weights_df_copy = weights_df.copy()
+    weights_df_copy.constrained = False
     weighted_df = min_df.merge(
-        weights_df,
+        weights_df_copy,
         left_on=["consequence", "constrained", "shethigh"],
         right_on=["consequence", "constrained", "shethigh"],
         how="left",

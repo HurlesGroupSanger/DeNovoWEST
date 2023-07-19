@@ -5,6 +5,8 @@ DeNovoWEST.code-workspace
 test/*
 notebooks/*
 input/*
+validation/*
+dev/*
 .vscode
 *old*
 .*
