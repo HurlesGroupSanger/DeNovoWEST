@@ -12,11 +12,12 @@ process FILTER_DNM {
   path gene_list
 
   output:
-  path "dnm_filtered.tsv"
+  path "dnm_kept.tsv"
+  path "dnm_discarded.tsv"
 
   script :
   """
-  filter_dnm.py ${dnm} ${gene_list} --output dnm_filtered.tsv
+  filter_dnm.py ${dnm} ${gene_list} --output_kept_dnm dnm_kept.tsv  --output_discarded_dnm dnm_discarded.tsv
   """
 }
 
