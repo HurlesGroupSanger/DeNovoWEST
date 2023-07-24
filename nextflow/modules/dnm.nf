@@ -3,6 +3,10 @@
  */
 process FILTER_DNM {
 
+
+  publishDir "${params.outdir}/dnm", mode: 'copy', overwrite: true
+
+
   input:
   path dnm
   path gene_list

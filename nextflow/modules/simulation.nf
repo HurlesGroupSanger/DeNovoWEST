@@ -19,7 +19,7 @@ process SIMULATION {
 
 process MERGE_SIMULATION {
 
-	publishDir "${params.outdir}/simulation", mode: 'copy'
+	publishDir "${params.outdir}/simulation", mode: 'copy', overwrite: true
     
 	memory "100G"
 

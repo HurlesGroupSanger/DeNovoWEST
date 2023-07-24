@@ -3,6 +3,8 @@
  */
 process GFFUTILS_DB {
 
+  publishDir "${params.outdir}/rates", mode: 'symlink', overwrite: true
+
   input:
   path gff_file
 
@@ -22,6 +24,8 @@ process GFFUTILS_DB {
  * Create gene list from the GFF file
  */
 process CREATE_GENE_LIST_FROM_GFF {
+
+  publishDir "${params.outdir}/rates", mode: 'copy', overwrite: true
 
   input:
   path gff_db
@@ -45,6 +49,8 @@ process CREATE_GENE_LIST_FROM_GFF {
  * Create gene list from the GFF file
  */
 process CREATE_GENE_LIST_FROM_RATES {
+
+  publishDir "${params.outdir}/rates", mode: 'copy', overwrite: true
 
   input:
   path rates_ch
