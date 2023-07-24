@@ -9,7 +9,7 @@ nextflow_process {
         when {
             process {
                 """
-                input[0] = file("tests/test_data/rates/input/Homo_sapiens.GRCh37.87.DDX3X_SCN5A.gff3")
+                input[0] = file("$baseDir/tests/test_data/rates/create_gffutils_db/b37/input/Homo_sapiens.GRCh37.87.DDX3X_SCN5A.gff3")
                 """
             }
         }
@@ -20,8 +20,11 @@ nextflow_process {
             //analyze trace file
             assert process.trace.tasks().size() == 1
 
+            assert snapshot(process.out.gffutils_db_ch).match()
+
+            // Check that the output example is still up to date
 			with(process.out.gffutils_db_ch) {
-				assert path(get(0)).md5 == "3ae773c9a0570dd03083baad575f77ad"
+				assert path(get(0)).md5 == path("$baseDir/../examples/rates/create_gffutils_db/b37/output/Homo_sapiens.GRCh37.87.DDX3X_SCN5A.gff3.db").md5
 			}
         }
     }

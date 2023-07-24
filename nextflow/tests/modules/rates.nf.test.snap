@@ -1,0 +1,10 @@
+{
+    "Should create a gffutils database": {
+        "content": [
+            [
+                "Homo_sapiens.GRCh37.87.DDX3X_SCN5A.gff3.db:md5,3ae773c9a0570dd03083baad575f77ad"
+            ]
+        ],
+        "timestamp": "2023-07-24T17:34:39+0000"
+    }
+}

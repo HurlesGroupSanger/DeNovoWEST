@@ -11,6 +11,8 @@ process SIMULATION {
     output :
     path "enrichment_results.tsv"
 
+    beforeScript "[ -v NF_TEST ] && export PYTHONPATH=$baseDir/../../../../../denovowest/simulation/;"
+
     script :
     """
     simulation.py $dnm $rates $weights --nmales $nmales --nfemales $nfemales

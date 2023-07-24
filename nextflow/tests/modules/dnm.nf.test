@@ -1,0 +1,38 @@
+nextflow_process {
+
+    name "DNM module"
+    script "modules/dnm.nf"
+    process "FILTER_DNM"
+
+    test("filter_dnm") {
+
+        when {
+
+			params {
+						dnm = "$baseDir/tests/test_data/dnm/filter_dnm/input/DNM_b38_MANE.tsv"
+						gene_list = "$baseDir/tests/test_data/dnm/filter_dnm/input/gene_list.tsv"
+
+					}
+					process {
+						"""
+						input[0] = file(params.dnm)
+						input[1] = file(params.gene_list)
+						"""
+					}
+        }
+
+        then {
+
+            assert process.success
+
+            // Test that the output matches the latest output
+            assert snapshot(process.out).match()
+
+			// Check that the output example is still up to date (Kept and discarded DNM files)
+            assert path(process.out.get(0).get(0)).md5 == path("$baseDir/../examples/dnm/filter_dnm/output/kept_dnm.tsv").md5
+            assert path(process.out.get(1).get(0)).md5 == path("$baseDir/../examples/dnm/filter_dnm/output/discarded_dnm.tsv").md5
+            
+        }
+    }
+}
+
