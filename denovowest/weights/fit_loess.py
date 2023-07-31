@@ -206,13 +206,14 @@ def categories_tuple_to_dict(categories, keys):
 
 
 def get_CADD_midpoint(cadd_range, consequence):
-    """_summary_
+    """Returns the midpoint for each CADD bin depending on its category
 
     Args:
-        bin_name (_type_): _description_
+        cadd_range (str): lower and upper bounds of the CADD bin
+        consequence (str) : functional consequence
 
     Returns:
-        _type_: _description_
+        float: midpoint of the CADD bin
     """
 
     # TODO : handle hardcoded upper bins properly
