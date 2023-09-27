@@ -6,6 +6,7 @@ import itertools
 import os
 import click
 import re
+import utils
 
 from rpy2.robjects import Formula, FloatVector
 from rpy2.robjects.packages import importr
@@ -26,7 +27,8 @@ CADD_STEP = 0.001
 @click.command()
 @click.argument("obs_exp_table_path")
 @click.argument("outfile")
-def main(obs_exp_table_path: str, outfile: str):
+@click.option("--outdir", default="enrichment_plots")
+def main(obs_exp_table_path: str, outfile: str, outdir: str):
     """
     Fits a loess regression using CADD score bins midpoint to infer expected and observed counts for every intermediary CADD score.
 
@@ -86,6 +88,10 @@ def main(obs_exp_table_path: str, outfile: str):
 
     # Turn ratio into PPVs
     res_df = positive_predictive_value(res_df)
+
+    # Plot enrichment both at the observed/expected ratio level and ppv level
+    utils.plot_enrichment(obs_exp_table, mode="obs_exp", loess=True, df_loess=res_df, outdir=outdir)
+    utils.plot_enrichment(obs_exp_table, mode="ppv", loess=True, df_loess=res_df, outdir=outdir)
 
     # Ad there are some missing values in constrained columns, pandas turn boolean values to float automatically. We force boolean use here.
     # res_df.constrained = res_df.constrained.astype("boolean")
@@ -321,15 +327,21 @@ def get_obs_exp_ratio_frameshift(obs_exp_table, frameshift_categories):
         min_obs_exp_table = extract_bins_in_category(obs_exp_table, category)
         max_obs_exp = min_obs_exp_table.obs_exp.max()
 
-        df = df.append(
-            {
-                "consequence": "frameshift",
-                "score": np.NaN,
-                "constrained": np.NaN,
-                "shethigh": min_obs_exp_table["shethigh"].iloc[0],
-                "obs_exp": max_obs_exp,
-            },
-            ignore_index=True,
+        df = pd.concat(
+            [
+                df,
+                pd.DataFrame(
+                    [
+                        {
+                            "consequence": "frameshift",
+                            "score": np.NaN,
+                            "constrained": np.NaN,
+                            "shethigh": min_obs_exp_table["shethigh"].iloc[0],
+                            "obs_exp": max_obs_exp,
+                        }
+                    ]
+                ),
+            ]
         )
 
     return df
@@ -345,15 +357,21 @@ def get_obs_exp_ratio_inframe(obs_exp_table, inframe_categories):
 
         max_obs_exp = min_obs_exp_table.obs_exp.max()
 
-        df = df.append(
-            {
-                "consequence": "inframe",
-                "score": np.NaN,
-                "constrained": np.NaN,
-                "shethigh": min_obs_exp_table["shethigh"].iloc[0],
-                "obs_exp": max_obs_exp,
-            },
-            ignore_index=True,
+        df = pd.concat(
+            [
+                df,
+                pd.DataFrame(
+                    [
+                        {
+                            "consequence": "inframe",
+                            "score": np.NaN,
+                            "constrained": np.NaN,
+                            "shethigh": min_obs_exp_table["shethigh"].iloc[0],
+                            "obs_exp": max_obs_exp,
+                        }
+                    ]
+                ),
+            ]
         )
 
     return df

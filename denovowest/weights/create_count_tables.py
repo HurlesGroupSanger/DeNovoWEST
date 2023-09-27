@@ -371,10 +371,14 @@ def merge_expected_observed(expected_file: str, observed_file: str, outfile: str
     df_expected = pd.read_csv(expected_file, sep="\t")
     df_observed = pd.read_csv(observed_file, sep="\t")
 
+    # Merge expected and observed table and compute observed/expected ratio
     df_merged = df_expected.merge(df_observed, on=["consequence", "score", "constrained", "shethigh"], how="outer")
-
     df_merged["obs_exp"] = df_merged["obs"] / df_merged["exp"]
 
+    # Plot enrichment per bin
+    utils.plot_enrichment(df_merged)
+
+    # Export results
     df_merged.to_csv(outfile, sep="\t", index=False)
 
 
