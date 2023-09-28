@@ -60,9 +60,11 @@ process MERGE_EXPECTED {
     """
 }
 
+
 process MERGE_COUNTS {
 
-    publishDir "${params.outdir}/weights/", mode: 'copy', overwrite:true
+    publishDir "${params.outdir}/weights/", mode: 'copy', overwrite:true, include: 'merged_counts.tsv'
+    publishDir "${params.outdir}/weights/", mode: 'copy', overwrite:true, include : 'enrichment_plots/*.png',  exlude : 'enrichment_plots'
 
 
     input:
@@ -70,7 +72,8 @@ process MERGE_COUNTS {
     path observed_counts
 
     output:
-    path "merged_counts.tsv"
+    path "merged_counts.tsv", emit : merged_counts_ch 
+    path "enrichment_plots"
 
     script :
     """
@@ -78,9 +81,12 @@ process MERGE_COUNTS {
     """
 }
 
+
 process LOESS {
 
-    publishDir "${params.outdir}/weights/", mode: 'copy', overwrite: true
+    publishDir "${params.outdir}/weights/", mode: 'copy', overwrite: true, include : 'weights.tsv'
+    publishDir "${params.outdir}/weights/", mode: 'copy', overwrite: true, include : 'enrichment_plots_loess/*.png', exlude : 'enrichment_plots_loess'
+
 
     conda "/software/team29/ed11/miniconda3/envs/rpy2"
 
@@ -88,11 +94,13 @@ process LOESS {
     path merged_counts
 
     output :
-    path "weights.tsv"
+    path "weights.tsv", emit : weights_ch
+    path "enrichment_plots_loess"
+
 
     script :
     """
-    fit_loess.py ${merged_counts} weights.tsv
+    fit_loess.py ${merged_counts} weights.tsv --outdir enrichment_plots_loess
     """
 
 }

@@ -220,9 +220,9 @@ workflow{
 
       observed_ch = GET_OBSERVED_COUNTS(dnm_annotated_ch)
 
-      merged_counts_ch = MERGE_COUNTS(expected_merged_ch, observed_ch)
+      merged_counts_ch = MERGE_COUNTS(expected_merged_ch, observed_ch).merged_counts_ch
 
-      weights_ch = LOESS(merged_counts_ch)
+      weights_ch = LOESS(merged_counts_ch).weights_ch
     }
 
     //////////////// 
