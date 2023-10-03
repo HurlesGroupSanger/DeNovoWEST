@@ -1,0 +1,9 @@
+name: rpy2test
+channels:
+- conda-forge
+- bioconda
+dependencies:
+- python
+- rpy2
+- seaborn
+- click      

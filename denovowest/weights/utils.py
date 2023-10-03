@@ -309,7 +309,7 @@ def plot_enrichment_other(df, mode, outdir):
 
     # Create main plot
     plt.figure(figsize=(12, 9))
-    ax = sns.pointplot(data=df, x="consequence", y=mode, hue="shethigh", dodge=True, join=False)
+    ax = sns.pointplot(data=df, x="consequence", y=mode, hue="shethigh", dodge=True)
 
     # In obs_exp mode we add the confidence interval on the plot
     if mode == "obs_exp":
