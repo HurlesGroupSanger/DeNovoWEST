@@ -5,6 +5,12 @@ from pathlib import Path
 import yaml
 
 
+# Per generation mutation rate scaling factors taken from https://github.com/vseplyarskiy/Roulette/tree/main/adding_mutation_rate
+# Divided by 3 because only one of the three possible mutations is possible at a time
+ROULETTE_SCALING_FACTOR = 1.015e-7 / 3
+CARLSON_SCALING_FACTOR = 2.086e-9 / 3
+
+
 def load_conf(filename):
     """Load the content of a YAML configuration file in a dictionnary
 
@@ -20,8 +26,9 @@ def load_conf(filename):
 
     return conf
 
+
 def superseed_conf(conf, command_params):
-    """ Superseed configuration in config file with parameters from the command line
+    """Superseed configuration in config file with parameters from the command line
 
     Args:
         conf (dict): configuration from the config file (if any)
@@ -31,11 +38,12 @@ def superseed_conf(conf, command_params):
         dict: Configuration dictionnary.
     """
 
-    for key, value in command_params.items() :
+    for key, value in command_params.items():
         if value and key != "config":
             conf[key.upper()] = value
 
     return conf
+
 
 def init_log():
     """Initialize logging configuration"""

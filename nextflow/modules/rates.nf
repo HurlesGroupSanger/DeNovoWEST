@@ -46,7 +46,7 @@ process CREATE_GENE_LIST_FROM_GFF {
 }
 
 /*
- * Create gene list from the GFF file
+ * Create gene list from a provided rates file
  */
 process CREATE_GENE_LIST_FROM_RATES {
 
@@ -97,6 +97,7 @@ process RATE_CREATION {
     path gff_db
     path fasta
     path mutation_rate_model
+    val mutation_rate_model_type
 
     output :
     path "${gene_list}_mutation/mutation_rates.tsv"
@@ -108,7 +109,8 @@ process RATE_CREATION {
       --fasta $fasta \
       --mutation_rate_model $mutation_rate_model \
       --gene_list $gene_list \
-      --outdir ${gene_list}_mutation
+      --outdir ${gene_list}_mutation \
+      --model $mutation_rate_model_type
     """
 }
 

@@ -57,6 +57,8 @@ workflow{
       params.run_weights_creation = true
     }
 
+
+
     ///////////////////////////////////////
     // TODO : Check config file validity //
     ///////////////////////////////////////
@@ -112,8 +114,14 @@ workflow{
     // Otherwise we generate rates files from the GFF file
     else
     {
+
+      // Default mutation rate model is kmer trinucleotide model
+      if (!params.containsKey("mutation_rate_model_type")) {
+        params.mutation_rate_model_type = "kmer"
+      }
+
       // Create rates files (one per split gene list)
-      rates_ch = RATE_CREATION(split_gene_list_ch.toSortedList().flatten(), gffutils_db_ch.first(), params.genome_fasta, params.mutation_rate_model)
+      rates_ch = RATE_CREATION(split_gene_list_ch.toSortedList().flatten(), gffutils_db_ch.first(), params.genome_fasta, params.mutation_rate_model,  params.mutation_rate_model_type)
 
       // If the point was to generate a rates file with no annotation, we simply merge the unannotated individual rates file
       if (!(params.containsKey("annotation") and params.containsKey("annotate_rates") and (params.annotate_rates))) {
