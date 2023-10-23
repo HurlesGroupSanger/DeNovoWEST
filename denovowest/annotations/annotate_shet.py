@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 import pandas as pd
 import click
+import sys
 
 
 @click.command()
@@ -19,6 +20,11 @@ def annotate_shet(rates, shet, output, threshold):
 
     # Load rates file
     rates_df = pd.read_table(rates)
+    if rates_df.empty:
+        print("Rates file is empty")
+        rates_df["shethigh"] = None
+        rates_df.to_csv(output, sep="\t", index=False)
+        sys.exit(0)
     rates_df["shethigh"] = False
 
     # Load shet file

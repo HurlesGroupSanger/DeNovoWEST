@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+import sys
 import pandas as pd
 import click
 from scipy.stats import chi2
@@ -54,6 +55,11 @@ def annotate_constraint(rates, geneconstraint, regionconstraint, outrates, thres
 
     # Read rates file and initialize all positions as non constrained
     rates_df = pd.read_csv(rates, sep="\t")
+    if rates_df.empty:
+        print("Rates file is empty")
+        rates_df["constrained"] = None
+        rates_df.to_csv(outrates, sep="\t", index=False)
+        sys.exit(0)
     rates_df["constrained"] = False
 
     # For each gene in rates file

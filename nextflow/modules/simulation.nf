@@ -1,7 +1,7 @@
 process SIMULATION {
 
     
-	memory "100G"
+	label "process_long"
 
 	input :
     tuple path(dnm), path(rates), path(weights) 
@@ -23,8 +23,6 @@ process MERGE_SIMULATION {
 
 	publishDir "${params.outdir}/simulation", mode: 'copy', overwrite: true
     
-	memory "100G"
-
 	input :
     path enrichment_results, stageAs : "enrichment_results_*.tsv"
 
