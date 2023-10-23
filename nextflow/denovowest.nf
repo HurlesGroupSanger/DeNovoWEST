@@ -12,6 +12,7 @@ include { MERGE_RATES } from './modules/rates.nf'
 include { SPLIT_RATES } from './modules/rates.nf'
 
 include { FILTER_DNM } from './modules/dnm.nf'
+include { FILTER_DNM_GFF } from './modules/dnm.nf'
 include { PUBLISH_DNM } from './modules/dnm.nf'
 
 
@@ -176,7 +177,12 @@ workflow{
 
       dnm_ch = Channel.fromPath(params.dnm)
 
-      dnm_ch = FILTER_DNM(dnm_ch, gene_list_ch)[0]
+      if (gffutils_db_ch) {
+          dnm_ch = FILTER_DNM_GFF(dnm_ch, gene_list_ch, gffutils_db_ch)[0]
+      }
+      else {
+           dnm_ch = FILTER_DNM(dnm_ch, gene_list_ch)[0]
+      }
 
       // Annotate DNM file
       if (params.containsKey("annotation") and params.containsKey("annotate_dnm") and (params.annotate_dnm))
