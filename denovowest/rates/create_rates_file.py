@@ -298,7 +298,14 @@ def calculate_rates(mutation_rate_model, fasta, gff_db, gene_list):
         logger.info(f"Rates computed for {nb_genes} genes")
 
     # We assemble all genes data frame together
-    mutation_rates_df = pd.concat(list_mutation_rates)
+    if list_mutation_rates :
+        mutation_rates_df = pd.concat(list_mutation_rates)
+    else :
+        mutation_rates_df = pd.DataFrame(columns=["gene_id", "chrom", "pos", "ref", "alt", "prob"])
+        logger.warning(f"Rates dataframe is empty")
+
+        
+ 
 
     return mutation_rates_df
 

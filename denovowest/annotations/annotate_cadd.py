@@ -2,6 +2,7 @@
 import pandas as pd
 import click
 import pysam
+import sys
 from itertools import groupby, count
 
 
@@ -59,6 +60,12 @@ def annotate_cadd(rates, cadd, output):
 
     # Load rates file
     rates_df = pd.read_table(rates, dtype={"chrom": str, "pos": int, "ref": str, "alt": str})
+    if rates_df.empty:
+        print("Rates file is empty")
+        rates_df["raw"] = None
+        rates_df["score"] = None
+        rates_df.to_csv(output, sep="\t", index=False)
+        sys.exit(0)
 
     # Depending on the gff, chromosome can be defined as "chrX" or just "X"
     if str(rates_df.iloc[0].chrom).startswith("chr"):

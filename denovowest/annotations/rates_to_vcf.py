@@ -2,6 +2,7 @@
 import click
 import gffutils
 import pandas as pd
+import sys
 
 # Built from bcftools +split-vep -S -
 consequences_severities = {
@@ -151,16 +152,28 @@ def vcf_to_rates(vcf, rates, gff_db, out_rates):
         out_rates (str): Path of the output rates file
     """
 
-    # Read VCF
-    if vcf.endswith("gz"):
-        vcf_df = pd.read_csv(vcf, sep="\t", comment="#", header=None, compression="gzip")
-    else:
-        vcf_df = pd.read_csv(vcf, sep="\t", comment="#", header=None)
-    vcf_df.columns = "#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO".split("\t")
-    vcf_df["#CHROM"] = vcf_df["#CHROM"].astype(str)
-
     # Read rates
     rates_df = pd.read_csv(rates, sep="\t", dtype={"chrom": str})
+
+    # Read VCF
+    try:
+        if vcf.endswith("gz"):
+            vcf_df = pd.read_csv(vcf, sep="\t", comment="#", header=None, compression="gzip")
+        else:
+            vcf_df = pd.read_csv(vcf, sep="\t", comment="#", header=None)
+        vcf_df.columns = "#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO".split("\t")
+        vcf_df["#CHROM"] = vcf_df["#CHROM"].astype(str)
+
+    except pd.errors.EmptyDataError:
+        # TODO : use logger
+        if rates_df.empty:
+            print("Rates file is empty")
+            rates_df["consequence"] = None
+            rates_df.to_csv(out_rates, sep="\t", index=False)
+            sys.exit(0)
+        else:
+            print("Bcftools csq file is empty")
+            sys.exit(1)
 
     # Load gffutils database
     gff_db = gffutils.FeatureDB(gff_db)
