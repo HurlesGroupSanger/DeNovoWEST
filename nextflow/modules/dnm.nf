@@ -18,6 +18,8 @@ process FILTER_DNM {
   path "dnm_discarded.tsv"
 
 
+  beforeScript "[ -v NF_TEST ] && export PYTHONPATH=$baseDir/../../../../../denovowest/;"
+
   script :
   """
   filter_dnm.py ${dnm} ${gene_list} --output_kept_dnm dnm_kept.tsv  --output_discarded_dnm dnm_discarded.tsv
