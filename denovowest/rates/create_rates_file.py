@@ -300,14 +300,11 @@ def calculate_rates_kmer(mutation_rate_model, fasta, gff_db, gene_list):
         logger.info(f"Rates computed for {nb_genes} genes")
 
     # We assemble all genes data frame together
-    if list_mutation_rates :
+    if list_mutation_rates:
         mutation_rates_df = pd.concat(list_mutation_rates)
-    else :
+    else:
         mutation_rates_df = pd.DataFrame(columns=["gene_id", "chrom", "pos", "ref", "alt", "prob"])
         logger.warning(f"Rates dataframe is empty")
-
-        
- 
 
     return mutation_rates_df
 
@@ -446,7 +443,11 @@ def calculate_rates_roulette(roulette_dir, gff_db, gene_list, model):
         logger.info(f"Rates computed for {nb_genes} genes")
 
     # We assemble all genes data frame together
-    mutation_rates_df = pd.concat(list_mutation_rates)
+    if list_mutation_rates:
+        mutation_rates_df = pd.concat(list_mutation_rates)
+    else:
+        mutation_rates_df = pd.DataFrame(columns=["gene_id", "chrom", "pos", "ref", "alt", "prob"])
+        logger.warning(f"Rates dataframe is empty")
 
     return mutation_rates_df
 
