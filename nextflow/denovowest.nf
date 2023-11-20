@@ -177,7 +177,8 @@ workflow{
 
       dnm_ch = Channel.fromPath(params.dnm)
 
-      if (gffutils_db_ch) {
+      // TODO : check if gene_list_ch exists
+      if ((params.containsKey("gff_db") || params.containsKey("gff"))) {
           dnm_ch = FILTER_DNM_GFF(dnm_ch, gene_list_ch, gffutils_db_ch)[0]
       }
       else {
