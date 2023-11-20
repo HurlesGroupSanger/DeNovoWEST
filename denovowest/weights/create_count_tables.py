@@ -332,10 +332,15 @@ def count_variants(df: pd.DataFrame, bin: list, mode: str) -> pd.DataFrame:
 
 
 def get_variant_size(df):
-    """_summary_
+    """
+    Assign variant size to each variant in the DNM file.
+    Helps distinguishing SNPs from indels.
 
     Args:
-        df (_type_): _description_
+        df (pd.Dataframe): DNM data frame
+
+    Returns:
+        df (pd.Dataframe): DNM data frame with a size column
     """
 
     for idx, row in df.iterrows():
