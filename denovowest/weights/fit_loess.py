@@ -6,6 +6,7 @@ import itertools
 import os
 import click
 import re
+import utils
 
 from rpy2.robjects import Formula, FloatVector
 from rpy2.robjects.packages import importr
@@ -14,20 +15,20 @@ import rpy2.robjects as ro
 
 SHET_VALUES = [True, False]
 CONSTRAINED_VALUES = [True, False]
-CSQ_SYNONYMOUS_VALUES = ["synonymous", "splice_donor|splice_acceptor|splice_lof", "missense"]
 CSQ_MISSENSE_VALUES = ["missense"]
-CSQ_NONSENSE_VALUES = ["nonsense|stop_gained"]
+CSQ_NONSENSE_VALUES = ["nonsense"]
 
 CADD_MIN = 0
-CADD_MAX = 52.5
-# CADD_STEP = 0.001
-CADD_STEP = 0.1
+CADD_MAX = 50
+CADD_STEP = 0.001
+# CADD_STEP = 0.1
 
 
 @click.command()
 @click.argument("obs_exp_table_path")
 @click.argument("outfile")
-def main(obs_exp_table_path: str, outfile: str):
+@click.option("--outdir", default="enrichment_plots")
+def main(obs_exp_table_path: str, outfile: str, outdir: str):
     """
     Fits a loess regression using CADD score bins midpoint to infer expected and observed counts for every intermediary CADD score.
 
@@ -55,8 +56,14 @@ def main(obs_exp_table_path: str, outfile: str):
             continue
 
         # Run the loess regression
+        # TODO : find out about the different use of span parameter and its sensitivity
+        if category["consequence"] == "nonsense":
+            span = 1
+        elif category["consequence"] == "missense":
+            span = 0.99
+
         loess_prediction = fit_loess(
-            min_obs_exp_table, x="midpoint", y="obs_exp", w="obs", new_cadd_scores=new_cadd_scores
+            min_obs_exp_table, x="midpoint", y="obs_exp", w="obs", new_cadd_scores=new_cadd_scores, span=span
         )
 
         obs_exp_cadd_df = get_obs_exp_ratio_per_score(min_obs_exp_table, loess_prediction, new_cadd_scores)
@@ -67,11 +74,10 @@ def main(obs_exp_table_path: str, outfile: str):
     df_lowess.loc[df_lowess.obs_exp < 1, "obs_exp"] = 1  # TODO : Why ?
 
     df_lowess.constrained = df_lowess.constrained.astype("boolean")
-    df_lowess.to_csv("tete.tsv", sep="\t")
 
     # Compute frameshift and inframe variants observed/expected ratio per category, without any CADD score consideration
     # df_meta = get_obs_exp_ratio(obs_exp_table, categories["inframe"], categories["frameshift"])
-    df_frameshift = get_obs_exp_ratio_frameshift(obs_exp_table, categories["frameshift"])
+    df_frameshift = get_obs_exp_ratio_frameshift(df_lowess, categories["frameshift"])
     df_inframe = get_obs_exp_ratio_inframe(obs_exp_table, categories["inframe"])
 
     # Compute for other variants (synonymous, splice regions)
@@ -82,6 +88,10 @@ def main(obs_exp_table_path: str, outfile: str):
 
     # Turn ratio into PPVs
     res_df = positive_predictive_value(res_df)
+
+    # Plot enrichment both at the observed/expected ratio level and ppv level
+    utils.plot_enrichment(obs_exp_table, mode="obs_exp", loess=True, df_loess=res_df, outdir=outdir)
+    utils.plot_enrichment(obs_exp_table, mode="ppv", loess=True, df_loess=res_df, outdir=outdir)
 
     # Ad there are some missing values in constrained columns, pandas turn boolean values to float automatically. We force boolean use here.
     # res_df.constrained = res_df.constrained.astype("boolean")
@@ -108,9 +118,12 @@ def prepare_for_loess(obs_exp_table, category):
 
     # Retrieve all the CADD range bins corresponding to that category
     min_obs_exp_table = extract_bins_in_category(obs_exp_table, category)
+    min_obs_exp_table = min_obs_exp_table.loc[~min_obs_exp_table.score.isna()]
 
     # Get the midpoint score of each CADD range bin
-    min_obs_exp_table["midpoint"] = min_obs_exp_table["score"].apply(lambda x: get_CADD_midpoint(x))
+    min_obs_exp_table["midpoint"] = min_obs_exp_table["score"].apply(
+        lambda x: get_CADD_midpoint(x, category["consequence"])
+    )
 
     # Sort table by ascending CADD midpoint, and keep only bins for which we observed at least one mutation
     min_obs_exp_table = min_obs_exp_table.sort_values("midpoint").query("obs_exp > 0")
@@ -198,23 +211,36 @@ def categories_tuple_to_dict(categories, keys):
     return categories_dict
 
 
-def get_CADD_midpoint(cadd_range):
-    """_summary_
+def get_CADD_midpoint(cadd_range, consequence):
+    """Returns the midpoint for each CADD bin depending on its category
 
     Args:
-        bin_name (_type_): _description_
+        cadd_range (str): lower and upper bounds of the CADD bin
+        consequence (str) : functional consequence
 
     Returns:
-        _type_: _description_
+        float: midpoint of the CADD bin
     """
 
-    cadd_lb = float(cadd_range.split("-")[0])
-    cadd_ub = float(cadd_range.split("-")[1])
+    # TODO : handle hardcoded upper bins properly
+    if "+" in cadd_range:
+        cadd_lb = float(cadd_range.replace("+", ""))
+        if consequence == "missense":
+            midpoint = cadd_lb + 3
+        if consequence == "nonsense":
+            midpoint = cadd_lb + 3.75
 
-    return (cadd_lb + cadd_ub) / 2
+    else:
+        cadd_lb = float(cadd_range.split("-")[0])
+        if consequence == "missense":
+            midpoint = cadd_lb + 3
+        if consequence == "nonsense":
+            midpoint = cadd_lb + 3.75
+
+    return midpoint
 
 
-def fit_loess(obs_exp_table, x, y, w, new_cadd_scores, span=1):
+def fit_loess(obs_exp_table, x, y, w, new_cadd_scores, span=0.99):
     """
     Fit a loess regression between CADD score bins midpoints and the observed to expected mutations ratio.
 
@@ -244,6 +270,13 @@ def fit_loess(obs_exp_table, x, y, w, new_cadd_scores, span=1):
 
     # Run loess
     model = rstats.loess(fmla, weights=w, span=span)
+    # model_dict = dict(zip(model.names, list(model)))
+    # print(x)
+    # print(y)
+    # print(w)
+    # print(model_dict.keys())
+    # print(model_dict["fitted"])
+
     prediction = ro.r["predict"](model, vals)
 
     return prediction
@@ -294,15 +327,21 @@ def get_obs_exp_ratio_frameshift(obs_exp_table, frameshift_categories):
         min_obs_exp_table = extract_bins_in_category(obs_exp_table, category)
         max_obs_exp = min_obs_exp_table.obs_exp.max()
 
-        df = df.append(
-            {
-                "consequence": "frameshift",
-                "score": np.NaN,
-                "constrained": np.NaN,
-                "shethigh": min_obs_exp_table["shethigh"].iloc[0],
-                "obs_exp": max_obs_exp,
-            },
-            ignore_index=True,
+        df = pd.concat(
+            [
+                df,
+                pd.DataFrame(
+                    [
+                        {
+                            "consequence": "frameshift",
+                            "score": np.NaN,
+                            "constrained": np.NaN,
+                            "shethigh": min_obs_exp_table["shethigh"].iloc[0],
+                            "obs_exp": max_obs_exp,
+                        }
+                    ]
+                ),
+            ]
         )
 
     return df
@@ -314,17 +353,25 @@ def get_obs_exp_ratio_inframe(obs_exp_table, inframe_categories):
     df = pd.DataFrame(columns=obs_exp_table.columns)
     for category in inframe_categories:
         min_obs_exp_table = extract_bins_in_category(obs_exp_table, category)
+        min_obs_exp_table = min_obs_exp_table.loc[min_obs_exp_table.score.isna()]
+
         max_obs_exp = min_obs_exp_table.obs_exp.max()
 
-        df = df.append(
-            {
-                "consequence": "inframe",
-                "score": np.NaN,
-                "constrained": np.NaN,
-                "shethigh": min_obs_exp_table["shethigh"].iloc[0],
-                "obs_exp": max_obs_exp,
-            },
-            ignore_index=True,
+        df = pd.concat(
+            [
+                df,
+                pd.DataFrame(
+                    [
+                        {
+                            "consequence": "inframe",
+                            "score": np.NaN,
+                            "constrained": np.NaN,
+                            "shethigh": min_obs_exp_table["shethigh"].iloc[0],
+                            "obs_exp": max_obs_exp,
+                        }
+                    ]
+                ),
+            ]
         )
 
     return df

@@ -105,10 +105,12 @@ def assign_weights_nonsense(df, weights_df):
 
     min_df = df.loc[df.consequence == "nonsense"]
     # TODO : Explain why we are not setting the constraint information to nan for nonsense mutations
-    min_df.constrained = np.NaN
-    min_df.constrained = min_df.constrained.astype(object)
+    # min_df.constrained = np.NaN
+    # min_df.constrained = min_df.constrained.astype(object)
+    weights_df_copy = weights_df.copy()
+    weights_df_copy.constrained = False
     weighted_df = min_df.merge(
-        weights_df,
+        weights_df_copy,
         left_on=["consequence", "constrained", "shethigh", "score_rounded"],
         right_on=["consequence", "constrained", "shethigh", "score"],
         how="left",
@@ -127,8 +129,10 @@ def assign_weights_synonymous(df, weights_df):
     """
 
     min_df = df.loc[df.consequence == "synonymous"]
+    weights_df_copy = weights_df.copy()
+    weights_df_copy.constrained = False
     weighted_df = min_df.merge(
-        weights_df,
+        weights_df_copy,
         left_on=["consequence", "constrained", "shethigh"],
         right_on=["consequence", "constrained", "shethigh"],
         how="left",
@@ -147,8 +151,10 @@ def assign_weights_splicelof(df, weights_df):
     """
 
     min_df = df.loc[df.consequence == "splice_lof"]
+    weights_df_copy = weights_df.copy()
+    weights_df_copy.constrained = False
     weighted_df = min_df.merge(
-        weights_df,
+        weights_df_copy,
         left_on=["consequence", "constrained", "shethigh"],
         right_on=["consequence", "constrained", "shethigh"],
         how="left",
@@ -167,8 +173,10 @@ def assign_weights_inframe(df, weights_df):
     """
 
     min_df = df.loc[df.consequence == "inframe"]
+    weights_df_copy = weights_df.copy()
+    weights_df_copy.constrained = False
     weighted_df = min_df.merge(
-        weights_df,
+        weights_df_copy,
         left_on=["consequence", "constrained", "shethigh"],
         right_on=["consequence", "constrained", "shethigh"],
         how="left",
@@ -187,8 +195,10 @@ def assign_weights_frameshift(df, weights_df):
     """
 
     min_df = df.loc[df.consequence == "frameshift"]
+    weights_df_copy = weights_df.copy()
+    weights_df_copy.constrained = False
     weighted_df = min_df.merge(
-        weights_df,
+        weights_df_copy,
         left_on=["consequence", "constrained", "shethigh"],
         right_on=["consequence", "constrained", "shethigh"],
         how="left",
@@ -215,7 +225,10 @@ def assign_outlier_weights(df, weights_df):
     combinations = itertools.product(consequence, score, constrained, shethigh)
 
     for combination in combinations:
+        if combination[0] == "nonsense" and combination[2] == True:
+            continue
         max_score = get_max_score(combination, df)
+
         df["ppv"] = np.where(
             (df.consequence == combination[0])
             & (df.score > combination[1])
@@ -237,13 +250,10 @@ def get_max_score(combination, df):
     """
 
     min_df = df.loc[
-        (df.consequence == combination[0])
-        & (df.score > combination[1])
-        & (df.constrained == combination[2])
-        & (df.shethigh == combination[3])
+        (df.consequence == combination[0]) & (df.constrained == combination[2]) & (df.shethigh == combination[3])
     ]
 
-    max_score = min_df.score.max()
+    max_score = min_df.ppv.max()
 
     return max_score
 

@@ -2,6 +2,7 @@
 import pandas as pd
 import click
 import pysam
+import sys
 from itertools import groupby, count
 
 
@@ -58,7 +59,19 @@ def annotate_cadd(rates, cadd, output):
     """
 
     # Load rates file
-    rates_df = pd.read_table(rates)
+    rates_df = pd.read_table(rates, dtype={"chrom": str, "pos": int, "ref": str, "alt": str})
+    if rates_df.empty:
+        print("Rates file is empty")
+        rates_df["raw"] = None
+        rates_df["score"] = None
+        rates_df.to_csv(output, sep="\t", index=False)
+        sys.exit(0)
+
+    # Depending on the gff, chromosome can be defined as "chrX" or just "X"
+    if str(rates_df.iloc[0].chrom).startswith("chr"):
+        add_chr = True
+    else:
+        add_chr = False
 
     # Load cadd file
     cadd_df = pysam.TabixFile(cadd)
@@ -66,7 +79,6 @@ def annotate_cadd(rates, cadd, output):
     # For each gene
     list_merged_df = list()
     for gene_id, gene_rates_df in rates_df.groupby("gene_id"):
-
         chrom = str(gene_rates_df.chrom.values[0]).replace("chr", "")
 
         # Split each gene in contiguous block (i.e. exons) and load CADD scores
@@ -74,14 +86,22 @@ def annotate_cadd(rates, cadd, output):
         list_block_df = list()
         for _, block in groupby(sorted(set(gene_rates_df["pos"])), key=lambda n, c=count(): n - next(c)):
             start, end = as_range(block)
-
-            block_cadd_df = load_cadd(cadd_df, chrom, start - 1, end)
-            list_block_df.append(block_cadd_df)
+            try:
+                block_cadd_df = load_cadd(cadd_df, chrom, start - 1, end)
+                list_block_df.append(block_cadd_df)
+            except ValueError:
+                continue
 
         # Merge rates with CADD score
-        gene_cadd_df = pd.concat(list_block_df)
-        gene_cadd_df.chrom = "chr" + gene_cadd_df.chrom
-        merged_gene_df = gene_rates_df.merge(gene_cadd_df, how="left", on=["chrom", "pos", "ref", "alt"])
+        if list_block_df:
+            gene_cadd_df = pd.concat(list_block_df)
+            if add_chr:
+                gene_cadd_df.chrom = "chr" + gene_cadd_df.chrom
+
+            merged_gene_df = gene_rates_df.merge(gene_cadd_df, how="left", on=["chrom", "pos", "ref", "alt"])
+        else:
+            merged_gene_df = gene_rates_df
+
         list_merged_df.append(merged_gene_df)
 
     # Combine results for all genes
@@ -90,5 +110,4 @@ def annotate_cadd(rates, cadd, output):
 
 
 if __name__ == "__main__":
-
     merged_df = annotate_cadd()

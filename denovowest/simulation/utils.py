@@ -5,6 +5,7 @@ import logging.config
 
 CONSEQUENCES_MAPPING = {
     "frameshift_variant": "frameshift",
+    "frameshift": "frameshift",
     "inframe_insertion": "inframe",
     "inframe_deletion": "inframe",
     "missense_variant": "missense",
@@ -13,8 +14,18 @@ CONSEQUENCES_MAPPING = {
     "synonymous_variant": "synonymous",
     "splice_acceptor_variant": "splice_lof",
     "splice_donor_variant": "splice_lof",
+    "splice_acceptor": "splice_lof",
+    "splice_donor": "splice_lof",
     "splice_region_variant": "splice_region",
+    "splice_region": "splice_region",
     "conserved_exon_terminus_variant": "splice_lof",
+    "start_lost": "missense",
+    "stop_lost": "missense",
+    "stop_retained": "synonymous",
+    "synonymous": "synonymous",
+    "nonsense": "nonsense",
+    "splice_lof": "splice_lof",
+    "inframe": "inframe",
 }
 
 N_MUTATION_MAX_SIM = 250

@@ -2,6 +2,7 @@
 import click
 import gffutils
 import pandas as pd
+import sys
 
 # Built from bcftools +split-vep -S -
 consequences_severities = {
@@ -95,10 +96,14 @@ def rates_to_vcf(rates, fasta, out_vcf):
 
 
 def extract_consequence(x, gff_db):
-
     # Get gene name(s)
     gene_id = x.split(";")[0].replace("GENE=", "")
-    gene_names = gff_db[gene_id].attributes["gene_name"]
+
+    # TODO : Handle the case where this field is missing or has a different name, find a clever way to support all gff
+    try:
+        gene_names = gff_db[gene_id].attributes["gene_name"]
+    except KeyError:
+        gene_names = gff_db[gene_id].attributes["Name"]
 
     # gene_transcripts_id = list()
     # for transcript in gff_db.children(gff_db[gene_id], featuretype="transcript"):
@@ -147,15 +152,28 @@ def vcf_to_rates(vcf, rates, gff_db, out_rates):
         out_rates (str): Path of the output rates file
     """
 
-    # Read VCF
-    if vcf.endswith("gz"):
-        vcf_df = pd.read_csv(vcf, sep="\t", comment="#", header=None, compression="gzip")
-    else:
-        vcf_df = pd.read_csv(vcf, sep="\t", comment="#", header=None)
-    vcf_df.columns = "#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO".split("\t")
-
     # Read rates
-    rates_df = pd.read_csv(rates, sep="\t")
+    rates_df = pd.read_csv(rates, sep="\t", dtype={"chrom": str})
+
+    # Read VCF
+    try:
+        if vcf.endswith("gz"):
+            vcf_df = pd.read_csv(vcf, sep="\t", comment="#", header=None, compression="gzip")
+        else:
+            vcf_df = pd.read_csv(vcf, sep="\t", comment="#", header=None)
+        vcf_df.columns = "#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO".split("\t")
+        vcf_df["#CHROM"] = vcf_df["#CHROM"].astype(str)
+
+    except pd.errors.EmptyDataError:
+        # TODO : use logger
+        if rates_df.empty:
+            print("Rates file is empty")
+            rates_df["consequence"] = None
+            rates_df.to_csv(out_rates, sep="\t", index=False)
+            sys.exit(0)
+        else:
+            print("Bcftools csq file is empty")
+            sys.exit(1)
 
     # Load gffutils database
     gff_db = gffutils.FeatureDB(gff_db)

@@ -4,6 +4,7 @@ import pandas as pd
 import numpy as np
 import itertools
 import click
+import utils
 
 
 LOWER_BOUND_CADD_MISSENSE = 6
@@ -17,13 +18,14 @@ UPPER_BOUND_CADD_NONSENSE_SHETHIGH = 45
 BINSIZE_CADD_NONSENSE_SHETHIGH = 15
 
 MIN_SCORE = 0
-MAX_SCORE = 50
+MAX_SCORE = 100
+
 
 SHET_VALUES = [True, False]
 CONSTRAINED_VALUES = [True, False]
-CSQ_SYNONYMOUS_VALUES = ["synonymous", "splice_donor|splice_acceptor|splice_lof", "missense"]
+CSQ_SYNONYMOUS_VALUES = ["synonymous", "splice_lof", "missense"]
 CSQ_MISSENSE_VALUES = ["missense"]
-CSQ_NONSENSE_VALUES = ["nonsense|stop_gained"]
+CSQ_NONSENSE_VALUES = ["nonsense"]
 
 NA = ["NA"]
 
@@ -40,17 +42,19 @@ def cli():
 @click.argument("outfile")
 def get_expected_counts(rates_file, nmales, nfemales, outfile):
     """
-    Calculates the expected number of mutations in the cohort per category, given an annotated mutability rate file and
-    the number of males and females individual in the cohort. Mutations are classified in bins according
+    Calculates the expected number of mutations in the cohort per category, given an annotated mutation rates file and
+    the number of males and females individuals in the cohort. Mutations are classified in bins according
     to several variables : functional consequence, CADD score and whether they fall in a constrained region
     or a high/low shet gene.
 
     Args:
         rates_file (str): Path to the annotated mutation rates file
-        nmales (int): Number of males individuals in the cohort
-        nfemales (int): Number of females individuals in the cohort
+        nmales (int): Number of male individuals in the cohort
+        nfemales (int): Number of female individuals in the cohort
         outfile (str): Path to the output table listing the expected number of mutations per category
     """
+
+    utils.init_log()
 
     nmales = int(nmales)
     nfemales = int(nfemales)
@@ -59,14 +63,23 @@ def get_expected_counts(rates_file, nmales, nfemales, outfile):
     rates_df = pd.read_csv(
         rates_file,
         sep="\t",
-        dtype={"score": float, "prob": float, "chrom": str, "consequence": str},
-        usecols=["chrom", "ref", "alt", "consequence", "score", "prob", "shethigh", "constrained"],
+        dtype={
+            "chrom": str,
+            "pos": int,
+            "ref": str,
+            "alt": str,
+            "consequence": str,
+            "score": float,
+            "prob": float,
+            "shethigh": bool,
+            "constrained": bool,
+        },
+        usecols=["chrom", "pos", "ref", "alt", "consequence", "score", "prob", "shethigh", "constrained"],
     )
 
-    # Filter out missense|nonsense loci with missing CADD score
-    rates_df = rates_df.loc[
-        ~(rates_df.consequence.isin(["missense", "nonsense", "stop_gained"]) & rates_df.score.isna())
-    ]
+    # Only a subset of functional consequences are used
+    rates_df = utils.filter_on_consequences(rates_df)
+    rates_df = utils.assign_meta_consequences(rates_df)
 
     # Adjust mutation rates by chromosomal scaling factor
     autosomal_factor = 2 * (nmales + nfemales)
@@ -93,16 +106,28 @@ def get_observed_counts(dnm_file, outfile):
         outfile (str): Output file
     """
 
+    utils.init_log()
+
     # Load the DNM file
     dnm_df = pd.read_csv(
         dnm_file,
         sep="\t",
-        dtype={"score": float, "chrom": str, "consequence": str},
-        usecols=["chrom", "ref", "alt", "consequence", "score", "shethigh", "constrained"],
+        dtype={
+            "chrom": str,
+            "pos": int,
+            "ref": str,
+            "alt": str,
+            "consequence": str,
+            "score": float,
+            "shethigh": bool,
+            "constrained": bool,
+        },
+        usecols=["chrom", "pos", "ref", "alt", "consequence", "score", "shethigh", "constrained"],
     )
 
-    # Filter out missense|nonsense with missing scores
-    dnm_df = dnm_df.loc[~(dnm_df.consequence.isin(["missense", "nonsense", "stop_gained"]) & dnm_df.score.isna())]
+    # Only a subset of functional consequences are used
+    dnm_df = utils.filter_on_consequences(dnm_df)
+    dnm_df = utils.assign_meta_consequences(dnm_df)
 
     # Get observed number of mutations
     bins = define_bins()
@@ -250,26 +275,55 @@ def count_variants(df: pd.DataFrame, bin: list, mode: str) -> pd.DataFrame:
         the observed or expected number of mutations falling in it
     """
 
-    # TODO : replace bin list per dict to make it more explicit
-    filter_consequence = df.consequence.str.contains(bin[0])
+    # Filter out missense|nonsense with missing scores (only for bins including the score)
+    if bin[1] != "NA":
+        df = df.loc[~(df.consequence.isin(["missense", "nonsense"]) & df.score.isna())]
 
+    # TODO : replace bin list per dict to make it more explicit
+    filter_consequence = df.consequence == bin[0]
+
+    # Add score filter for bins using the score information (e.g. missense)
     try:
         filter_score = (df.score >= bin[1][0]) & (df.score < bin[1][1])
         score_range = f"{bin[1][0]}-{bin[1][1]}"
+
+        # TODO : Improve hardcoded handling of upper bins
+        if bin[0] == "missense" and bin[1][1] == 100:
+            score_range = "30+"
+
+        if bin[0] == "nonsense" and bin[1][1] == 100:
+            score_range = "45+"
+
     except TypeError as e:
         filter_score = True
-        score_range = NA
+        score_range = "NA"
 
-    filter_constrained = df.constrained == bin[2]
+    # Some bins (e.g. synonymous variants) do not use the constraint regions information
+    if bin[2] == "NA":
+        filter_constrained = True
+    else:
+        filter_constrained = df.constrained == bin[2]
+
+    # All bins use the shet information
     filter_shet = df.shethigh == bin[3]
 
-    min_df = df.loc[filter_consequence & filter_score & filter_constrained & filter_shet]
+    # For the broad categories, non SNP variants are excluded from DNM file to compute weights
+    if (mode == "obs") and (bin[0] in ["synonymous", "splice_lof", "missense"]) and (score_range == "NA"):
+        df = get_variant_size(df)
+        filter_size = df["size"] == 0
+    else:
+        filter_size = True
 
+    # Get only variants falling in the current bin
+    min_df = df.loc[filter_consequence & filter_score & filter_constrained & filter_shet & filter_size]
+
+    # Count number of expected or observed variants in the bin
     if mode == "exp":
         res = min_df["exp"].sum()
     else:
         res = len(min_df)
 
+    # Store this result in a data frame
     count_df = pd.DataFrame(
         {"consequence": bin[0], "score": score_range, "constrained": bin[2], "shethigh": bin[3], mode: res}, index=[0]
     )
@@ -277,8 +331,33 @@ def count_variants(df: pd.DataFrame, bin: list, mode: str) -> pd.DataFrame:
     return count_df
 
 
-def filter_df(df, bin):
-    df = df.loc[df.consequence.str.contains(bin[0]) & df]
+def get_variant_size(df):
+    """
+    Assign variant size to each variant in the DNM file.
+    Helps distinguishing SNPs from indels.
+
+    Args:
+        df (pd.Dataframe): DNM data frame
+
+    Returns:
+        df (pd.Dataframe): DNM data frame with a size column
+    """
+
+    for idx, row in df.iterrows():
+        try:
+            len_ref = len(row.ref)
+        except TypeError:
+            len_ref = 0
+
+        try:
+            len_alt = len(row.alt)
+        except TypeError:
+            len_alt = 0
+
+        size = len_alt - len_ref
+        df.loc[idx, "size"] = size
+
+    return df
 
 
 @cli.command()
@@ -297,10 +376,14 @@ def merge_expected_observed(expected_file: str, observed_file: str, outfile: str
     df_expected = pd.read_csv(expected_file, sep="\t")
     df_observed = pd.read_csv(observed_file, sep="\t")
 
+    # Merge expected and observed table and compute observed/expected ratio
     df_merged = df_expected.merge(df_observed, on=["consequence", "score", "constrained", "shethigh"], how="outer")
-
     df_merged["obs_exp"] = df_merged["obs"] / df_merged["exp"]
 
+    # Plot enrichment per bin
+    utils.plot_enrichment(df_merged)
+
+    # Export results
     df_merged.to_csv(outfile, sep="\t", index=False)
 
 

@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+import sys
 import pandas as pd
 import click
 from scipy.stats import chi2
@@ -21,7 +22,9 @@ def set_constraints_loci(region, gene_rates, threshold, ratio):
 
     # Set constrained status to True to every loci in the region which has as missense consequence
     gene_rates.loc[
-        (gene_rates.pos >= region.start) & ((gene_rates.pos <= region.end)) & ((gene_rates.consequence == "missense")),
+        (gene_rates.pos >= region.cds_start)
+        & ((gene_rates.pos <= region.cds_end))
+        & ((gene_rates.consequence == "missense")),
         "constrained",
     ] = True
 
@@ -52,13 +55,18 @@ def annotate_constraint(rates, geneconstraint, regionconstraint, outrates, thres
 
     # Read rates file and initialize all positions as non constrained
     rates_df = pd.read_csv(rates, sep="\t")
+    if rates_df.empty:
+        print("Rates file is empty")
+        rates_df["constrained"] = None
+        rates_df.to_csv(outrates, sep="\t", index=False)
+        sys.exit(0)
     rates_df["constrained"] = False
 
     # For each gene in rates file
     for id_gene, gene_rates in rates_df.groupby("gene_id"):
-
         # We do not consider the version of the gene here
         ensembl_id = id_gene.split(".")[0]
+        ensembl_id = ensembl_id.replace("gene:", "")
 
         # If the gene is not found in the constraint file, print as a warning
         if ensembl_id not in set(geneconstraint_df["ensembl_gene_id"]):
@@ -71,7 +79,6 @@ def annotate_constraint(rates, geneconstraint, regionconstraint, outrates, thres
 
             # If there is only one constained region in this gene
             if cur_geneconstraint_df.iloc[0]["n_regions"] == 1:
-
                 # Compute the probability that a random variable with chi-square distribution is greater than overall_chisq
                 genep_value = chi2.sf(cur_geneconstraint_df["overall_chisq"], df=1)
 
@@ -102,5 +109,4 @@ def annotate_constraint(rates, geneconstraint, regionconstraint, outrates, thres
 
 
 if __name__ == "__main__":
-
     annotate_constraint()

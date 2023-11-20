@@ -53,19 +53,24 @@ def filter_on_consequences(df: pd.DataFrame):
     """
 
     logger = logging.getLogger("logger")
+
+    # TODO : Replace with better consequence extraction
+    # When bcftools report several consequences separated by the character "&", we extract the first one
+    df.consequence = [csq.split("&")[0] if isinstance(csq, str) else csq for csq in list(df.consequence)]
+
     filt = df.consequence.isin(CONSEQUENCES_MAPPING.keys())
     kept_df = df.loc[filt]
 
-    logger.info(f"Before consequence filtering : {df.shape[0]} DNMs")
+    logger.info(f"Before consequence filtering : {df.shape[0]} records")
 
     discarded_df = df.loc[~filt]
     if not discarded_df.empty:
         count_discarded = discarded_df["consequence"].value_counts()
-        logger.warning(f"{discarded_df.shape[0]}/{df.shape[0]} DNMs were discarded ")
+        logger.warning(f"{discarded_df.shape[0]}/{df.shape[0]} records were discarded")
     else:
-        logger.info("All DNM have an acceptable consequence.")
+        logger.info("All records have an acceptable consequence.")
 
-    logger.info(f"After consequence filtering : {kept_df.shape[0]} DNMs")
+    logger.info(f"After consequence filtering : {kept_df.shape[0]} records")
 
     return kept_df
 
@@ -98,6 +103,10 @@ def prepare_rates(ratesfile: str, weights_df: pd.DataFrame, nmales: int, nfemale
     """
 
     rates_df = pd.read_csv(ratesfile, sep="\t", dtype={"chrom": str, "pos": int, "score": float})
+
+    rates_df = filter_on_consequences(rates_df)
+    rates_df = assign_meta_consequences(rates_df)
+
     rates_df = compute_expected_number_of_mutations(rates_df, nmales, nfemales)
     rates_df = assign_weights(rates_df, weights_df)
 
@@ -106,7 +115,7 @@ def prepare_rates(ratesfile: str, weights_df: pd.DataFrame, nmales: int, nfemale
 
 def compute_expected_number_of_mutations(rates_df: pd.DataFrame, nmales: int, nfemales: int):
     """
-    The rates file associates each possible variant with a mutation probability.
+    TODO : need some more explanation
     Args:
         rates_df (pd.DataFrame): _description_
         nmales (int): _description_
@@ -209,7 +218,7 @@ def run_simulation(rates_df, dnm_df, gene_id, nsim, indel_weights, pvalcap):
         logger.info("could not find " + str(gene_id))
         return
 
-    logger.info("testing" + str(gene_id))
+    logger.info(f"Testing {gene_id}")
 
     generates = rates_df.loc[rates_df.gene_id == gene_id]
     generates = get_indel_rates(generates, indel_weights)
@@ -231,6 +240,8 @@ def get_indel_rates(generates, indel_weights):
         _type_: _description_
     """
 
+    logger = logging.getLogger("logger")
+
     # Get the overall probability of missense and nonsense mutation across the gene
     missense_rate = generates[generates.consequence == "missense"].prob.sum()
     nonsense_rate = generates[generates.consequence == "nonsense"].prob.sum()
@@ -240,20 +251,21 @@ def get_indel_rates(generates, indel_weights):
 
     # Get the weights associated to frameshift and inframe indels
     shethigh = generates.shethigh.iloc[0]
-    frameshift_weight = float(
-        indel_weights.loc[
-            (indel_weights.consequence == "frameshift")
-            & (indel_weights.constrained == False)
-            & (indel_weights.shethigh == shethigh)
-        ].ppv
-    )
-    inframe_weight = float(
-        indel_weights.loc[
-            (indel_weights.consequence == "inframe")
-            & (indel_weights.constrained == False)
-            & (indel_weights.shethigh == shethigh)
-        ].ppv
-    )
+    try:
+        frameshift_weight = float(
+            indel_weights.loc[(indel_weights.consequence == "frameshift") & (indel_weights.shethigh == shethigh)].ppv
+        )
+    except TypeError:
+        logger.warning("No frameshift ppv found in weight file")
+        frameshift_weight = np.NaN
+
+    try:
+        inframe_weight = float(
+            indel_weights.loc[(indel_weights.consequence == "inframe") & (indel_weights.shethigh == shethigh)].ppv
+        )
+    except TypeError:
+        logger.warning("No inframe ppv found in weight file")
+        inframe_weight = np.NaN
 
     # Add the weights to the rates dataframe
     indelrates = pd.DataFrame(
@@ -312,11 +324,11 @@ def main(dnm, rates, weights, nmales, nfemales, pvalcap, nsim, output):
     dnm_df = prepare_dnm(dnm, weights_df)
     rates_df = prepare_rates(rates, weights_df, nmales, nfemales)
 
-    dnm_df.to_csv("debug/dnm_new_format.tsv", sep="\t", index=False)
-    rates_df.to_csv("debug/rates_new_format.tsv", sep="\t", index=False)
+    # dnm_df.to_csv("debug/dnm_new_format.tsv", sep="\t", index=False)
+    # rates_df.to_csv("debug/rates_new_format.tsv", sep="\t", index=False)
 
     indel_weights = get_indel_weights(weights_df)
-    indel_weights.to_csv("debug/indelweights_new_format.tsv", sep="\t", index=False)
+    # indel_weights.to_csv("debug/indelweights_new_format.tsv", sep="\t", index=False)
 
     results = run_simulations(dnm_df, rates_df, nsim, indel_weights, pvalcap)
 

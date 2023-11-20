@@ -1,71 +1,20 @@
-process RATES_TO_VCF {
-
-    input :
-    path rate_file 
-    path fasta_index
-
-    output :
-    path "mutation_rates.vcf"
-
-    script :
-    """
-    rates_to_vcf.py rates-to-vcf $rate_file $fasta_index mutation_rates.vcf
-    """
-}
-
-process BCFTOOLS_CSQ {
-
-    input :
-    path vcf 
-    path gff
-    path fasta
-
-    output :
-    path "mutation_rates_bcftoolscsq.vcf.gz"
-
-    script :
-    """
-    bcftools csq \
-        -l \
-        -v 0 \
-        -g $gff \
-        -f $fasta \
-        -o mutation_rates_bcftoolscsq.vcf.gz \
-        $vcf
-    """
-}
-
-process VCF_TO_RATES {
-
-    input :
-    path vcf 
-    path rates
-
-    output :
-    path "mutation_rates_bcftoolscsq.tsv"
-
-    script :
-    """
-    rates_to_vcf.py vcf-to-rates $vcf $rates mutation_rates_bcftoolscsq.tsv
-    """
-}
-
 process BCFTOOLS_CSQ_FULL {
 
     input :
-    path rate_file 
+    path rates_or_dnm 
     path fasta
     path fasta_index
     path gff
     path gff_db
+    val type
 
     output :
-    path "mutation_rates_bcftoolscsq.tsv"
+    path "${type}_bcftoolscsq.tsv"
 
     script:
     """
     # Turn rates file (tabular) into VCF
-    rates_to_vcf.py rates-to-vcf $rate_file $fasta_index mutation_rates.vcf
+    rates_to_vcf.py rates-to-vcf $rates_or_dnm $fasta_index ${type}.vcf
 
     # Call bcftools consequences
     bcftools csq \
@@ -73,77 +22,82 @@ process BCFTOOLS_CSQ_FULL {
     -v 0 \
     -g $gff \
     -f $fasta \
-    -o mutation_rates_bcftoolscsq.vcf.gz \
-    mutation_rates.vcf
+    -o ${type}_bcftoolscsq.vcf.gz \
+   ${type}.vcf
 
     # Turn back VCF into rates file
-    rates_to_vcf.py vcf-to-rates mutation_rates_bcftoolscsq.vcf.gz $rate_file $gff_db mutation_rates_bcftoolscsq.tsv
+    rates_to_vcf.py vcf-to-rates ${type}_bcftoolscsq.vcf.gz $rates_or_dnm $gff_db ${type}_bcftoolscsq.tsv
     """
 }
 
 process CADD {
 
     input :
-    path rate_file 
+    path rates_or_dnm 
     path cadd_file
     path cadd_file_index
+    val type
 
     output :
-    path "mutation_rates_cadd.tsv"
+    path "${type}_cadd.tsv"
 
     script:
     """
     # Annotate CADD
-    annotate_cadd.py  $rate_file $cadd_file mutation_rates_cadd.tsv
+    annotate_cadd.py  $rates_or_dnm $cadd_file ${type}_cadd.tsv
     """
 }
 
 process GNOMAD {
 
     input :
-    path rate_file 
+    path rates_or_dnm 
     path gnomad_file
     path gnomad_file_index
+    val type
 
     output :
-    path "mutation_rates_gnomad.tsv"
+    path "${type}_gnomad.tsv"
 
     script:
     """
     # Annotate CADD
-    annotate_gnomad.py  $rate_file $gnomad_file mutation_rates_gnomad.tsv
+    annotate_gnomad.py  $rates_or_dnm $gnomad_file ${type}_gnomad.tsv
     """
 }
 
 process CONSTRAINTS {
 
     input :
-    path rate_file 
+    path rates_or_dnm 
     path gene_full_constraints
     path gene_region_constraints
+    val type
+
 
     output :
-    path "mutation_rates_constrained.tsv"
+    path "${type}_constrained.tsv"
 
     script:
     """
     # Annotate constraints
-    annotate_constraint.py  $rate_file $gene_full_constraints $gene_region_constraints mutation_rates_constrained.tsv
+    annotate_constraint.py  $rates_or_dnm $gene_full_constraints $gene_region_constraints ${type}_constrained.tsv
     """
 }
 
 process SHET {
 
     input :
-    path rate_file 
+    path rates_or_dnm 
     path shet
+    val type
 
     output :
-    path "mutation_rates_shet.tsv"
+    path "${type}_shet.tsv"
 
     script:
     """
     # Annotate shet
-    annotate_shet.py  $rate_file $shet mutation_rates_shet.tsv
+    annotate_shet.py  $rates_or_dnm $shet ${type}_shet.tsv
     """
 }

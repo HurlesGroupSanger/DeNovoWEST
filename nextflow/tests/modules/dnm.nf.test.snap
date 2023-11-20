@@ -1,0 +1,15 @@
+{
+    "filter_dnm": {
+        "content": [
+            {
+                "0": [
+                    "dnm_kept.tsv:md5,7ee1dee1e02aa492d9832491868d0343"
+                ],
+                "1": [
+                    "dnm_discarded.tsv:md5,4c8ebc1ca40942b1454d401d88301e0d"
+                ]
+            }
+        ],
+        "timestamp": "2023-10-23T21:47:45+0000"
+    }
+}
