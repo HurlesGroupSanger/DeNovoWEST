@@ -80,18 +80,18 @@ workflow{
     // GFF UTILS DATABASE CREATION //
     /////////////////////////////////
 
-    if (params.annotate_rates || params.annotate_dnm)
-    {
-      // DEBUG and TEST only : avoid to create gffutils database every time
-      if (params.containsKey("gff_db")) {
-        gffutils_db_ch = Channel.fromPath(params.gff_db)
-      }
-      // Create gffutils database
-      else {
-        gff_ch = Channel.fromPath(params.gff)
-        gffutils_db_ch = GFFUTILS_DB(gff_ch) 
-      }
+
+    // DEBUG and TEST only : avoid to create gffutils database every time
+    if (params.containsKey("gff_db")) {
+      gffutils_db_ch = Channel.fromPath(params.gff_db)
     }
+    // Create gffutils database
+    else if (params.containsKey("gff")) {
+
+      gff_ch = Channel.fromPath(params.gff)
+      gffutils_db_ch = GFFUTILS_DB(gff_ch) 
+    }
+    
 
     // If a gene list is provided we use it
     if (params.containsKey("gene_list")) {
@@ -100,14 +100,14 @@ workflow{
     // Otherwise we create one from the gff file
     else {
 
-      if (params.containsKey("gff_db") || params.containsKey("gff"))
-      {
-        gene_list_ch = CREATE_GENE_LIST_FROM_GFF(gffutils_db_ch)
-      }
-      else if (params.containsKey("rates"))
+      if (params.containsKey("rates"))
       {
         rates_ch =  Channel.fromPath(params.rates)
         gene_list_ch = CREATE_GENE_LIST_FROM_RATES(rates_ch)
+      }
+      else if (params.containsKey("gff_db") || params.containsKey("gff"))
+      {
+        gene_list_ch = CREATE_GENE_LIST_FROM_GFF(gffutils_db_ch)
       }
     }
 
@@ -188,7 +188,6 @@ workflow{
 
       dnm_ch = Channel.fromPath(params.dnm)
 
-      // TODO : check if gene_list_ch exists
       if ((params.containsKey("gff_db") || params.containsKey("gff"))) {
           dnm_ch = FILTER_DNM_GFF(dnm_ch, gene_list_ch, gffutils_db_ch)[0]
       }
