@@ -54,13 +54,24 @@ def sim_score(gl, s_obs, rates, n, nsim):
     """simulate drawing n random mutations from genes based on mutation probabilites
     and calculating severity score
     """
+
     # sample position - sum rates across position and selection position
     posprob = rates.groupby(["pos"])["prob"].sum()
     # randomly select mutations and corresponding weights based on mutation rate probability and sum across genes nsim times
-    scores = np.sum(np.random.choice(rates["ppv"], (n, nsim), p=rates["prob"] / gl), axis=0)
-    # number of times that the gene score is greater than what we observe
-    s = np.sum(scores >= s_obs)
-    return s
+
+    # Split the simulations into chunks of split_sim to avoid memory issues
+    split_sim = 10000
+    nb_more_extreme_scores = 0
+    for _ in range(nsim // split_sim):
+        scores = np.sum(np.random.choice(rates["ppv"], (n, split_sim), p=rates["prob"] / gl), axis=0)
+        nb_more_extreme_scores += np.sum(scores >= s_obs)
+
+    # If the number of simulations is not a multiple of split_sim, do the remaining simulations
+    if nsim % split_sim:
+        scores += np.sum(np.random.choice(rates["ppv"], (n, nsim % split_sim), p=rates["prob"] / gl), axis=0)
+        nb_more_extreme_scores += np.sum(scores >= s_obs)
+
+    return nb_more_extreme_scores
 
 
 def get_pvalue(rates, s_obs, nsim, pvalcap):
