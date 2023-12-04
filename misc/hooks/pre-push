@@ -42,6 +42,13 @@ do
 			range="$remote_sha..$local_sha"
 		fi
 
+		# Trigger the pre-push hook onlt if pushing to the develop branch
+		current_branch=$(git symbolic-ref --short HEAD)
+		if [ "$current_branch" != "develop" ]; then
+			echo >&2 "Not pushing to the develop branch"
+			exit 1
+		fi
+
 		# Check for WIP commit
 		commit=`git rev-list -n 1 --grep '^WIP' "$range"`
 		if [ -n "$commit" ]
