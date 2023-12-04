@@ -19,7 +19,7 @@ CSQ_MISSENSE_VALUES = ["missense"]
 CSQ_NONSENSE_VALUES = ["nonsense"]
 
 CADD_MIN = 0
-CADD_MAX = 50
+CADD_MAX = 52.5
 CADD_STEP = 0.001
 # CADD_STEP = 0.1
 
@@ -71,7 +71,6 @@ def main(obs_exp_table_path: str, outfile: str, outdir: str):
 
     # Concatenate dataframes computed on each category
     df_lowess = pd.concat(list_df_lowess, axis=0, ignore_index=True)
-    df_lowess.loc[df_lowess.obs_exp < 1, "obs_exp"] = 1  # TODO : Why ?
 
     df_lowess.constrained = df_lowess.constrained.astype("boolean")
 
@@ -85,12 +84,15 @@ def main(obs_exp_table_path: str, outfile: str, outdir: str):
 
     # Concatenate all indepents dataframes
     res_df = pd.concat([df_lowess, df_frameshift, df_inframe, df_other], axis=0, ignore_index=True)
+    # Plot the enrichment curves before setting the minimum observed/expected ratio to 1
+    utils.plot_enrichment(obs_exp_table, mode="obs_exp", loess=True, df_loess=res_df, outdir=outdir)
+    df_lowess.loc[df_lowess.obs_exp < 1, "obs_exp"] = 1  # TODO : Why ?
+    res_df = pd.concat([df_lowess, df_frameshift, df_inframe, df_other], axis=0, ignore_index=True)
 
     # Turn ratio into PPVs
     res_df = positive_predictive_value(res_df)
 
     # Plot enrichment both at the observed/expected ratio level and ppv level
-    utils.plot_enrichment(obs_exp_table, mode="obs_exp", loess=True, df_loess=res_df, outdir=outdir)
     utils.plot_enrichment(obs_exp_table, mode="ppv", loess=True, df_loess=res_df, outdir=outdir)
 
     # Ad there are some missing values in constrained columns, pandas turn boolean values to float automatically. We force boolean use here.
