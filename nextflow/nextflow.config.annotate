@@ -1,0 +1,32 @@
+includeConfig 'conf/local.conf'
+
+workDir = "work"
+
+
+params {
+  
+  gff = "../resources/examples/example.gff"
+  genome_fasta = "../resources/examples/example.grch38.fa"
+  mutation_rate_model = "../resources/rates_model_dnn.tsv"
+  dnm = "../resources/examples/example.dnms.tsv"
+
+  outdir = 'outdir'
+
+  // Following parameters are true by default, set to false if you want to skip some steps
+  // Here we just want to create the rates file and annotate both the rates and DNM files
+  // annotate_dnm = true
+  // annotate_rates = true
+  run_weights_creation = false
+  run_simulation = false
+
+  annotation {
+    cadd_file="../resources/examples/example.cadd.tsv.gz"
+    gene_full_constraints="../resources/genes_full_constraint_b38_27022023.tsv"
+	  gene_region_constraints="../resources/genes_regional_data_b38_13022023.tsv"
+    shet="../resources/new_shet"
+  }
+
+}
+
+
+

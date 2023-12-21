@@ -53,6 +53,7 @@ workflow{
     if (!params.containsKey("annotate_rates")) {
       params.annotate_rates = true
     }
+
     if (!params.containsKey("annotate_dnm")) {
       params.annotate_dnm = true
     }
@@ -67,6 +68,12 @@ workflow{
     }
     if (!params.containsKey("run_weights_creation")) {
       params.run_weights_creation = true
+    }
+
+
+    // Defines the number of genes to process in one batch
+    if (!params.containsKey("split_step")) {
+      params.split_step = 100
     }
 
 
@@ -121,7 +128,7 @@ workflow{
     // If the user provide a rates file we split it in smaller rates files
     if (params.containsKey("rates")) {
       
-      rates_ch = SPLIT_RATES(split_gene_list_ch.toSortedList().flatten(), params.rates)
+      rates_ch = SPLIT_RATES(split_gene_list_ch.toSortedList().flatten(), Channel.fromPath(params.rates))
     }
     // Otherwise we generate rates files from the GFF file
     else
@@ -133,7 +140,7 @@ workflow{
       }
 
       // Create rates files (one per split gene list)
-      rates_ch = RATE_CREATION(split_gene_list_ch.toSortedList().flatten(), gffutils_db_ch.first(), params.genome_fasta, params.mutation_rate_model,  params.mutation_rate_model_type)
+      rates_ch = RATE_CREATION(split_gene_list_ch.toSortedList().flatten(), gffutils_db_ch.first(), Channel.fromPath(params.genome_fasta), Channel.fromPath(params.mutation_rate_model),  params.mutation_rate_model_type)
 
       // If the point was to generate a rates file with no annotation, we simply merge the unannotated individual rates file
       if (!(params.containsKey("annotation") and params.containsKey("annotate_rates") and (params.annotate_rates))) {
@@ -152,22 +159,22 @@ workflow{
       rates_annotated_ch = rates_ch
       
       if (params.annotation.containsKey("annotate_bcftoolscsq") and (params.annotation.annotate_bcftoolscsq)) {
-        rates_annotated_ch = BCFTOOLS_CSQ_FULL(rates_annotated_ch, params.genome_fasta, params.genome_fasta + ".fai", params.gff, gffutils_db_ch.first(), "rates" )
+        rates_annotated_ch = BCFTOOLS_CSQ_FULL(rates_annotated_ch, Channel.fromPath(params.genome_fasta), Channel.fromPath(params.genome_fasta + ".fai"),  Channel.fromPath(params.gff), gffutils_db_ch.first(), "rates" )
       }
       
       if (params.annotation.containsKey("cadd_file")){
-        rates_annotated_ch = CADD(rates_annotated_ch, params.annotation.cadd_file, params.annotation.cadd_file + ".tbi", "rates")
+        rates_annotated_ch = CADD(rates_annotated_ch,  Channel.fromPath(params.annotation.cadd_file),  Channel.fromPath(params.annotation.cadd_file + ".tbi"), "rates")
       }
       if (params.annotation.containsKey("gene_full_constraints")){
-        rates_annotated_ch = CONSTRAINTS(rates_annotated_ch, params.annotation.gene_full_constraints, params.annotation.gene_region_constraints, "rates")
+        rates_annotated_ch = CONSTRAINTS(rates_annotated_ch,  Channel.fromPath(params.annotation.gene_full_constraints),  Channel.fromPath(params.annotation.gene_region_constraints), "rates")
       }
       
       if (params.annotation.containsKey("shet")){
-        rates_annotated_ch = SHET(rates_annotated_ch, params.annotation.shet, "rates")
+        rates_annotated_ch = SHET(rates_annotated_ch,  Channel.fromPath(params.annotation.shet), "rates")
       }
 
       if (params.annotation.containsKey("gnomad_file")){
-        rates_annotated_ch = GNOMAD(rates_annotated_ch, params.annotation.gnomad_file, params.annotation.gnomad_file + ".tbi", "rates")
+        rates_annotated_ch = GNOMAD(rates_annotated_ch,  Channel.fromPath(params.annotation.gnomad_file),  Channel.fromPath(params.annotation.gnomad_file + ".tbi"), "rates")
       }
 
       // Merge results
@@ -201,23 +208,23 @@ workflow{
         dnm_annotated_ch = dnm_ch
 
         if (params.annotation.containsKey("annotate_bcftoolscsq") and (params.annotation.annotate_bcftoolscsq)) {
-          dnm_annotated_ch = DNM_BCFTOOLS_CSQ_FULL(dnm_annotated_ch, params.genome_fasta, params.genome_fasta + ".fai", params.gff,  gffutils_db_ch.first(), "dnm" )
+          dnm_annotated_ch = DNM_BCFTOOLS_CSQ_FULL(dnm_annotated_ch, Channel.fromPath(params.genome_fasta), Channel.fromPath(params.genome_fasta + ".fai"),  Channel.fromPath(params.gff),  gffutils_db_ch.first(), "dnm" )
         }
         
         if (params.annotation.containsKey("cadd_file")){
-          dnm_annotated_ch = DNM_CADD(dnm_annotated_ch, params.annotation.cadd_file, params.annotation.cadd_file + ".tbi", "dnm")
+          dnm_annotated_ch = DNM_CADD(dnm_annotated_ch,  Channel.fromPath(params.annotation.cadd_file),  Channel.fromPath(params.annotation.cadd_file + ".tbi"), "dnm")
         }
 
         if (params.annotation.containsKey("gene_full_constraints")){
-          dnm_annotated_ch = DNM_CONSTRAINTS(dnm_annotated_ch, params.annotation.gene_full_constraints, params.annotation.gene_region_constraints, "dnm")
+          dnm_annotated_ch = DNM_CONSTRAINTS(dnm_annotated_ch,  Channel.fromPath(params.annotation.gene_full_constraints),  Channel.fromPath(params.annotation.gene_region_constraints), "dnm")
         }
 
         if (params.annotation.containsKey("shet")){
-          dnm_annotated_ch = DNM_SHET(dnm_annotated_ch, params.annotation.shet, "dnm")
+          dnm_annotated_ch = DNM_SHET(dnm_annotated_ch,  Channel.fromPath(params.annotation.shet), "dnm")
         }
 
         if (params.annotation.containsKey("gnomad_file")){
-          dnm_annotated_ch = DNM_GNOMAD(dnm_annotated_ch, params.annotation.gnomad_file, params.annotation.gnomad_file + ".tbi", "dnm")
+          dnm_annotated_ch = DNM_GNOMAD(dnm_annotated_ch,  Channel.fromPath(params.annotation.gnomad_file),  Channel.fromPath(params.annotation.gnomad_file + ".tbi"), "dnm")
         }
 
         PUBLISH_DNM(dnm_annotated_ch)

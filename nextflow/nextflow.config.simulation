@@ -1,0 +1,34 @@
+includeConfig 'conf/local.conf'
+
+workDir = "work"
+
+
+
+params {
+  
+
+  dnm = "../resources/examples/example.dnms.annotated.tsv"
+  rates = "../resources/examples/example.rates.annotated.tsv.gz"
+  weights = "/lustre/scratch123/hgi/mdt1/teams/hurles/ed11/DNW/out_rate_creation/publish_dir/b38_full/2023-10-23/weights/weights.tsv"
+
+  nmales = 17422
+  nfemales = 13636
+
+  outdir = 'outdir'
+
+  // Following parameters are true by default, set to false if you want to skip some steps
+  // Here we just want to create the rates file and annotate both the rates and DNM files
+  annotate_dnm = false
+  annotate_rates = false
+  run_weights_creation = false
+  run_simulation = true
+
+
+
+}
+
+
+
+
+
+
