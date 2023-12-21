@@ -275,7 +275,7 @@ def get_indel_rates(generates, indel_weights):
         ],
         columns=["consequence", "prob", "ppv", "constrained", "shethigh"],
     )
-    generates = generates.append(indelrates, ignore_index=True)
+    generates = pd.concat([generates, indelrates])
     return generates
 
 
