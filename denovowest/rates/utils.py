@@ -7,8 +7,8 @@ import yaml
 
 # Per generation mutation rate scaling factors taken from https://github.com/vseplyarskiy/Roulette/tree/main/adding_mutation_rate
 # Divided by 3 because only one of the three possible mutations is possible at a time
-ROULETTE_SCALING_FACTOR = 1.015e-7 / 3
-CARLSON_SCALING_FACTOR = 2.086e-9 / 3
+ROULETTE_SCALING_FACTOR = 1.015e-7 / 2
+CARLSON_SCALING_FACTOR = 2.086e-9 / 2
 
 
 def load_conf(filename):
