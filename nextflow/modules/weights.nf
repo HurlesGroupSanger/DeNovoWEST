@@ -88,7 +88,7 @@ process LOESS {
     publishDir "${params.outdir}/weights/", mode: 'copy', overwrite: true, include : 'enrichment_plots_loess/*.png', exlude : 'enrichment_plots_loess'
 
 
-    conda "/software/team29/ed11/miniconda3/envs/rpy2"
+	label "r"
 
     input:
     path merged_counts

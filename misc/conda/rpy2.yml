@@ -1,4 +1,4 @@
-name: rpy2test
+name: rpy2
 channels:
 - conda-forge
 - bioconda
