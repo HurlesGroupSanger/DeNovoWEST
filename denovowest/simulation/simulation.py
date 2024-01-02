@@ -16,10 +16,11 @@ from probabilities import get_pvalue
 
 
 def load_weights(weightsfile: str):
-    """_summary_
+    """
+    Load weights file containing the positive predictive value (PPV) of each variant type.
 
     Args:
-        weightsfile (str): _description_
+        weightsfile (str): weights file path
     """
 
     weights_df = pd.read_csv(weightsfile, sep="\t")
@@ -28,10 +29,13 @@ def load_weights(weightsfile: str):
 
 def prepare_dnm(dnmfile: str, weights_df: pd.DataFrame):
     """
-    Load DNM file.
+    Filter DNM file to remove functional consequence not handled.
+    Assign a higher level consequence to each DNM.
+    Assign weights to each DNM.
 
     Args:
-        dnmfile (str): path to DNM file
+        dnmfile (str): DNM file
+        weights_df(pd.DataFrame): weights dataframe
     """
 
     dnm_df = pd.read_csv(dnmfile, sep="\t", dtype={"chrom": str, "pos": int, "score": float})
@@ -115,18 +119,19 @@ def prepare_rates(ratesfile: str, weights_df: pd.DataFrame, nmales: int, nfemale
 
 def compute_expected_number_of_mutations(rates_df: pd.DataFrame, nmales: int, nfemales: int):
     """
-    TODO : need some more explanation
+    Adjust the expected number of mutations to the number of individuals in the cohort.
+
     Args:
-        rates_df (pd.DataFrame): _description_
-        nmales (int): _description_
-        nfemales (int): _description_
+        rates_df (pd.DataFrame): mutation rates dataframe
+        nmales (int): number of males in the cohort
+        nfemales (int): number of females in the cohort
     """
 
     # Compute the expected number of mutations as the product of the mutation rate and the number of individuals
     autosomal_factor = 2 * (nmales + nfemales)
     rates_df.prob = rates_df.prob * autosomal_factor
 
-    # Correct for X chromosme
+    # Apply an extra correction for the X chromosome
     x_factor_correction = compute_x_factor_correction(nmales, nfemales)
     rates_df.prob = np.where(rates_df.chrom.isin(["X", "chrX"]), x_factor_correction * rates_df.prob, rates_df.prob)
 
@@ -134,11 +139,14 @@ def compute_expected_number_of_mutations(rates_df: pd.DataFrame, nmales: int, nf
 
 
 def compute_x_factor_correction(nmales: int, nfemales: int):
-    """# TODO : need some more explanation
+    """
+    Expected number of mutations on the X chromosome need to be adjusted to the number of male and female individuals.
+    Scaling factors are computed using the alpha from the most recent SFHS (Scottish Family Health Study) phased de novo data.
+    Correct the non-PAR chrX genes for fewer transmissions and lower rate (depends on alpha)
 
     Args:
-        nmales (int): _description_
-        nfemales (int): _description_
+        nmales (int): number of males in the cohort
+        nfemales (int): number of females in the cohort
     """
 
     autosomal_factor = 2 * (nmales + nfemales)
@@ -146,8 +154,6 @@ def compute_x_factor_correction(nmales: int, nfemales: int):
     female_transmit = nmales + nfemales
     male_transmit = nfemales
 
-    # get scaling factors using the alpha from the most recent SFHS (Scottish
-    # Family Health Study) phased de novo data.
     alpha = 3.4
     male_k = 2 / (1 + (1 / alpha))
     female_k = 2 / (1 + alpha)
@@ -157,87 +163,83 @@ def compute_x_factor_correction(nmales: int, nfemales: int):
     return x_factor
 
 
-def correct_for_x_chrom(rates, male_n, female_n):
+def run_simulations(
+    dnm_df: pd.DataFrame, rates_df: pd.DataFrame, nsim: int, indel_weights: pd.DataFrame, pvalcap: float
+):
     """
-    correct for X chromosome
-    """
-    autosomal = 2 * (male_n + female_n)
-    female_transmit = male_n + female_n
-    male_transmit = female_n
-
-    # get scaling factors using the alpha from the most recent SFHS (Scottish
-    # Family Health Study) phased de novo data.
-    alpha = 3.4
-    male_k = 2 / (1 + (1 / alpha))
-    female_k = 2 / (1 + alpha)
-
-    # correct the non-PAR chrX genes for fewer transmissions and lower rate
-    # (dependent on alpha)
-    chrX = rates["chrom"].isin(["X", "chrX"])
-    x_factor = ((male_transmit * male_k) + (female_transmit * female_k)) / autosomal
-    x_factor = pd.Series([x_factor] * len(chrX), index=rates.index)
-    x_factor[~chrX] = 1
-
-    rates["prob"] *= x_factor
-
-    return rates
-
-
-def run_simulations(dnm_df: pd.DataFrame, rates_df: pd.DataFrame, nsim: int, indel_weights: list, pvalcap: float):
-    """_summary_
+    For each gene in the DNM file, run nsim simulations and test whether or not this gene is significantly enriched in predictive DNM.
 
     Args:
-        dnm_df (pd.DataFrame): _description_
-        rates_df (pd.DataFrame): _description_
+        dnm_df (pd.DataFrame): DNM dataframe
+        rates_df (pd.DataFrame): rates dataframe that contains all possible SNV
+        nsim (int): number of simulations to run
+        indel_weights (pd.DataFrame): indel weights
+        pvalcap (float): stop simulations if cumulative p-value > pvalcap
     """
+
+    logger = logging.getLogger("logger")
 
     genes = dnm_df.gene_id.unique()
     results = []
+    cpt = 0
     for gene in genes:
         simulation_results = run_simulation(rates_df, dnm_df, gene, nsim, indel_weights, pvalcap)
         if simulation_results:
             results.append(simulation_results)
 
+        cpt += 1
+        if cpt % 10 == 0:
+            logger.info(f"Processed {cpt}/{len(genes)} genes")
+
     return results
 
 
 def run_simulation(rates_df, dnm_df, gene_id, nsim, indel_weights, pvalcap):
-    """_summary_
+    """
+    Run nsim simulations and test whether or not gene gene_id is significantly enriched in predictive DNM
 
     Args:
-        rates_df (_type_): _description_
-        dnm_df (_type_): _description_
-        gene (_type_): _description_
-        nsim (_type_): _description_
-        pvalcap (_type_): _description_
+        rates_df (pd.DataFrame): rates dataframe that contains all possible SNV for the given gene
+        dnm_df (pd.DataFrame): DNM dataframe that contains all observed DNM for the given gene
+        gene_id (str) : gene identifier
+        nsim (int): number of simulations to run
+        indel_weights (pd.DataFrame): indels weights
+        pvalcap (float): stop simulations if cumulative p-value > pvalcap
     """
 
     logger = logging.getLogger("logger")
 
     if gene_id not in rates_df.gene_id.unique():
-        logger.info("could not find " + str(gene_id))
+        logger.debug("could not find " + str(gene_id))
         return
 
     logger.info(f"Testing {gene_id}")
 
     generates = rates_df.loc[rates_df.gene_id == gene_id]
+    # Add the gene specific inframe and frameshift rates to the rates dataframe
     generates = get_indel_rates(generates, indel_weights)
 
-    s_obs = dnm_df[dnm_df.gene_id == gene_id].ppv.sum()
-    pval, info, s_exp = get_pvalue(generates, s_obs, nsim, pvalcap)
+    # Sum the PPV of all observed DNM in the gene
+    obs_sum_ppv = dnm_df[dnm_df.gene_id == gene_id].ppv.sum()
 
-    return (gene_id, s_exp, s_obs, pval, info)
+    # Run nsim simulations
+    pval, info, exp_sum_ppv = get_pvalue(generates, obs_sum_ppv, nsim, pvalcap)
+
+    # Return the gene id, its expected and observed sum of PPV, the p-value from the enrichment simulation test and some informations about the simulation
+    return (gene_id, exp_sum_ppv, obs_sum_ppv, pval, info)
 
 
 def get_indel_rates(generates, indel_weights):
-    """_summary_
+    """
+    Infer the gene specific indel rates from the rate of missense and nonsense mutations.
+    Rates file contain only SNP rates, so we need to infer the indel rates from the SNP rates.
 
     Args:
-        generates (_type_): _description_
-        indel_weights (_type_): _description_
+        generates (pd.DataFrame): rates for the current gene
+        indel_weights (pd.DataFrame): indel weights
 
     Returns:
-        _type_: _description_
+        pd.DataFrame: rates for the current gene updated with indel rates
     """
 
     logger = logging.getLogger("logger")
@@ -245,7 +247,9 @@ def get_indel_rates(generates, indel_weights):
     # Get the overall probability of missense and nonsense mutation across the gene
     missense_rate = generates[generates.consequence == "missense"].prob.sum()
     nonsense_rate = generates[generates.consequence == "nonsense"].prob.sum()
+
     # TODO : Where does those factors come from ?
+    # Set them up as parameters or constants
     inframe_rate = missense_rate * 0.03
     frameshift_rate = nonsense_rate * 1.3
 
@@ -280,11 +284,12 @@ def get_indel_rates(generates, indel_weights):
 
 
 def export_results(results: list, output: str):
-    """_summary_
+    """
+    Write enrichment results
 
     Args:
-        results (list): _description_
-        output (str): _description_
+        results (list): list of per-gene enrichment simulation results
+        output (str): output file
     """
 
     df = pd.DataFrame.from_records(results, columns=["symbol", "expected", "observed", "p-value", "info"])
@@ -303,35 +308,36 @@ def export_results(results: list, output: str):
 @click.option("--nsim", default=10, type=int, help="Minimum number of simulations for each gene ")
 @click.option("--output", default="enrichment_results.tsv")
 def main(dnm, rates, weights, nmales, nfemales, pvalcap, nsim, output):
-    """#TODO
+    """
+    DeNovoWEST is a simulation-based method to test for a statistically significant enrichment of damaging de novo mutations (DNMs) in individual genes.
+    This method scores all classes of variants (e.g. nonsense, missense, splice site) on a unified severity scale based on the empirically-estimated positive predictive value of being pathogenic,
+    and incorporates a gene-based weighting derived from the deficit of protein truncating variants in the general population.
 
     Args:
-        dnm (str): Path to denovo mutation file
-        rates (str): Path to mutation rates file
-        weights (str): Path to weights file
+        dnm (str): DNM file
+        rates (str): Per-generation mutation rates file
+        weights (str): Weights file
         nmales (int): Number of males individual in your cohort
         nfemales (int): Number of females individual in your cohort
         pvalcap (float): Stop simulations if cumulative p-value > pvalcap
         nsim (int): Minimum number of simulations for each gene
-        output (str): _description_
+        output (str): Enrichment results
     """
-
     init_log()
     log_configuration(click.get_current_context().params)
 
+    # Load weights
     weights_df = load_weights(weights)
+    indel_weights = get_indel_weights(weights_df)
 
+    # Assign weights to DNM and rates
     dnm_df = prepare_dnm(dnm, weights_df)
     rates_df = prepare_rates(rates, weights_df, nmales, nfemales)
 
-    # dnm_df.to_csv("debug/dnm_new_format.tsv", sep="\t", index=False)
-    # rates_df.to_csv("debug/rates_new_format.tsv", sep="\t", index=False)
-
-    indel_weights = get_indel_weights(weights_df)
-    # indel_weights.to_csv("debug/indelweights_new_format.tsv", sep="\t", index=False)
-
+    # Run simulations
     results = run_simulations(dnm_df, rates_df, nsim, indel_weights, pvalcap)
 
+    # Export results
     export_results(results, output)
 
 
