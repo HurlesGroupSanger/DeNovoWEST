@@ -9,9 +9,9 @@ nextflow_process {
         when {
 
             params {
-                dnm = "$baseDir/tests/test_data/simulation/b37/ensembl/input/DDD_RUMC_GDX_denovos_cadd_shet_wweights_2020_01_17.txt"
-                rates = "$baseDir/tests/test_data/simulation/b37/ensembl/input/DDX3X_rates_cadd_maf_shet_2020_03_05.txt.gz"
-                weights = "$baseDir/tests/test_data/simulation/b37/ensembl/input/weights_ppv_2020_01_17.tab"
+                dnm = "$baseDir/nf_tests/test_data/simulation/b37/ensembl/input/DDD_RUMC_GDX_denovos_cadd_shet_wweights_2020_01_17.txt"
+                rates = "$baseDir/nf_tests/test_data/simulation/b37/ensembl/input/DDX3X_rates_cadd_maf_shet_2020_03_05.txt.gz"
+                weights = "$baseDir/nf_tests/test_data/simulation/b37/ensembl/input/weights_ppv_2020_01_17.tab"
                 nmales = 17422
                 nfemales = 13636
             }

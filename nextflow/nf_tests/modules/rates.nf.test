@@ -9,7 +9,7 @@ nextflow_process {
         when {
             process {
                 """
-                input[0] = file("$baseDir/tests/test_data/rates/create_gffutils_db/b37/input/Homo_sapiens.GRCh37.87.DDX3X_SCN5A.gff3")
+                input[0] = file("$baseDir/nf_tests/test_data/rates/create_gffutils_db/b37/input/Homo_sapiens.GRCh37.87.DDX3X_SCN5A.gff3")
                 """
             }
         }

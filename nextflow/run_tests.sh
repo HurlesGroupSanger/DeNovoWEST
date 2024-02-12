@@ -5,6 +5,6 @@
 export NF_TEST=True
 
 # Run test on processes
-nf-test test tests/modules
+nf-test test nf_tests/modules
 
 # Run test on workflows
