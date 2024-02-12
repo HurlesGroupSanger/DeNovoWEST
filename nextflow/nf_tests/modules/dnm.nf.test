@@ -9,8 +9,8 @@ nextflow_process {
         when {
 
 			params {
-						dnm = "$baseDir/tests/test_data/dnm/filter_dnm/input/DNM_b38_MANE.tsv"
-						gene_list = "$baseDir/tests/test_data/dnm/filter_dnm/input/gene_list.tsv"
+						dnm = "$baseDir/nf_tests/test_data/dnm/filter_dnm/input/DNM_b38_MANE.tsv"
+						gene_list = "$baseDir/nf_tests/test_data/dnm/filter_dnm/input/gene_list.tsv"
 
 					}
 					process {
