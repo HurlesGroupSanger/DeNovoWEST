@@ -38,17 +38,6 @@ workflow{
     /////////////////////////// 
     // DEFAULT_CONFIGURATION //
     ///////////////////////////
-    
-
-    // Check if conda DNW environment exists
-    // TODO : better handle this as there are some duplicated lines with the conf file
-    def condaEnvsLocation = 'which conda'.execute().text.replace("/bin/conda", "/envs").trim()
-    def dnwEnvDirectory = new File(condaEnvsLocation + "/denovowest")
-    if (!dnwEnvDirectory.isDirectory()) {
-        print(condaEnvsLocation + "/denovowest is not a valid DNW conda environment folder. Did you create the DNW conda environment ? If not, please do it as described in the README file. Otherwise we can't find the DNW conda environment folder, and you should manually set up the condaEnvsLocation in your configuration file (see local.conf).")
-        System.exit(1)
-    }
-      
 
     if (!params.containsKey("annotate_rates")) {
       params.annotate_rates = true

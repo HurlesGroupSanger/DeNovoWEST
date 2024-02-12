@@ -1,6 +1,8 @@
-includeConfig 'conf/local.conf'
+includeConfig 'conf/lsf.conf'
 
-workDir = "work"
+Date now = new Date()
+
+workDir = "test/work"
 
 
 params {
@@ -10,7 +12,7 @@ params {
   mutation_rate_model = "../resources/rates_model_dnn.tsv"
   dnm = "../resources/examples/example.dnms.tsv"
 
-  outdir = 'outdir'
+  outdir = 'test/outdir'
 
   // Following parameters are true by default, set to false if you want to skip some steps
   // Here we just want to create the rates file and annotate both the rates and DNM files
@@ -26,6 +28,18 @@ params {
     shet="../resources/new_shet"
   }
 
+  tracedir = 'test/trace'
+  timestamp = now.format("yyyyMMdd-HH-mm-ss")
+
+}
+
+timeline {
+    enabled = true
+    file = "${params.tracedir}/${params.timestamp}_timeline.html"
+}
+report {
+    enabled = true
+    file = "${params.tracedir}/${params.timestamp}_report.html"
 }
 
 

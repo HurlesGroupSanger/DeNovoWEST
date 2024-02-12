@@ -9,7 +9,10 @@ More information on the method can be found in [Kaplanis, Samocha, Wiel, Zhang e
 
 ## Requirements  
 
-To run `DeNovoWEST` 2.0.0, you need to have conda and nextflow installed.
+To run `DeNovoWEST` 2.0.0, you need : 
+- conda 
+- nextflow
+- bcftools (>= 1.19)
 
 
 ## Install
@@ -17,7 +20,6 @@ To run `DeNovoWEST` 2.0.0, you need to have conda and nextflow installed.
 ```
 git clone https://github.com/HurlesGroupSanger/DeNovoWEST.git
 git checkout develop
-conda create -f misc/conda/denovowest.yml
 ```
 
 ## Run
@@ -29,3 +31,24 @@ cd nextflow
 nextflow run denovowest.nf -c nextflow.config.annotate
 ```
 
+## Conda
+
+By default, nextflow will create the conda environments for you in the nextflow working directory. However this approach has some pitfalls :
+- If you remove or change the nextflow working directory, the conda environments will need to be recreated.
+- Can be slower
+
+Alternatively, you can install the conda environments outside of nextflow :
+
+```
+conda create -f misc/conda/denovowest.yml
+conda create -f misc/conda/rpy2.yml
+```
+
+and provide the path to those environments in the configuration file (e.g [lsf.conf](nextflow/conf/lsf.conf))
+
+
+```
+// If the conda environments were installed outside of nextflow, you can also provide their path directly
+def denovowestEnvLocation = "/software/team29/ed11/miniconda3/envs/denovowest"
+def rpy2EnvLocation = "./software/team29/ed11/miniconda3/envs/rpy2"
+```

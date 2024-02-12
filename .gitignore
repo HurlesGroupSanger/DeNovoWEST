@@ -2,11 +2,13 @@ DeNovoWEST.code-workspace
 *ipynb*
 .nextflow*
 *__pycache__*
-test/*
 notebooks/*
 input/*
 validation/*
 dev/*
 .vscode
 *old*
-.*
+nextflow/test/outdir/*
+nextflow/test/trace/*
+nextflow/test/work/*
+nextflow/runs/*
