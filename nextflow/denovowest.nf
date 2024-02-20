@@ -128,7 +128,7 @@ workflow{
     // If the user provide a rates file we split it in smaller rates files
     if (params.containsKey("rates")) {
       
-      rates_ch = SPLIT_RATES(split_gene_list_ch.toSortedList().flatten(), Channel.fromPath(params.rates))
+      rates_ch = SPLIT_RATES(split_gene_list_ch.toSortedList().flatten(), params.rates)
     }
     // Otherwise we generate rates files from the GFF file
     else
@@ -263,8 +263,8 @@ workflow{
 
     if (params.run_simulation)
     {
-      simulation_ch = dnm_annotated_ch.combine(rates_annotated_ch).combine(weights_ch)
-      simulation_ch = SIMULATION(simulation_ch, params.nmales, params.nfemales)
+      simulation_ch = dnm_annotated_ch.combine(rates_annotated_ch)
+      simulation_ch = SIMULATION(simulation_ch, "score", params.nmales, params.nfemales)
       MERGE_SIMULATION(simulation_ch.collect())
     }
 

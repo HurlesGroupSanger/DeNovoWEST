@@ -4,7 +4,8 @@ process SIMULATION {
 	label "process_long"
 
 	input :
-    tuple path(dnm), path(rates), path(weights) 
+    tuple path(dnm), path(rates)
+    val column
 	val nmales
 	val nfemales
 
@@ -15,7 +16,7 @@ process SIMULATION {
 
     script :
     """
-    simulation.py $dnm $rates $weights --nmales $nmales --nfemales $nfemales
+    simulation.py $dnm $rates $column --nmales $nmales --nfemales $nfemales
     """
 }
 

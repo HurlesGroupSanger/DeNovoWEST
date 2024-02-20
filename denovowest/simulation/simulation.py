@@ -15,19 +15,7 @@ from weights import assign_weights, get_indel_weights
 from probabilities import get_pvalue
 
 
-def load_weights(weightsfile: str):
-    """
-    Load weights file containing the positive predictive value (PPV) of each variant type.
-
-    Args:
-        weightsfile (str): weights file path
-    """
-
-    weights_df = pd.read_csv(weightsfile, sep="\t")
-    return weights_df
-
-
-def prepare_dnm(dnmfile: str, weights_df: pd.DataFrame):
+def prepare_dnm(dnmfile: str, column, indel_weights: pd.DataFrame):
     """
     Filter DNM file to remove functional consequence not handled.
     Assign a higher level consequence to each DNM.
@@ -43,7 +31,7 @@ def prepare_dnm(dnmfile: str, weights_df: pd.DataFrame):
     dnm_df = filter_on_consequences(dnm_df)
     dnm_df = assign_meta_consequences(dnm_df)
 
-    dnm_df = assign_weights(dnm_df, weights_df)
+    dnm_df = assign_weights(dnm_df, column, indel_weights)
 
     return dnm_df
 
@@ -98,7 +86,7 @@ def assign_meta_consequences(df: pd.DataFrame):
     return df
 
 
-def prepare_rates(ratesfile: str, weights_df: pd.DataFrame, nmales: int, nfemales: int):
+def prepare_rates(ratesfile: str, column, nmales: int, nfemales: int):
     """
     Load mutation rates file.
 
@@ -112,7 +100,7 @@ def prepare_rates(ratesfile: str, weights_df: pd.DataFrame, nmales: int, nfemale
     rates_df = assign_meta_consequences(rates_df)
 
     rates_df = compute_expected_number_of_mutations(rates_df, nmales, nfemales)
-    rates_df = assign_weights(rates_df, weights_df)
+    rates_df = assign_weights(rates_df, column)
 
     return rates_df
 
@@ -299,7 +287,7 @@ def export_results(results: list, output: str):
 @click.command()
 @click.argument("dnm")
 @click.argument("rates")
-@click.argument("weights")
+@click.argument("column")
 @click.option("--nmales", required=True, type=int, help="Number of males individual in your cohort")
 @click.option("--nfemales", required=True, type=int, help="Number of females individual in your cohort")
 @click.option(
@@ -307,7 +295,7 @@ def export_results(results: list, output: str):
 )  # TODO more details
 @click.option("--nsim", default=10, type=int, help="Minimum number of simulations for each gene ")
 @click.option("--output", default="enrichment_results.tsv")
-def main(dnm, rates, weights, nmales, nfemales, pvalcap, nsim, output):
+def main(dnm, rates, column, nmales, nfemales, pvalcap, nsim, output):
     """
     DeNovoWEST is a simulation-based method to test for a statistically significant enrichment of damaging de novo mutations (DNMs) in individual genes.
     This method scores all classes of variants (e.g. nonsense, missense, splice site) on a unified severity scale based on the empirically-estimated positive predictive value of being pathogenic,
@@ -316,7 +304,7 @@ def main(dnm, rates, weights, nmales, nfemales, pvalcap, nsim, output):
     Args:
         dnm (str): DNM file
         rates (str): Per-generation mutation rates file
-        weights (str): Weights file
+        column (str): Column to use for the simulation
         nmales (int): Number of males individual in your cohort
         nfemales (int): Number of females individual in your cohort
         pvalcap (float): Stop simulations if cumulative p-value > pvalcap
@@ -327,12 +315,11 @@ def main(dnm, rates, weights, nmales, nfemales, pvalcap, nsim, output):
     log_configuration(click.get_current_context().params)
 
     # Load weights
-    weights_df = load_weights(weights)
-    indel_weights = get_indel_weights(weights_df)
+    indel_weights = get_indel_weights()
 
     # Assign weights to DNM and rates
-    dnm_df = prepare_dnm(dnm, weights_df)
-    rates_df = prepare_rates(rates, weights_df, nmales, nfemales)
+    dnm_df = prepare_dnm(dnm, column, indel_weights)
+    rates_df = prepare_rates(rates, column, nmales, nfemales)
 
     # Run simulations
     results = run_simulations(dnm_df, rates_df, nsim, indel_weights, pvalcap)
