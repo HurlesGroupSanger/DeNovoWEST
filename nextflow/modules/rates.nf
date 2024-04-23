@@ -126,12 +126,20 @@ process MERGE_RATES {
   
   output : 
   path "merged_rates.tsv.gz"
+  path "merged_rates.tsv.gz.tbi"
 
   script : 
   """
   # Concatenates the tsv files and keep only the first header
   awk 'FNR==1 && NR!=1{next;}{print}' $rates > merged_rates.tsv
-  gzip merged_rates.tsv
+
+  # Sort rates file based on chromosome, position and alternate allele
+  (head -n 1 merged_rates.tsv && tail -n +2 merged_rates.tsv | sort -k2,2 -k3,3n -k5,5) > sorted_merged_rates.tsv
+  
+  # Compress and index rates file
+  mv sorted_merged_rates.tsv merged_rates.tsv
+  bgzip merged_rates.tsv
+  tabix -S 1 -s 2 -b 3 -e 3 merged_rates.tsv.gz
   """
 
 }
