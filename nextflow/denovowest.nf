@@ -23,6 +23,8 @@ include { CADD; CADD as DNM_CADD } from './modules/annotation.nf'
 include { GNOMAD; GNOMAD as DNM_GNOMAD } from './modules/annotation.nf'
 include { CONSTRAINTS; CONSTRAINTS as DNM_CONSTRAINTS} from './modules/annotation.nf'
 include { SHET; SHET as DNM_SHET } from './modules/annotation.nf'
+include { DBNSFP; DBNSFP as DNM_DBNSFP } from './modules/annotation.nf'
+
 
 include { GET_EXPECTED_COUNTS } from './modules/weights.nf'
 include { MERGE_EXPECTED } from './modules/weights.nf'
@@ -168,7 +170,11 @@ workflow{
       }
 
       if (params.annotation.containsKey("gnomad_file")){
-        rates_annotated_ch = GNOMAD(rates_annotated_ch, file(params.annotation.gnomad_file),  file(params.annotation.gnomad_file + ".tbi"), "rates")
+        rates_annotated_ch = GNOMAD(rates_annotated_ch,  file(params.annotation.gnomad_file),  file(params.annotation.gnomad_file + ".tbi"), "rates")
+      }
+
+      if (params.annotation.containsKey("dbnsfp_file")){
+        rates_annotated_ch = DBNSFP(rates_annotated_ch,  file(params.annotation.dbnsfp_file),  file(params.annotation.dbnsfp_file + ".tbi"), file(params.annotation.dbnsfp_columns), "rates")
       }
 
       // Merge results
@@ -219,6 +225,10 @@ workflow{
 
         if (params.annotation.containsKey("gnomad_file")){
           dnm_annotated_ch = DNM_GNOMAD(dnm_annotated_ch,  file(params.annotation.gnomad_file),  file(params.annotation.gnomad_file + ".tbi"), "dnm")
+        }
+
+        if (params.annotation.containsKey("dbnsfp_file")){
+          dnm_annotated_ch = DNM_DBNSFP(dnm_annotated_ch,  file(params.annotation.dbnsfp_file),  file(params.annotation.dbnsfp_file + ".tbi"), file(params.annotation.dbnsfp_columns), "dnm")
         }
 
         PUBLISH_DNM(dnm_annotated_ch)
