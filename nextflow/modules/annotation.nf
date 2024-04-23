@@ -101,3 +101,22 @@ process SHET {
     annotate_shet.py  $rates_or_dnm $shet ${type}_shet.tsv
     """
 }
+
+process DBNSFP {
+
+    input :
+    path rates_or_dnm 
+    path dbnsfp
+    path dbnsfp_index
+    path dbnsfp_columns_to_extract
+    val type
+
+    output :
+    path "${type}_dbnsfp.tsv"
+
+    script:
+    """
+    # Annotate dbnsfp
+    annotate_dbnsfp.py  $rates_or_dnm $dbnsfp $dbnsfp_columns_to_extract ${type}_dbnsfp.tsv
+    """
+}

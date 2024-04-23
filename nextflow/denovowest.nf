@@ -21,6 +21,8 @@ include { CADD; CADD as DNM_CADD } from './modules/annotation.nf'
 include { GNOMAD; GNOMAD as DNM_GNOMAD } from './modules/annotation.nf'
 include { CONSTRAINTS; CONSTRAINTS as DNM_CONSTRAINTS} from './modules/annotation.nf'
 include { SHET; SHET as DNM_SHET } from './modules/annotation.nf'
+include { DBNSFP; DBNSFP as DNM_DBNSFP } from './modules/annotation.nf'
+
 
 include { GET_EXPECTED_COUNTS } from './modules/weights.nf'
 include { MERGE_EXPECTED } from './modules/weights.nf'
@@ -40,15 +42,6 @@ workflow{
     ///////////////////////////
     
 
-    // Check if conda DNW environment exists
-    // TODO : better handle this as there are some duplicated lines with the conf file
-    def condaEnvsLocation = 'which conda'.execute().text.replace("/bin/conda", "/envs").trim()
-    def dnwEnvDirectory = new File(condaEnvsLocation + "/denovowest")
-    if (!dnwEnvDirectory.isDirectory()) {
-        print(condaEnvsLocation + "/denovowest is not a valid DNW conda environment folder. Did you create the DNW conda environment ? If not, please do it as described in the README file. Otherwise we can't find the DNW conda environment folder, and you should manually set up the condaEnvsLocation in your configuration file (see local.conf).")
-        System.exit(1)
-    }
-      
 
     if (!params.containsKey("annotate_rates")) {
       params.annotate_rates = true
@@ -128,7 +121,7 @@ workflow{
     // If the user provide a rates file we split it in smaller rates files
     if (params.containsKey("rates")) {
       
-      rates_ch = SPLIT_RATES(split_gene_list_ch.toSortedList().flatten(), params.rates)
+      rates_ch = SPLIT_RATES(split_gene_list_ch.toSortedList().flatten(), file(params.rates))
     }
     // Otherwise we generate rates files from the GFF file
     else
@@ -140,10 +133,10 @@ workflow{
       }
 
       // Create rates files (one per split gene list)
-      rates_ch = RATE_CREATION(split_gene_list_ch.toSortedList().flatten(), gffutils_db_ch.first(), Channel.fromPath(params.genome_fasta), Channel.fromPath(params.mutation_rate_model),  params.mutation_rate_model_type)
+      rates_ch = RATE_CREATION(split_gene_list_ch.toSortedList().flatten(), gffutils_db_ch.first(), file(params.genome_fasta), file(params.mutation_rate_model),  params.mutation_rate_model_type)
 
       // If the point was to generate a rates file with no annotation, we simply merge the unannotated individual rates file
-      if (!(params.containsKey("annotation") and params.containsKey("annotate_rates") and (params.annotate_rates))) {
+      if (!(params.annotate_rates)) {
             rates_merged_ch = MERGE_RATES(rates_ch.collect())
       }
     }
@@ -159,22 +152,26 @@ workflow{
       rates_annotated_ch = rates_ch
       
       if (params.annotation.containsKey("annotate_bcftoolscsq") and (params.annotation.annotate_bcftoolscsq)) {
-        rates_annotated_ch = BCFTOOLS_CSQ_FULL(rates_annotated_ch, Channel.fromPath(params.genome_fasta), Channel.fromPath(params.genome_fasta + ".fai"),  Channel.fromPath(params.gff), gffutils_db_ch.first(), "rates" )
+        rates_annotated_ch = BCFTOOLS_CSQ_FULL(rates_annotated_ch, file(params.genome_fasta), file(params.genome_fasta + ".fai"),  file(params.gff), gffutils_db_ch.first(), "rates" )
       }
       
       if (params.annotation.containsKey("cadd_file")){
-        rates_annotated_ch = CADD(rates_annotated_ch,  Channel.fromPath(params.annotation.cadd_file),  Channel.fromPath(params.annotation.cadd_file + ".tbi"), "rates")
+        rates_annotated_ch = CADD(rates_annotated_ch,  file(params.annotation.cadd_file),  file(params.annotation.cadd_file + ".tbi"), "rates")
       }
       if (params.annotation.containsKey("gene_full_constraints")){
-        rates_annotated_ch = CONSTRAINTS(rates_annotated_ch,  Channel.fromPath(params.annotation.gene_full_constraints),  Channel.fromPath(params.annotation.gene_region_constraints), "rates")
+        rates_annotated_ch = CONSTRAINTS(rates_annotated_ch,  file(params.annotation.gene_full_constraints),  file(params.annotation.gene_region_constraints), "rates")
       }
       
       if (params.annotation.containsKey("shet")){
-        rates_annotated_ch = SHET(rates_annotated_ch,  Channel.fromPath(params.annotation.shet), "rates")
+        rates_annotated_ch = SHET(rates_annotated_ch, file(params.annotation.shet), "rates")
       }
 
       if (params.annotation.containsKey("gnomad_file")){
-        rates_annotated_ch = GNOMAD(rates_annotated_ch,  Channel.fromPath(params.annotation.gnomad_file),  Channel.fromPath(params.annotation.gnomad_file + ".tbi"), "rates")
+        rates_annotated_ch = GNOMAD(rates_annotated_ch,  file(params.annotation.gnomad_file),  file(params.annotation.gnomad_file + ".tbi"), "rates")
+      }
+
+      if (params.annotation.containsKey("dbnsfp_file")){
+        rates_annotated_ch = DBNSFP(rates_annotated_ch,  file(params.annotation.dbnsfp_file),  file(params.annotation.dbnsfp_file + ".tbi"), file(params.annotation.dbnsfp_columns), "rates")
       }
 
       // Merge results
@@ -208,23 +205,27 @@ workflow{
         dnm_annotated_ch = dnm_ch
 
         if (params.annotation.containsKey("annotate_bcftoolscsq") and (params.annotation.annotate_bcftoolscsq)) {
-          dnm_annotated_ch = DNM_BCFTOOLS_CSQ_FULL(dnm_annotated_ch, Channel.fromPath(params.genome_fasta), Channel.fromPath(params.genome_fasta + ".fai"),  Channel.fromPath(params.gff),  gffutils_db_ch.first(), "dnm" )
+          dnm_annotated_ch = DNM_BCFTOOLS_CSQ_FULL(dnm_annotated_ch, file(params.genome_fasta), file(params.genome_fasta + ".fai"), file(params.gff),  gffutils_db_ch.first(), "dnm" )
         }
         
         if (params.annotation.containsKey("cadd_file")){
-          dnm_annotated_ch = DNM_CADD(dnm_annotated_ch,  Channel.fromPath(params.annotation.cadd_file),  Channel.fromPath(params.annotation.cadd_file + ".tbi"), "dnm")
+          dnm_annotated_ch = DNM_CADD(dnm_annotated_ch,  file(params.annotation.cadd_file), file(params.annotation.cadd_file + ".tbi"), "dnm")
         }
 
         if (params.annotation.containsKey("gene_full_constraints")){
-          dnm_annotated_ch = DNM_CONSTRAINTS(dnm_annotated_ch,  Channel.fromPath(params.annotation.gene_full_constraints),  Channel.fromPath(params.annotation.gene_region_constraints), "dnm")
+          dnm_annotated_ch = DNM_CONSTRAINTS(dnm_annotated_ch,  file(params.annotation.gene_full_constraints), file(params.annotation.gene_region_constraints), "dnm")
         }
 
         if (params.annotation.containsKey("shet")){
-          dnm_annotated_ch = DNM_SHET(dnm_annotated_ch,  Channel.fromPath(params.annotation.shet), "dnm")
+          dnm_annotated_ch = DNM_SHET(dnm_annotated_ch,  file(params.annotation.shet), "dnm")
         }
 
         if (params.annotation.containsKey("gnomad_file")){
-          dnm_annotated_ch = DNM_GNOMAD(dnm_annotated_ch,  Channel.fromPath(params.annotation.gnomad_file),  Channel.fromPath(params.annotation.gnomad_file + ".tbi"), "dnm")
+          dnm_annotated_ch = DNM_GNOMAD(dnm_annotated_ch,  file(params.annotation.gnomad_file),  file(params.annotation.gnomad_file + ".tbi"), "dnm")
+        }
+
+        if (params.annotation.containsKey("dbnsfp_file")){
+          dnm_annotated_ch = DNM_DBNSFP(dnm_annotated_ch,  file(params.annotation.dbnsfp_file),  file(params.annotation.dbnsfp_file + ".tbi"), file(params.annotation.dbnsfp_columns), "dnm")
         }
 
         PUBLISH_DNM(dnm_annotated_ch)
@@ -264,7 +265,7 @@ workflow{
     if (params.run_simulation)
     {
       simulation_ch = dnm_annotated_ch.combine(rates_annotated_ch)
-      simulation_ch = SIMULATION(simulation_ch, "score", params.nmales, params.nfemales)
+      simulation_ch = SIMULATION(simulation_ch, params.score, params.nmales, params.nfemales)
       MERGE_SIMULATION(simulation_ch.collect())
     }
 
