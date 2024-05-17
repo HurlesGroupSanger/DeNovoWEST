@@ -52,7 +52,7 @@ def init_log():
         "version": 1,
         "disable_existing_loggers": False,
         "formatters": {
-            "default_formatter": {"format": "[%(levelname)s:%(asctime)s] %(message)s"},
+            "default_formatter": {"format": "%(levelname)s | %(message)s"},
         },
         "handlers": {
             "stream_handler": {

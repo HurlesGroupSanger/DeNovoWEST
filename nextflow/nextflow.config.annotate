@@ -1,5 +1,5 @@
-includeConfig 'conf/local.conf'
-
+includeConfig 'conf/lsf.conf'
+conda.enabled = true
 workDir = "work"
 
 
