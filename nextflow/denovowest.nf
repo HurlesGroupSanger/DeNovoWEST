@@ -42,6 +42,12 @@ workflow{
     /////////////////////////// 
     // DEFAULT_CONFIGURATION //
     ///////////////////////////
+    
+
+    if (!params.containsKey("create_rates")) {
+      params.create_rates = true
+    }
+
 
     if (!params.containsKey("annotate_rates")) {
       params.annotate_rates = true
@@ -127,7 +133,7 @@ workflow{
       rates_ch = SPLIT_RATES(split_gene_list_ch.toSortedList().flatten(), file(params.rates))
     }
     // Otherwise we generate rates files from the GFF file
-    else
+    else if (params.create_rates)
     {
 
       // Default mutation rate model is kmer trinucleotide model
@@ -174,7 +180,7 @@ workflow{
       }
 
       if (params.annotation.containsKey("dbnsfp_file")){
-        rates_annotated_ch = DBNSFP(rates_annotated_ch,  file(params.annotation.dbnsfp_file),  file(params.annotation.dbnsfp_file + ".tbi"), file(params.annotation.dbnsfp_columns), "rates")
+        rates_annotated_ch = DBNSFP(rates_annotated_ch,  file(params.annotation.dbnsfp_file),  file(params.annotation.dbnsfp_file + ".tbi"), file(params.annotation.dbnsfp_columns),  gffutils_db_ch.first(), "rates")
       }
 
       // Merge results
@@ -228,7 +234,7 @@ workflow{
         }
 
         if (params.annotation.containsKey("dbnsfp_file")){
-          dnm_annotated_ch = DNM_DBNSFP(dnm_annotated_ch,  file(params.annotation.dbnsfp_file),  file(params.annotation.dbnsfp_file + ".tbi"), file(params.annotation.dbnsfp_columns), "dnm")
+          dnm_annotated_ch = DNM_DBNSFP(dnm_annotated_ch,  file(params.annotation.dbnsfp_file),  file(params.annotation.dbnsfp_file + ".tbi"), file(params.annotation.dbnsfp_columns),  gffutils_db_ch.first(),"dnm")
         }
 
         PUBLISH_DNM(dnm_annotated_ch)

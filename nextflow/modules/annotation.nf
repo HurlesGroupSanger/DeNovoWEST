@@ -109,6 +109,7 @@ process DBNSFP {
     path dbnsfp
     path dbnsfp_index
     path dbnsfp_columns_to_extract
+    path gffutils_db
     val type
 
     output :
@@ -117,6 +118,6 @@ process DBNSFP {
     script:
     """
     # Annotate dbnsfp
-    annotate_dbnsfp.py  $rates_or_dnm $dbnsfp $dbnsfp_columns_to_extract ${type}_dbnsfp.tsv
+    annotate_dbnsfp.py --gff $gffutils_db $rates_or_dnm $dbnsfp $dbnsfp_columns_to_extract ${type}_dbnsfp.tsv
     """
 }
