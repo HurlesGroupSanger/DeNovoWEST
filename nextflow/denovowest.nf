@@ -12,6 +12,10 @@ include { MERGE_RATES } from './modules/rates.nf'
 include { MERGE_WEIGHTED_RATES } from './modules/rates.nf'
 
 include { SPLIT_RATES } from './modules/rates.nf'
+include { RATES_STATS } from './modules/rates.nf'
+include { MERGE_RATES_STATS } from './modules/rates.nf'
+include { SUMMARIZE_RATES_STATS } from './modules/rates.nf'
+
 
 include { FILTER_DNM } from './modules/dnm.nf'
 include { FILTER_DNM_GFF } from './modules/dnm.nf'
@@ -185,6 +189,13 @@ workflow{
 
       // Merge results
       rates_merged_ch = MERGE_RATES(rates_annotated_ch.collect())
+
+      // Create rates stats
+      rates_stats_ch = RATES_STATS(rates_annotated_ch)
+      rates_stats_ch.collect().view()
+      rates_stats_merged_ch = MERGE_RATES_STATS(rates_stats_ch.collect())
+      rates_stats_summary_ch = SUMMARIZE_RATES_STATS(rates_stats_merged_ch)
+
     }
     // If the rates file is already annotated, nothing to do
     else if (params.containsKey("rates")){
