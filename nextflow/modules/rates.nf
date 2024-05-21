@@ -166,3 +166,76 @@ process SPLIT_RATES {
   """
 
 }
+
+
+/*
+ * Generate a JSON file containing statistics about the rates 
+ */
+process RATES_STATS {
+
+  input : 
+  path rates
+
+  
+  output : 
+  path "rates_stats.json"
+
+  script : 
+  """
+  rates_stats.py $rates rates_stats.json
+  """
+
+}
+
+process MERGE_RATES_STATS {
+
+  publishDir "${params.outdir}/rates/", mode: 'copy', overwrite: true
+
+  input : 
+  path rates_stats, stageAs : "rates_stats_*.json"
+  
+  output : 
+  path "rates_stats.json"
+
+  script : 
+  """
+  jq -s 'reduce .[] as \$item ({}; . * \$item)' *.json > rates_stats.json
+  #echo "toto" > rates_stats.json
+  """
+
+}
+
+// process MERGE_RATES_STATS {
+
+//   publishDir "${params.outdir}/rates/", mode: 'copy', overwrite: true
+
+//   input : 
+//   path rates_stats, stageAs : "rates_stats_*.json"
+  
+//   output : 
+//   path "rates_stats.json"
+
+//   script : 
+//   """
+//   #jq -s "reduce .[] as \$item ({}; . * \$item)" *.json > rates_stats.json
+//   echo "toto" > rates_stats.json
+//   """
+
+// }
+
+process SUMMARIZE_RATES_STATS {
+
+  publishDir "${params.outdir}/rates/", mode: 'copy', overwrite: true
+
+  input : 
+  path rates_stats
+  
+  output : 
+  path "summarized_stats"
+
+  script : 
+  """
+  summarize_stats.py $rates_stats summarized_stats
+  """
+
+}
