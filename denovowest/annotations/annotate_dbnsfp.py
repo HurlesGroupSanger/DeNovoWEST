@@ -348,7 +348,7 @@ def annotate_dbnsfp(rates_dnm, dbnsfp, annotation_names, output, gff):
     rates_df_columns = list(df.columns)
 
     # Load dbnsfp file
-    dbnsfp_df = pysam.TabixFile(dbnsfp)
+    dbnsfp_df = pysam.TabixFile(dbnsfp, encoding="utf-8")
 
     # Load gff file/DB (to match annotation based on user selected transcripts)
     if gff:

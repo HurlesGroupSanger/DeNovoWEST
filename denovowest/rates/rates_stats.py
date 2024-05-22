@@ -174,7 +174,7 @@ def main(rates, output, fullgenome):
 
     # If using a full genome indexed rates file
     if fullgenome:
-        rates_file = pysam.TabixFile(rates)
+        rates_file = pysam.TabixFile(rates, encoding="utf-8")
 
         # Retrieve rates file header
         cmd = f"zcat {rates} | head -n 1"
