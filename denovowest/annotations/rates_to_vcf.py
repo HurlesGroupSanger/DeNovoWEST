@@ -77,6 +77,7 @@ def rates_to_vcf(rates, fasta, out_vcf):
             chrom = row[0]
             length = row[1]
             f.write(f"##contig=<ID={chrom},length={length}>\n")
+        f.write('##INFO=<ID=GENE,Number=.,Type=String,Description="Gene identifier">\n')
         f.write("#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\n")
 
     # Extract information from rates file and transform it in VCF format
