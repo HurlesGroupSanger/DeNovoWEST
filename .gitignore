@@ -10,3 +10,7 @@ dev/*
 .vscode
 *old*
 .*
+examples/*
+nextflow/nextflow.config.*
+nextflow/outdir/*
+resources/*

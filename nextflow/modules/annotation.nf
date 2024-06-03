@@ -121,3 +121,24 @@ process DBNSFP {
     annotate_dbnsfp.py --gff $gffutils_db $rates_or_dnm $dbnsfp $dbnsfp_columns_to_extract ${type}_dbnsfp.tsv
     """
 }
+
+
+process CUSTOM {
+
+    input :
+    path rates_or_dnm 
+    path custom_file
+    path custom_file_index
+    val columns_to_extract
+    path gffutils_db
+    val type
+
+    output :
+    path "${type}_custom.tsv"
+
+    script:
+    """
+    # Annotate dbnsfp
+    annotate_custom.py $rates_or_dnm $custom_file ${type}_custom.tsv --columns $columns_to_extract
+    """
+}

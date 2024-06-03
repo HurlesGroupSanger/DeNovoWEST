@@ -67,8 +67,7 @@ def list_ceps(stats):
 
     list_ceps = list()
     for gene_id, gene_dict in stats.items():
-        list_ceps = list(gene_dict["missense"].keys())
-        break
+        list_ceps += list(gene_dict["missense"].keys())
 
     list_ceps = list(set(list_ceps) - {"nb_mutations", "nb_missing_prob", "prob"})
 
@@ -115,7 +114,10 @@ def compute_percentage_annotated(consequence_dict, ceps):
         nb_mutations = gene_data["nb_mutations"]
         percentage_annotated[gene_id] = dict()
         for cep in ceps:
-            percentage_annotated[gene_id][cep] = round(gene_data[cep]["nb_missing_score"] * 100 / nb_mutations, 2)
+            if cep in gene_data.keys():
+                percentage_annotated[gene_id][cep] = round(gene_data[cep]["nb_missing_score"] * 100 / nb_mutations, 2)
+            else:
+                percentage_annotated[gene_id][cep] = "."
 
     return pd.DataFrame(percentage_annotated).transpose()
 

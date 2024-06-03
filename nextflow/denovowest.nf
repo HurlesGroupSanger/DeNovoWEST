@@ -26,6 +26,8 @@ include { GNOMAD; GNOMAD as DNM_GNOMAD } from './modules/annotation.nf'
 include { CONSTRAINTS; CONSTRAINTS as DNM_CONSTRAINTS} from './modules/annotation.nf'
 include { SHET; SHET as DNM_SHET } from './modules/annotation.nf'
 include { DBNSFP; DBNSFP as DNM_DBNSFP } from './modules/annotation.nf'
+include { CUSTOM; CUSTOM as DNM_CUSTOM } from './modules/annotation.nf'
+
 
 
 include { GET_EXPECTED_COUNTS } from './modules/weights.nf'
@@ -179,7 +181,11 @@ workflow{
       }
 
       if (params.annotation.containsKey("dbnsfp_file")){
-        rates_annotated_ch = DBNSFP(rates_annotated_ch,  file(params.annotation.dbnsfp_file),  file(params.annotation.dbnsfp_file + ".tbi"), file(params.annotation.dbnsfp_columns),  gffutils_db_ch.first(), "rates")
+        rates_annotated_ch = DBNSFP(rates_annotated_ch,  file(params.annotation.dbnsfp_file),  file(params.annotation.dbnsfp_file + ".tbi"), params.annotation.dbnsfp_columns,  gffutils_db_ch.first(), "rates")
+      }
+
+      if (params.annotation.containsKey("custom_file")){
+        rates_annotated_ch = CUSTOM(rates_annotated_ch,  file(params.annotation.custom_file),  file(params.annotation.custom_file + ".tbi"), params.annotation.custom_columns,  gffutils_db_ch.first(),"rates")
       }
 
       // Merge results
@@ -187,7 +193,6 @@ workflow{
 
       // Create rates stats
       rates_stats_ch = RATES_STATS(rates_annotated_ch)
-      rates_stats_ch.collect().view()
       rates_stats_merged_ch = MERGE_RATES_STATS(rates_stats_ch.collect())
       rates_stats_summary_ch = SUMMARIZE_RATES_STATS(rates_stats_merged_ch)
 
@@ -240,7 +245,11 @@ workflow{
         }
 
         if (params.annotation.containsKey("dbnsfp_file")){
-          dnm_annotated_ch = DNM_DBNSFP(dnm_annotated_ch,  file(params.annotation.dbnsfp_file),  file(params.annotation.dbnsfp_file + ".tbi"), file(params.annotation.dbnsfp_columns),  gffutils_db_ch.first(),"dnm")
+          dnm_annotated_ch = DNM_DBNSFP(dnm_annotated_ch,  file(params.annotation.dbnsfp_file),  file(params.annotation.dbnsfp_file + ".tbi"), params.annotation.dbnsfp_columns,  gffutils_db_ch.first(),"dnm")
+        }
+
+        if (params.annotation.containsKey("custom_file")){
+          dnm_annotated_ch = DNM_CUSTOM(dnm_annotated_ch,  file(params.annotation.custom_file),  file(params.annotation.custom_file + ".tbi"), params.annotation.custom_columns,  gffutils_db_ch.first(),"dnm")
         }
 
         PUBLISH_DNM(dnm_annotated_ch)
