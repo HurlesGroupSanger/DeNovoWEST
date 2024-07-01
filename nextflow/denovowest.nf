@@ -9,12 +9,14 @@ include { CREATE_GENE_LIST_FROM_RATES} from './modules/rates.nf'
 include { SPLIT_GENE_LIST } from './modules/rates.nf'
 include { RATE_CREATION } from './modules/rates.nf'
 include { MERGE_RATES } from './modules/rates.nf'
+include { MERGE_WEIGHTED_RATES } from './modules/rates.nf'
+
 include { SPLIT_RATES } from './modules/rates.nf'
 
 include { FILTER_DNM } from './modules/dnm.nf'
 include { FILTER_DNM_GFF } from './modules/dnm.nf'
 include { PUBLISH_DNM } from './modules/dnm.nf'
-
+include { PUBLISH_WEIGHTED_DNM } from './modules/dnm.nf'
 
 include { BCFTOOLS_CSQ_FULL; BCFTOOLS_CSQ_FULL as DNM_BCFTOOLS_CSQ_FULL} from './modules/annotation.nf'
 include { CADD; CADD as DNM_CADD } from './modules/annotation.nf'
@@ -65,7 +67,10 @@ workflow{
       params.split_step = 100
     }
 
-
+    // Export or not the weights annotated DNM and rates file
+    if (!params.containsKey("export_weighted_dnmrates")) {
+      params.export_weighted_dnmrates = false
+    }
 
     ///////////////////////////////////////
     // TODO : Check config file validity //
@@ -253,8 +258,14 @@ workflow{
     if (params.run_simulation)
     {
       simulation_ch = dnm_annotated_ch.combine(rates_annotated_ch).combine(weights_ch)
-      simulation_ch = SIMULATION(simulation_ch, params.nmales, params.nfemales)
-      MERGE_SIMULATION(simulation_ch.collect())
+      SIMULATION(simulation_ch, params.nmales, params.nfemales, params.export_weighted_dnmrates)
+      MERGE_SIMULATION(SIMULATION.out.results.collect())
+
+      if (params.export_weighted_dnmrates) {
+        MERGE_WEIGHTED_RATES(SIMULATION.out.rates.collect())
+        PUBLISH_WEIGHTED_DNM(SIMULATION.out.dnm.first())
+      }
+
     }
 
 
