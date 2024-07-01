@@ -71,3 +71,19 @@ process PUBLISH_DNM {
   cp ${dnm} dnm_annotated.tsv
   """
 }
+
+process PUBLISH_WEIGHTED_DNM {
+
+	publishDir "${params.outdir}/dnm", mode: 'copy', overwrite: true
+    
+	input :
+  path weighted_dnm
+
+  output :
+  path "dnm_weights.tsv"
+
+  script :
+  """
+  cp $weighted_dnm dnm_weights.tsv
+  """
+}

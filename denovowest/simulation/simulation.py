@@ -310,17 +310,34 @@ def get_indel_rates(generates, indel_weights):
     return generates
 
 
-def export_results(results: list, output: str):
+def export_results(results: list, outdir: str):
     """
     Write enrichment results
 
     Args:
         results (list): list of per-gene enrichment simulation results
-        output (str): output file
+        outdir (str): output directory
     """
 
+    os.makedirs(outdir, exist_ok=True)
+
     df = pd.DataFrame.from_records(results, columns=["symbol", "expected", "observed", "p-value", "info"])
-    df.to_csv(output, sep="\t", index=False)
+    df.to_csv(f"{outdir}/enrichment_results.tsv", sep="\t", index=False)
+
+
+def export_weighted_files(outdir: str, dnm_df: pd.DataFrame, rates_df: pd.DataFrame):
+    """
+    Export the DNM and rates file that have been annotated with the corresponding weights
+
+    Args:
+        outdir (str): output directory
+        dnm_df (pd.DataFrame): DNM table with DNW weights
+        rates_df (pd.DataFrame): Rates table with DNW weights
+
+    """
+
+    dnm_df.to_csv(f"{outdir}/weighted_DNM.tsv", sep="\t", index=False)
+    rates_df.to_csv(f"{outdir}/weighted_rates.tsv", sep="\t", index=False)
 
 
 @click.command()
@@ -329,9 +346,7 @@ def export_results(results: list, output: str):
 @click.argument("column")
 @click.option("--nmales", required=True, type=int, help="Number of males individual in your cohort")
 @click.option("--nfemales", required=True, type=int, help="Number of females individual in your cohort")
-@click.option(
-    "--pvalcap", default=1.0, type=float, help="Stop simulations if cumulative p-value > pvalcap"
-)  # TODO more details
+@click.option("--pvalcap", default=1.0, type=float, help="Stop simulations if cumulative p-value > pvalcap")
 @click.option("--nsim", type=int, help="Minimum number of simulations for each gene", default=10e9)
 @click.option(
     "--runtype",
@@ -340,8 +355,13 @@ def export_results(results: list, output: str):
     default="ns",
     show_default=True,
 )
-@click.option("--output", default="enrichment_results.tsv")
-def main(dnm, rates, column, nmales, nfemales, pvalcap, nsim, runtype, output):
+@click.option("--outdir", default="./")
+@click.option(
+    "--export_weighted_dnmrates",
+    is_flag=True,
+    help="Export the DNM and rates file that have been annotated with the corresponding weights",
+)
+def main(dnm, rates, column, nmales, nfemales, pvalcap, nsim, runtype, outdir, export_weighted_dnmrates):
     """
     DeNovoWEST is a simulation-based method to test for a statistically significant enrichment of damaging de novo mutations (DNMs) in individual genes.
     This method scores all classes of variants (e.g. nonsense, missense, splice site) on a unified severity scale based on the empirically-estimated positive predictive value of being pathogenic,
@@ -356,7 +376,8 @@ def main(dnm, rates, column, nmales, nfemales, pvalcap, nsim, runtype, output):
         pvalcap (float): Stop simulations if cumulative p-value > pvalcap
         nsim (int): Minimum number of simulations for each gene
         runtype (str): Run type is either missense test (mis) or non-synonymous (ns)
-        output (str): Enrichment results
+        outdir (str): Output directory
+        export_weighted_dnmrates (str) : Write the DNM and rates file annotated with weights
     """
     init_log()
     log_configuration(click.get_current_context().params)
@@ -378,10 +399,14 @@ def main(dnm, rates, column, nmales, nfemales, pvalcap, nsim, runtype, output):
     dnm_df, rates_df = assign_weights_dnm_rates(dnm_df, rates_df, column, indel_weights)
 
     # Run simulations
-    results = run_simulations(dnm_df, rates_df, nsim, indel_weights, pvalcap)
+    results = run_simulations(dnm_df, rates_df, indel_weights, nsim, pvalcap)
 
     # Export results
-    export_results(results, output)
+    export_results(results, outdir)
+
+    # Export the weight annotated dnm and rates files
+    if export_weighted_dnmrates:
+        export_weighted_files(outdir, dnm_df, rates_df)
 
 
 if __name__ == "__main__":

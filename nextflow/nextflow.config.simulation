@@ -9,7 +9,7 @@ params {
 
   dnm = "../resources/examples/example.dnms.annotated.tsv"
   rates = "../resources/examples/example.rates.annotated.tsv.gz"
-  weights = "/lustre/scratch123/hgi/mdt1/teams/hurles/ed11/DNW/out_rate_creation/publish_dir/b38_full/2023-10-23/weights/weights.tsv"
+  weights = "/lustre/scratch123/hgi/mdt1/teams/hurles/ed11/DNW/nextflow_runs/publish_dir/b38_full/2023-10-23/weights/weights.tsv"
 
   nmales = 17422
   nfemales = 13636
