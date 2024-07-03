@@ -14,12 +14,14 @@ nextflow_process {
                 weights = "$baseDir/nf_tests/test_data/simulation/b37/ensembl/input/weights_ppv_2020_01_17.tab"
                 nmales = 17422
                 nfemales = 13636
+                export_weighted_dnmrates = false
             }
             process {
                 """
                 input[0] = Channel.fromPath(params.dnm).combine(Channel.fromPath(params.rates)).combine(Channel.fromPath(params.weights))
                 input[1] = params.nmales
                 input[2] = params.nfemales
+                input[3] = params.export_weighted_dnmrates
                 """
             }
         }

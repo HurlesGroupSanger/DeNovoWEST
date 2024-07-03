@@ -2,9 +2,13 @@
     "Should create a gffutils database": {
         "content": [
             [
-                "Homo_sapiens.GRCh37.87.DDX3X_SCN5A.gff3.db:md5,3ae773c9a0570dd03083baad575f77ad"
+                "Homo_sapiens.GRCh37.87.DDX3X_SCN5A.gff3.db:md5,cbc348b9650e9d2093d59272f56d0bf2"
             ]
         ],
-        "timestamp": "2023-07-24T17:34:39+0000"
+        "meta": {
+            "nf-test": "0.8.4",
+            "nextflow": "23.10.1"
+        },
+        "timestamp": "2024-07-03T08:59:18.870059835"
     }
 }
