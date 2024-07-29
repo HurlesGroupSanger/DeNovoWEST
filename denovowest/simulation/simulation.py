@@ -8,14 +8,17 @@ import click
 import pandas as pd
 import logging
 import numpy as np
+import utils
 
 
 from utils import init_log, log_configuration, CONSEQUENCES_MAPPING
 from weights import assign_weights, get_indel_weights
 from probabilities import get_pvalue
 
+RUNTYPE = None
 
-def prepare_dnm(dnmfile: str, column, indel_weights: pd.DataFrame):
+
+def prepare_dnm(dnmfile: str, column):
     """
     Filter DNM file to remove functional consequence not handled.
     Assign a higher level consequence to each DNM.
@@ -26,12 +29,10 @@ def prepare_dnm(dnmfile: str, column, indel_weights: pd.DataFrame):
         weights_df(pd.DataFrame): weights dataframe
     """
 
-    dnm_df = pd.read_csv(dnmfile, sep="\t", dtype={"chrom": str, "pos": int, "score": float})
+    dnm_df = pd.read_csv(dnmfile, sep="\t", dtype={"chrom": str, "pos": int, column: float}, na_values=[".", "NA"])
 
     dnm_df = filter_on_consequences(dnm_df)
     dnm_df = assign_meta_consequences(dnm_df)
-
-    dnm_df = assign_weights(dnm_df, column, indel_weights)
 
     return dnm_df
 
@@ -50,7 +51,12 @@ def filter_on_consequences(df: pd.DataFrame):
     # When bcftools report several consequences separated by the character "&", we extract the first one
     df.consequence = [csq.split("&")[0] if isinstance(csq, str) else csq for csq in list(df.consequence)]
 
-    filt = df.consequence.isin(CONSEQUENCES_MAPPING.keys())
+    # Filter variants depending on run type : non-synonymous or missense test
+    if RUNTYPE == "ns":
+        filt = df.consequence.isin(CONSEQUENCES_MAPPING.keys())
+    else:
+        filt = df.consequence.isin(["missense", "start_lost", "stop_lost"])
+
     kept_df = df.loc[filt]
 
     logger.info(f"Before consequence filtering : {df.shape[0]} records")
@@ -94,13 +100,12 @@ def prepare_rates(ratesfile: str, column, nmales: int, nfemales: int):
         ratesfile (str): path to mutation rates file
     """
 
-    rates_df = pd.read_csv(ratesfile, sep="\t", dtype={"chrom": str, "pos": int, "score": float})
+    rates_df = pd.read_csv(ratesfile, sep="\t", dtype={"chrom": str, "pos": int, column: float}, na_values=[".", "NA"])
 
     rates_df = filter_on_consequences(rates_df)
     rates_df = assign_meta_consequences(rates_df)
 
     rates_df = compute_expected_number_of_mutations(rates_df, nmales, nfemales)
-    rates_df = assign_weights(rates_df, column)
 
     return rates_df
 
@@ -151,8 +156,38 @@ def compute_x_factor_correction(nmales: int, nfemales: int):
     return x_factor
 
 
+def assign_weights_dnm_rates(dnm_df, rates_df, score_column, indel_weights):
+    """
+    Assign weights to variants in the DNM and rates file.
+    The score used for the weights is first min-max transformed
+
+    Args:
+        dnm_df (pd.DataFrame): DNM dataframe
+        rates_df (pd.DataFrame): rates dataframe that contains all possible SNV
+        score_column (str) : the column to use as weights
+        indel_weights (pd.DataFrame) : Hardcoded indel weights depending on gene shet score
+
+    """
+
+    # We retrieve the minimum and maximum scores found across the DNM and rates file
+    min_score = min(
+        rates_df[score_column].min(),
+        dnm_df[score_column].min(),
+    )
+    max_score = max(
+        rates_df[score_column].max(),
+        dnm_df[score_column].max(),
+    )
+
+    # Then we assign the weights
+    rates_df = assign_weights(rates_df, score_column, min_score, max_score, RUNTYPE)
+    dnm_df = assign_weights(dnm_df, score_column, min_score, max_score, RUNTYPE, indel_weights)
+
+    return dnm_df, rates_df
+
+
 def run_simulations(
-    dnm_df: pd.DataFrame, rates_df: pd.DataFrame, nsim: int, indel_weights: pd.DataFrame, pvalcap: float
+    dnm_df: pd.DataFrame, rates_df: pd.DataFrame, indel_weights: pd.DataFrame, nsim: int, pvalcap: float
 ):
     """
     For each gene in the DNM file, run nsim simulations and test whether or not this gene is significantly enriched in predictive DNM.
@@ -204,8 +239,9 @@ def run_simulation(rates_df, dnm_df, gene_id, nsim, indel_weights, pvalcap):
     logger.info(f"Testing {gene_id}")
 
     generates = rates_df.loc[rates_df.gene_id == gene_id]
-    # Add the gene specific inframe and frameshift rates to the rates dataframe
-    generates = get_indel_rates(generates, indel_weights)
+    # Add the gene specific inframe and frameshift rates to the rates dataframe (only in non-synonymous runtype)
+    if RUNTYPE == "ns":
+        generates = get_indel_rates(generates, indel_weights)
 
     # Sum the PPV of all observed DNM in the gene
     obs_sum_ppv = dnm_df[dnm_df.gene_id == gene_id].ppv.sum()
@@ -236,16 +272,17 @@ def get_indel_rates(generates, indel_weights):
     missense_rate = generates[generates.consequence == "missense"].prob.sum()
     nonsense_rate = generates[generates.consequence == "nonsense"].prob.sum()
 
-    # TODO : Where does those factors come from ?
-    # Set them up as parameters or constants
-    inframe_rate = missense_rate * 0.03
-    frameshift_rate = nonsense_rate * 1.3
+    # Infer the inframe and frameshift gene rate based on inframe/missense and frameshift/nonsense ratios observed in several population studies
+    inframe_rate = missense_rate * utils.INFRAME_MISSENSE_RATIO
+    frameshift_rate = nonsense_rate * utils.FRAMESHIFT_NONSENSE_RATIO
 
     # Get the weights associated to frameshift and inframe indels
     shethigh = generates.shethigh.iloc[0]
     try:
         frameshift_weight = float(
-            indel_weights.loc[(indel_weights.consequence == "frameshift") & (indel_weights.shethigh == shethigh)].ppv
+            indel_weights.loc[
+                (indel_weights.consequence == "frameshift") & (indel_weights.shethigh == shethigh)
+            ].ppv.iloc[0]
         )
     except TypeError:
         logger.warning("No frameshift ppv found in weight file")
@@ -253,7 +290,9 @@ def get_indel_rates(generates, indel_weights):
 
     try:
         inframe_weight = float(
-            indel_weights.loc[(indel_weights.consequence == "inframe") & (indel_weights.shethigh == shethigh)].ppv
+            indel_weights.loc[(indel_weights.consequence == "inframe") & (indel_weights.shethigh == shethigh)].ppv.iloc[
+                0
+            ]
         )
     except TypeError:
         logger.warning("No inframe ppv found in weight file")
@@ -262,10 +301,10 @@ def get_indel_rates(generates, indel_weights):
     # Add the weights to the rates dataframe
     indelrates = pd.DataFrame(
         [
-            ["inframe", inframe_rate, inframe_weight, False, shethigh],
-            ["frameshift", frameshift_rate, frameshift_weight, False, shethigh],
+            ["inframe", inframe_rate, inframe_weight],
+            ["frameshift", frameshift_rate, frameshift_weight],
         ],
-        columns=["consequence", "prob", "ppv", "constrained", "shethigh"],
+        columns=["consequence", "prob", "ppv"],
     )
     generates = pd.concat([generates, indelrates])
     return generates
@@ -293,9 +332,16 @@ def export_results(results: list, output: str):
 @click.option(
     "--pvalcap", default=1.0, type=float, help="Stop simulations if cumulative p-value > pvalcap"
 )  # TODO more details
-@click.option("--nsim", default=10, type=int, help="Minimum number of simulations for each gene ")
+@click.option("--nsim", type=int, help="Minimum number of simulations for each gene", default=10e9)
+@click.option(
+    "--runtype",
+    help="Run type is either missense test (mis) or non-synonymous (ns)",
+    type=click.Choice(["ns", "mis"]),
+    default="ns",
+    show_default=True,
+)
 @click.option("--output", default="enrichment_results.tsv")
-def main(dnm, rates, column, nmales, nfemales, pvalcap, nsim, output):
+def main(dnm, rates, column, nmales, nfemales, pvalcap, nsim, runtype, output):
     """
     DeNovoWEST is a simulation-based method to test for a statistically significant enrichment of damaging de novo mutations (DNMs) in individual genes.
     This method scores all classes of variants (e.g. nonsense, missense, splice site) on a unified severity scale based on the empirically-estimated positive predictive value of being pathogenic,
@@ -309,17 +355,27 @@ def main(dnm, rates, column, nmales, nfemales, pvalcap, nsim, output):
         nfemales (int): Number of females individual in your cohort
         pvalcap (float): Stop simulations if cumulative p-value > pvalcap
         nsim (int): Minimum number of simulations for each gene
+        runtype (str): Run type is either missense test (mis) or non-synonymous (ns)
         output (str): Enrichment results
     """
     init_log()
     log_configuration(click.get_current_context().params)
 
-    # Load weights
-    indel_weights = get_indel_weights()
+    global RUNTYPE
+    RUNTYPE = runtype
+    # Retrieve indel weights
+    if runtype == "ns":
+        indel_weights = get_indel_weights()
+    else:
+        # If running the missense test, we do not need any indel weights
+        indel_weights = pd.DataFrame()
 
-    # Assign weights to DNM and rates
-    dnm_df = prepare_dnm(dnm, column, indel_weights)
+    # Prepare DNM and rates file for weight assignation
+    dnm_df = prepare_dnm(dnm, column)
     rates_df = prepare_rates(rates, column, nmales, nfemales)
+
+    # Assign weights to variants
+    dnm_df, rates_df = assign_weights_dnm_rates(dnm_df, rates_df, column, indel_weights)
 
     # Run simulations
     results = run_simulations(dnm_df, rates_df, nsim, indel_weights, pvalcap)

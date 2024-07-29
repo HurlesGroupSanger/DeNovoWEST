@@ -30,6 +30,11 @@ CONSEQUENCES_MAPPING = {
 
 N_MUTATION_MAX_SIM = 250
 
+# These inframe/missense and frameshift/nonsense ratios were observed on several databases
+# such ad EXAC, gnomAD, TOPMED or DDD.
+INFRAME_MISSENSE_RATIO = 0.03
+FRAMESHIFT_NONSENSE_RATIO = 1.3
+
 
 def init_log():
     """Initialize logging configuration"""
