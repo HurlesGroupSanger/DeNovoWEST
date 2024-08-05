@@ -4,6 +4,7 @@ import pandas as pd
 import logging
 import os
 import sys
+import re
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
 from utils import utils
@@ -30,8 +31,8 @@ def filter_dnm(dnm, gene_list, output_kept_dnm, output_discarded_dnm, gff):
         gff (str): path to GFF file
     """
 
-    dnm_df = load_dnm(dnm)
     genes = load_gene_list(gene_list)
+    dnm_df = load_dnm(dnm, genes)
 
     # Filter DNM table on gene list
     dnm_df, dnm_discarded_df = filter_on_gene_list(dnm_df, genes)
@@ -109,16 +110,17 @@ def is_in_cds(gff_db, dnm):
     return False
 
 
-def load_dnm(dnm):
+def load_dnm(dnm, genes):
     """
     Load DNM file
 
     Args:
         dnm (str): path to DNM file
+        genes (list) : list of gene identifiers
     """
 
     dnm_df = pd.read_csv(dnm, sep="\t")
-    dnm_df["gene_id"] = format_gene_id(list(dnm_df["gene_id"]))
+    dnm_df["gene_id"] = format_gene_id(list(dnm_df["gene_id"]), genes)
 
     return dnm_df
 
@@ -134,23 +136,33 @@ def load_gene_list(gene_list):
     with open(gene_list, "r") as f:
         genes = f.readlines()
 
-    genes = format_gene_id(genes)
+    genes = [gene_id.strip() for gene_id in genes]
 
     return genes
 
 
-def format_gene_id(gene_list):
+def format_gene_id(genes_in_dnm, genes_list):
     """
     Get rid of trailing spaces after gene ids
 
     Args:
-        gene_list (list): list of genes in DNM file
+        genes_in_dnm (list): list of genes in DNM file
+        genes_list (list) : list of genes provided by the user or taken from the rates file
     """
-    gene_list = [gene_id.strip() for gene_id in gene_list]
-    # TODO : Handle B37 GFF case where gene ids are prefixed by "gene:"
-    # gene_list = [gene_id.replace("gene:", "") for gene_id in gene_list]
 
-    return gene_list
+    # Strip genes identifiers to remove typo mistakes
+    genes_in_dnm = [gene_id.strip() for gene_id in genes_in_dnm]
+
+    # If the DNM file gene identifiers do not contain version number but the rates file does, we suffix the gene identifier with the version
+    pattern_ensembl_version = r"^ENSG\d{11}\.\d+$"
+    pattern_ensembl_id_only = r"^ENSG\d{11}$"
+    if bool(re.match(pattern_ensembl_id_only, genes_in_dnm[0])) & bool(
+        re.match(pattern_ensembl_version, genes_list[0])
+    ):
+        genes_dict = {x.split(".")[0]: x for x in genes_list}
+        genes_in_dnm = [genes_dict[x] if x in genes_dict.keys() else x for x in genes_in_dnm]
+
+    return genes_in_dnm
 
 
 def log_stats(dnm_kept_df, dnm_discarded_df, output_discarded_dnm):
