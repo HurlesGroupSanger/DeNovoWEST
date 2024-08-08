@@ -167,8 +167,8 @@ def plot_enrichment(df, mode="obs_exp", loess=False, df_loess=pd.DataFrame(), ou
 
     # TODO : right now the inframe, and frameshift categories are added in fit_loess.py, which means that we can generate the plots only after this stage for
     # those categories, this could be done beforehand
-    if not df_loess.empty:
-        plot_enrichment_other(df_loess, mode, outdir)
+    # if not df_loess.empty:
+    #     plot_enrichment_other(df_loess, mode, outdir)
 
 
 def plot_enrichment_missense(df, mode, loess, df_loess, outdir):
