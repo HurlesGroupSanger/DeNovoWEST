@@ -322,7 +322,7 @@ def export_weighted_files(outdir: str, dnm_df: pd.DataFrame, rates_df: pd.DataFr
 @click.option(
     "--pvalcap", default=1.0, type=float, help="Stop simulations if cumulative p-value > pvalcap"
 )  # TODO more details
-@click.option("--nsim", default=10, type=int, help="Minimum number of simulations for each gene ")
+@click.option("--nsim", default=10e9, type=int, help="Minimum number of simulations for each gene ")
 @click.option("--outdir", default="./")
 @click.option(
     "--export_weighted_dnmrates",
