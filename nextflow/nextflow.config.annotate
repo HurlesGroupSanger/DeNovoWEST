@@ -1,6 +1,8 @@
 includeConfig 'conf/lsf.conf'
+
 conda.enabled = true
-workDir = "work"
+workDir = "test/work"
+Date now = new Date()
 
 
 params {

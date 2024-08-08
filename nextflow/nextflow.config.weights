@@ -1,18 +1,19 @@
-includeConfig 'conf/local.conf'
+includeConfig 'conf/lsf.conf'
 
-workDir = "work"
-
+conda.enabled = true
+workDir = "test/work"
+Date now = new Date()
 
 params {
   
 
-  dnm = "/lustre/scratch123/hgi/mdt1/teams/hurles/ed11/DNW/out_rate_creation/publish_dir/b38_full/2023-10-23/dnm/dnm_annotated.tsv"
-  rates = "/lustre/scratch123/hgi/mdt1/teams/hurles/ed11/DNW/out_rate_creation/publish_dir/b38_full/2023-10-23/rates/merged_rates.tsv.gz"
+  dnm = "/lustre/scratch123/hgi/mdt1/teams/hurles/ed11/DNW/nextflow_runs/publish_dir/b38_full/2023-10-23/dnm/dnm_annotated.tsv"
+  rates = "/lustre/scratch123/hgi/mdt1/teams/hurles/ed11/DNW/nextflow_runs/publish_dir/b38_full/2023-10-23/rates/merged_rates.tsv.gz"
 
   nmales = 17422
   nfemales = 13636
 
-  outdir = 'outdir'
+  outdir = 'test/outdir'
 
   // Following parameters are true by default, set to false if you want to skip some steps
   // Here we just want to create the PPV weights
@@ -21,9 +22,18 @@ params {
   run_weights_creation = true
   run_simulation = false
 
-
+  tracedir = 'test/trace'
+  timestamp = now.format("yyyyMMdd-HH-mm-ss")
 
 }
 
 
 
+timeline {
+    enabled = true
+    file = "${params.tracedir}/${params.timestamp}_timeline.html"
+}
+report {
+    enabled = true
+    file = "${params.tracedir}/${params.timestamp}_report.html"
+}
