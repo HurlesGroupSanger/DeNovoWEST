@@ -220,10 +220,11 @@ def run_simulation(rates_df, dnm_df, gene_id, nsim, indel_weights, pvalcap):
     generates = get_indel_rates(generates, indel_weights)
 
     # Sum the PPV of all observed DNM in the gene
+    nb_observed_mutations = dnm_df[dnm_df.gene_id == gene_id].shape[0]
     obs_sum_ppv = dnm_df[dnm_df.gene_id == gene_id].ppv.sum()
 
     # Run nsim simulations
-    pval, info, exp_sum_ppv = get_pvalue(generates, obs_sum_ppv, nsim, pvalcap)
+    pval, info, exp_sum_ppv = get_pvalue(generates, obs_sum_ppv, nsim, pvalcap, nb_observed_mutations)
 
     # Return the gene id, its expected and observed sum of PPV, the p-value from the enrichment simulation test and some informations about the simulation
     return (gene_id, exp_sum_ppv, obs_sum_ppv, pval, info)

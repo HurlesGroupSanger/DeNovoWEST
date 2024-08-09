@@ -28,7 +28,8 @@ CONSEQUENCES_MAPPING = {
     "inframe": "inframe",
 }
 
-N_MUTATION_MAX_SIM = 250
+DEFAULT_MAX_NB_MUTATIONS_SIM = 250
+DEFAULT_MIN_NB_SIM = 10e7
 
 
 def init_log():

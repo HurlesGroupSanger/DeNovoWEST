@@ -1,7 +1,8 @@
 import numpy as np
 from scipy import stats
 
-from utils import N_MUTATION_MAX_SIM
+from utils import DEFAULT_MAX_NB_MUTATIONS_SIM
+from utils import DEFAULT_MIN_NB_SIM
 
 
 def calc_p0(mu, obs_sum_ppv):
@@ -61,7 +62,7 @@ def calc_pn(mu, obs_sum_ppv, rates, nb_mutation_poisson, nsim, weights_sorted):
 
     # Scaling the number of simulations to be performed based on the probability of observing nb_mutation_poisson DNMs
     # TODO : see if there is a room for improvement here too
-    nsim = max([int(round(nsim * pndnm)), 10000000])
+    nsim = max([int(round(nsim * pndnm)), DEFAULT_MIN_NB_SIM])
 
     # If the top nb_mutation_poisson PPVs are not enough to reach the observed sum of PPVs, then there is no possible nb_mutation_poisson combination that
     # will achieve a higher score and the p-value is 0
@@ -117,7 +118,7 @@ def sim_score(mu, obs_sum_ppv, rates, nb_mutation_poisson, nsim):
     return nb_more_extreme_scores
 
 
-def get_pvalue(rates, obs_sum_ppv, nsim, pvalcap):
+def get_pvalue(rates, obs_sum_ppv, nsim, pvalcap, nb_observed_mutations):
     """
     Calculate the p-value from the enrichment simulation test
 
@@ -126,6 +127,7 @@ def get_pvalue(rates, obs_sum_ppv, nsim, pvalcap):
         obs_sum_ppv (float): observed score (i.e.  sum of DNMs PPVs)
         nsim (int): Number of simulations to perform.
         pvalcap (float): P-value threshold to stop simulations.
+        nb_observed_mutations (int) : Number of observed mutations in the current gene
 
     Returns:
         tuple: A tuple containing the p-value, simulation information, and expected score.
@@ -152,24 +154,28 @@ def get_pvalue(rates, obs_sum_ppv, nsim, pvalcap):
 
     ptot = p0 + p1
     nbsim_tot = 0
-    # Simulate for 2 to 250 mutations in the gene
-    # TODO : could we use an adaptative number of simulations based on gene here ?
-    for nb_mutation_poisson in range(2, N_MUTATION_MAX_SIM):
-        # Calculate the probability of seeing a similar or more extreme observed score | nb_mutation_poisson mutations
+    # Simulate for 2 to 250 putative mutations in the gene.
+    # If the gene has a really high number of observed mutations, we increase this threshold to two times the number of observed mutations
+    nb_putative_mutations_sim = max(2 * nb_observed_mutations, DEFAULT_MAX_NB_MUTATIONS_SIM)
+    for nb_mutation_poisson in range(2, nb_putative_mutations_sim):
+
+        # Calculate the probability of seeing a similar or more extreme observed gene score | nb_mutation_poisson mutations
         pi, nb_sim = calc_pn(mu, obs_sum_ppv, rates, nb_mutation_poisson, nsim, weights_sorted)
         ptot = ptot + pi
         nbsim_tot = nbsim_tot + nb_sim
 
         ### Stopping rules ###
 
-        # if probability of seeing as or more extreme is small enough (but not 0 which may mean not enough simulations) and
-        # the number of mutations is larger than the poisson rate then we can stop the simulations
+        # If the probability of observing the current number of putative mutations is too low and
+        # if we already exceeded the poisson rate reflecting the expected number of mutations
+        # then we can stop the simulation as the remaining p-values will be really small
         picdf = 1 - stats.poisson.cdf(nb_mutation_poisson, mu)
         if picdf < 10 ** (-12) and nb_mutation_poisson > mu:
             info = "probability of observing >= " + str(nb_mutation_poisson) + " mutations is too small"
             break
 
-        # If the sum of the lowest nb_mutation_poisson PPVs is above the observed sum of PPVs, then there is no possible nb_mutation_poisson combination that
+        # If the sum of the lowest nb_mutation_poisson PPVs is above the observed sum of PPVs,
+        # then there is no possible nb_mutation_poisson combination that
         # will achieve a lower score, and this holds if we increase the number of mutations.
         # TODO : Never seen
         if np.sum(weights_sorted[0:nb_mutation_poisson]) > obs_sum_ppv:
@@ -178,7 +184,7 @@ def get_pvalue(rates, obs_sum_ppv, nsim, pvalcap):
             break
 
         # if p value is over threshold then stop going further
-        # TODO : Never seen
+        # TODO : Never seen as pvalcap is defaulted to 1.
         if ptot > pvalcap:
             info = "pvalue > " + str(pvalcap) + ", stop simulations"
             break
