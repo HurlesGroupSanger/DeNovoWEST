@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>{{ gene_identifier }}</title>
+	<!-- Include DataTables CSS -->
+	<link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/1.11.5/css/jquery.dataTables.css">
+	<style>
+		body {
+			font-family: Arial, sans-serif;
+			margin: 0;
+			padding: 0;
+			display: flex;
+			justify-content: center;
+			align-items: flex-start;
+			min-height: 100vh;
+			background-color: #f0f0f0;
+		}
+
+		.content-container {
+			width: 100%;
+			max-width: 1500px;
+			background-color: #fff;
+			box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+			padding: 20px;
+			margin: 20px 0;
+		}
+
+		.summary-container {
+			padding: 20px;
+			background-color: #e0f7fa;
+			border-bottom: 2px solid #00838f;
+			margin-bottom: 20px;
+		}
+
+		.summary-container h2 {
+			font-size: 24px;
+			color: #00796b;
+			margin-bottom: 10px;
+		}
+
+		.summary-container h3 {
+			font-size: 18px;
+			color: #004d40;
+			margin-bottom: 10px;
+		}
+
+		.summary-container p {
+			font-size: 16px;
+			line-height: 1.6;
+			color: #004d40;
+		}
+
+		.summary-container span {
+			font-weight: bold;
+			color: #000;
+		}
+
+		.comparison-container {
+			display: flex;
+			justify-content: space-between;
+			overflow-y: auto;
+		}
+
+		.gene-section {
+			padding: 10px;
+			border-right: 1px solid #ddd;
+			width: 50%;
+
+		}
+
+		.gene-section:last-child {
+			border-right: none;
+		}
+
+		h2 {
+			text-align: center;
+			font-size: 24px;
+			color: #333;
+		}
+
+		.gene-details {
+			margin-top: 20px;
+			line-height: 1.6;
+		}
+
+		.gene-details h3 {
+			font-size: 18px;
+			color: #555;
+			margin-bottom: 10px;
+		}
+
+		.gene-details p {
+			margin-bottom: 10px;
+		}
+
+		.gene-details span {
+			font-weight: bold;
+			color: #000;
+		}
+
+		.transcript-table {
+			width: 100%;
+			margin-top: 20px;
+		}
+
+		.transcript-table-container {
+			width: 95%;
+			overflow-x: auto;
+			margin-top: 20px;
+			border: 1px solid #ddd;
+			padding: 10px;
+			background-color: #f9f9f9;
+		}
+
+		.horizontal-split {
+			display: flex;
+			justify-content: space-between;
+			margin-top: 20px;
+		}
+
+		.horizontal-split .column {
+			width: 48%;
+			padding: 10px;
+			background-color: #b2ebf2;
+			border: 1px solid #00838f;
+			box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+		}
+	</style>
+</head>
+
+<body>
+
+	<div class="content-container">
+		<!-- Summary Section -->
+		<div class="summary-container">
+			<h2>{{ gene_identifier }} ({{ gene_symbol }})</h2>
+			<h3>Gene features</h3>
+			<div>
+				<p><span>Shethigh:</span> {{ gene_shethigh }}</p>
+				<p><span>Constrained:</span> {{ gene_constrained }}</p>
+			</div>
+			<h3>Ratios</h3>
+			<div class="horizontal-split">
+				<div class="column">
+					<h4>Observed</h4>
+					<p><span>Gene:</span> {{ ratio_gene_observed }}</p>
+					<p><span>Q1:</span> {{ ratio_q1_observed }}</p>
+					<p><span>Q2:</span> {{ ratio_q2_observed }}</p>
+					<p><span>Q3:</span> {{ ratio_q3_observed }}</p>
+
+				</div>
+				<div class="column">
+					<h4>Expected</h4>
+					<p><span>Gene:</span> {{ ratio_gene_expected }}</p>
+					<p><span>Q1:</span> {{ ratio_q1_expected }}</p>
+					<p><span>Q2:</span> {{ ratio_q2_expected }}</p>
+					<p><span>Q3:</span> {{ ratio_q3_expected }}</p>
+				</div>
+			</div>
+
+		</div>
+
+		<div class="comparison-container">
+			<!-- Left Side: Gene 1 -->
+			<div class="gene-section">
+				<h2>Run 1</h2>
+				<div class="gene-details">
+					<h3>Enrichment results</h3>
+					<p><span>P-value:</span> {{ p_value_run1 }}.</p>
+					<p><span>Observed:</span> {{ observed_run1 }}.</p>
+					<p><span>Expected:</span> {{ expected_run1 }}.</p>
+
+					<h3>Expected DNM</h3>
+					<div class="transcript-table-container">
+						{{ table_expected_dnm_run1 }}
+					</div>
+
+					<h3>Observed DNM</h3>
+					<div class="transcript-table-container">
+						{{ table_observed_dnm_run1 }}
+					</div>
+
+				</div>
+			</div>
+
+			<!-- Right Side: Gene 2 -->
+			<div class="gene-section">
+				<h2>Run 2</h2>
+				<div class="gene-details">
+					<h3>Enrichment results</h3>
+					<p><span>P-value:</span> {{ p_value_run2 }}.</p>
+					<p><span>Observed:</span> {{ observed_run2 }}.</p>
+					<p><span>Expected:</span> {{ expected_run2 }}.</p>
+
+					<h3>Expected DNM</h3>
+					<div class="transcript-table-container">
+						{{ table_expected_dnm_run2 }}
+					</div>
+
+					<h3>Observed DNM</h3>
+					<div class="transcript-table-container">
+						{{ table_observed_dnm_run2 }}
+					</div>
+
+				</div>
+			</div>
+		</div>
+	</div>
+
+	<!-- Include jQuery -->
+	<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+	<!-- Include DataTables JS -->
+	<script type="text/javascript" charset="utf8"
+		src="https://cdn.datatables.net/1.11.5/js/jquery.dataTables.js"></script>
+
+	<script type="text/javascript" charset="utf8"
+		src="https://cdn.datatables.net/fixedcolumns/4.0.1/js/dataTables.fixedColumns.min.js"></script>
+
+
+	<script>
+		$(document).ready(function () {
+			// Initialize DataTables for both tables
+			$('#run1-observed_dnm').DataTable({
+				"fixedColumns": {
+					"start": 1,
+					"end": 1
+				},
+				"paging": false,
+				"searching": false,
+				"info": false
+			});
+			$('#run2-observed_dnm').DataTable({
+				"fixedColumns": {
+					"start": 1,
+					"end": 1
+				},
+				"paging": false,
+				"searching": false,
+				"info": false
+			});
+			$('#run1-expected_dnm').DataTable({
+				"fixedColumns": {
+					"start": 1,
+					"end": 1
+				},
+				"paging": false,
+				"searching": false,
+				"info": false
+			});
+			$('#run2-expected_dnm').DataTable({
+				"fixedColumns": {
+					"start": 1,
+					"end": 1
+				},
+				"paging": false,
+				"searching": false,
+				"info": false
+			});
+		});
+	</script>
+
+</body>
+
+</html>
