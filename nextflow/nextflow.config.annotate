@@ -1,6 +1,10 @@
 includeConfig 'conf/lsf.conf'
 
 conda.enabled = true
+// If using singularity, uncomment the following lines and set conda.enabled to false
+//process.container = '../../denovowest_2.sif'
+//singularity.enabled = true
+
 workDir = "test/work"
 Date now = new Date()
 
