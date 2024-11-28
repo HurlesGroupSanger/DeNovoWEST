@@ -70,7 +70,7 @@ def list_ceps(stats):
         list_ceps = list(gene_dict["missense"].keys())
         break
 
-    list_ceps = list(set(list_ceps) - {"nb_mutations", "nb_missing_prob", "prob"})
+    list_ceps = list(set(list_ceps) - {"nb_mutations", "nb_missing_prob", "prob", "chrom"})
 
     return list_ceps
 

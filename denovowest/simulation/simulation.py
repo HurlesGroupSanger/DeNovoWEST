@@ -262,7 +262,7 @@ def get_indel_rates(generates, indel_weights):
         )
     except TypeError:
         logger.warning("No frameshift ppv found in weight file")
-        frameshift_weight = np.NaN
+        frameshift_weight = np.nan
 
     try:
         inframe_weight = float(
@@ -270,7 +270,7 @@ def get_indel_rates(generates, indel_weights):
         )
     except TypeError:
         logger.warning("No inframe ppv found in weight file")
-        inframe_weight = np.NaN
+        inframe_weight = np.nan
 
     # Add the weights to the rates dataframe
     indelrates = pd.DataFrame(
@@ -323,7 +323,7 @@ def export_weighted_files(outdir: str, dnm_df: pd.DataFrame, rates_df: pd.DataFr
 @click.option(
     "--pvalcap", default=1.0, type=float, help="Stop simulations if cumulative p-value > pvalcap"
 )  # TODO more details
-@click.option("--nsim", default=10e9, type=int, help="Minimum number of simulations for each gene ")
+@click.option("--nsim", default=10e7, type=int, help="Minimum number of simulations for each gene ")
 @click.option("--outdir", default="./")
 @click.option(
     "--export_weighted_dnmrates",

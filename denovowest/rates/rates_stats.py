@@ -85,7 +85,7 @@ def handle_nas(rates_df):
     """
 
     # TODO : Better handle this, the rates file should probably has missing values rather than "."
-    rates_df.replace({".": np.NaN, "": np.NaN}, inplace=True)
+    rates_df.replace({".": np.nan, "": np.nan}, inplace=True)
     for column in rates_df.columns:
         if column in ["pos", "prob"]:
             continue
