@@ -8,6 +8,7 @@ workDir = "test/work"
 Date now = new Date()
 
 
+
 params {
   
   gff = "../resources/examples/example.gff"
@@ -31,6 +32,24 @@ params {
     shet="../resources/new_shet"
   }
 
+  tracedir = 'test/trace'
+  timestamp = now.format("yyyyMMdd-HH-mm-ss")
+
+  // One can use module to access bcftools and tabix/bgzip
+  //useModules = true 
+  //bcftoolsModule = 'HGI/softpack/groups/hgi/bcftools1.20/1'
+  //tabixModule = 'badger/samtools/1.20'
+
+
+}
+
+timeline {
+    enabled = true
+    file = "${params.tracedir}/${params.timestamp}_timeline.html"
+}
+report {
+    enabled = true
+    file = "${params.tracedir}/${params.timestamp}_report.html"
 }
 
 
