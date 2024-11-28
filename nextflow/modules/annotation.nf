@@ -1,5 +1,9 @@
 process BCFTOOLS_CSQ_FULL {
 
+    beforeScript = params.useModules
+        ? "module load $params.bcftoolsModule"
+        : ""
+
     input :
     path rates_or_dnm 
     path fasta

@@ -119,6 +119,10 @@ process RATE_CREATION {
  */
 process MERGE_RATES {
 
+  beforeScript = params.useModules
+    ? "module load $params.tabixModule"
+    : ""
+
   publishDir "${params.outdir}/rates/", mode: 'copy', overwrite: true
 
   input : 
@@ -150,6 +154,10 @@ process MERGE_RATES {
 process MERGE_WEIGHTED_RATES {
 
   publishDir "${params.outdir}/rates/", mode: 'copy', overwrite: true
+
+  beforeScript = params.useModules
+    ? "module load $params.tabixModule"
+    : ""
 
   input : 
   path rates, stageAs : "mutation_rates_*.tsv"
