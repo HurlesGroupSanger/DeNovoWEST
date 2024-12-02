@@ -286,7 +286,7 @@ def get_indel_rates(generates, indel_weights):
         )
     except TypeError:
         logger.warning("No frameshift ppv found in weight file")
-        frameshift_weight = np.NaN
+        frameshift_weight = np.nan
 
     try:
         inframe_weight = float(
@@ -296,7 +296,7 @@ def get_indel_rates(generates, indel_weights):
         )
     except TypeError:
         logger.warning("No inframe ppv found in weight file")
-        inframe_weight = np.NaN
+        inframe_weight = np.nan
 
     # Add the weights to the rates dataframe
     indelrates = pd.DataFrame(

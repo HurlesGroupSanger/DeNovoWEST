@@ -336,8 +336,8 @@ def get_obs_exp_ratio_frameshift(obs_exp_table, frameshift_categories):
                     [
                         {
                             "consequence": "frameshift",
-                            "score": np.NaN,
-                            "constrained": np.NaN,
+                            "score": np.nan,
+                            "constrained": np.nan,
                             "shethigh": min_obs_exp_table["shethigh"].iloc[0],
                             "obs_exp": max_obs_exp,
                         }
@@ -366,8 +366,8 @@ def get_obs_exp_ratio_inframe(obs_exp_table, inframe_categories):
                     [
                         {
                             "consequence": "inframe",
-                            "score": np.NaN,
-                            "constrained": np.NaN,
+                            "score": np.nan,
+                            "constrained": np.nan,
                             "shethigh": min_obs_exp_table["shethigh"].iloc[0],
                             "obs_exp": max_obs_exp,
                         }
