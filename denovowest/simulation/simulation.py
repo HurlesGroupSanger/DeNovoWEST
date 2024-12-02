@@ -347,7 +347,7 @@ def export_weighted_files(outdir: str, dnm_df: pd.DataFrame, rates_df: pd.DataFr
 @click.option("--nmales", required=True, type=int, help="Number of males individual in your cohort")
 @click.option("--nfemales", required=True, type=int, help="Number of females individual in your cohort")
 @click.option("--pvalcap", default=1.0, type=float, help="Stop simulations if cumulative p-value > pvalcap")
-@click.option("--nsim", type=int, help="Minimum number of simulations for each gene", default=10e9)
+@click.option("--nsim", type=int, help="Minimum number of simulations for each gene", default=10e7)
 @click.option(
     "--runtype",
     help="Run type is either missense test (mis) or non-synonymous (ns)",

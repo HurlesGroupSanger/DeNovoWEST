@@ -109,7 +109,7 @@ def sim_score(mu, obs_sum_ppv, rates, nb_mutation_poisson, nsim):
 
     # If the number of simulations is not a multiple of split_sim, do the remaining simulations
     if nsim % split_sim:
-        scores += np.sum(
+        scores = np.sum(
             np.random.choice(rates["ppv"], (nb_mutation_poisson, nsim % split_sim), p=rates["prob"] / mu), axis=0
         )
         nb_more_extreme_scores += np.sum(scores >= obs_sum_ppv)
