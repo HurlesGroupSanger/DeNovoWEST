@@ -29,12 +29,13 @@ def assign_weights(df, column, min_score, max_score, runtype, indel_weights=pd.D
 
     if runtype == "ns":
         # Some splice_lof variants are not scored by most CEPs, we assign them a weight based on previous runs in a similar fashion as for indels
-        weighted_df = fix_splice_lof(df, column)
+        weighted_df = fix_splice_lof(df)
 
         # We do not assign any indel weights for variants in the rates file as there are no indels in it
         if not indel_weights.empty:
             weighted_df = assign_indel_weights(weighted_df, indel_weights)
-        return weighted_df
+
+    return weighted_df
 
 
 def min_max_transformation(df, column, min_score, max_score):
@@ -56,27 +57,26 @@ def min_max_transformation(df, column, min_score, max_score):
     return df
 
 
-def fix_splice_lof(df, column):
+def fix_splice_lof(df):
     """
     Add a score to splice_lof variants missing one
 
     Args:
         df (pd.DataFrame): DNM or rates dataframe
-        column (str): Column containing the CEP score to use
 
     Returns:
         pd.DataFrame: DNM or rates with imputed missing splice_lof scores
 
     """
 
-    SHET_HIGH_SPLICELOF_WEIGHT = 0.779862
-    SHET_LOW_SPLICELOF_WEIGHT = 0.309483
+    SHET_HIGH_SPLICELOF_WEIGHT = 0.787
+    SHET_LOW_SPLICELOF_WEIGHT = 0.763
 
-    df.loc[(df["shethigh"] is True) & (df.consequence == "splice_lof"), column] = df.loc[
-        (df["shethigh"] is True) & (df.consequence == "splice_lof"), column
+    df.loc[(df["shethigh"] == True) & (df.consequence == "splice_lof"), "ppv"] = df.loc[
+        (df["shethigh"] == True) & (df.consequence == "splice_lof"), "ppv"
     ].fillna(SHET_HIGH_SPLICELOF_WEIGHT)
-    df.loc[(df["shethigh"] is False) & (df.consequence == "splice_lof"), column] = df.loc[
-        (df["shethigh"] is False) & (df.consequence == "splice_lof"), column
+    df.loc[(df["shethigh"] == False) & (df.consequence == "splice_lof"), "ppv"] = df.loc[
+        (df["shethigh"] == False) & (df.consequence == "splice_lof"), "ppv"
     ].fillna(SHET_LOW_SPLICELOF_WEIGHT)
 
     return df
@@ -108,13 +108,12 @@ def get_indel_weights():
 
     """
 
-    # Here I picked weights obtained with my b38 BayesDel run
     indel_weights = pd.DataFrame(
         [
-            ["inframe", False, 0.159436],
-            ["inframe", True, 0.506993],
-            ["frameshift", False, 0.530357],
-            ["frameshift", True, 0.907829],
+            ["inframe", False, 0.558],
+            ["inframe", True, 0.600],
+            ["frameshift", False, 1],
+            ["frameshift", True, 0.96],
         ],
         columns=["consequence", "shethigh", "ppv"],
     )
