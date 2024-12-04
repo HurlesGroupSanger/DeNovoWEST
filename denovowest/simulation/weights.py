@@ -1,41 +1,48 @@
-"""
-@queenjobo @ksamocha
-
-16/08/2019
-
-Functions to assign weights to different variant classes
-
-"""
-
 import pandas as pd
-import logging as lg
 import numpy as np
-import itertools
-from scipy import stats
-import sys
+import utils
 
 
-def assign_weights(df, column, min_score, max_score, runtype, indel_weights=pd.DataFrame()):
+def assign_weights(
+    dnm_df,
+    rates_df,
+    score_column,
+):
     """
-    Assign weights to each variant in the DNM or rates dataframe
+    Assign weights to variants in the DNM and rates file.
+    The score used for the weights is first min-max transformed (accounts for CEP with negative scores)
 
     Args:
-        df (pd.DataFrame): DNM or rates dataframe
-        weights_df (pd.DataFrame): weights dataframe
+        dnm_df (pd.DataFrame): DNM dataframe
+        rates_df (pd.DataFrame): rates dataframe that contains all possible SNV
+        score_column (str) : the column to use as weights
     """
 
-    # Map the scores between 0 and 1
-    weighted_df = min_max_transformation(df, column, min_score, max_score)
+    # We retrieve the minimum and maximum scores found across the DNM and rates file
+    min_score = min(
+        rates_df[score_column].min(),
+        dnm_df[score_column].min(),
+    )
+    max_score = max(
+        rates_df[score_column].max(),
+        dnm_df[score_column].max(),
+    )
 
-    if runtype == "ns":
-        # Some splice_lof variants are not scored by most CEPs, we assign them a weight based on previous runs in a similar fashion as for indels
-        weighted_df = fix_splice_lof(df)
+    # Apply min-max transform
+    rates_df = min_max_transformation(rates_df, score_column, min_score, max_score)
+    dnm_df = min_max_transformation(dnm_df, score_column, min_score, max_score)
 
-        # We do not assign any indel weights for variants in the rates file as there are no indels in it
-        if not indel_weights.empty:
-            weighted_df = assign_indel_weights(weighted_df, indel_weights)
+    # Infer indel weights and rates
+    indel_rates_df = infer_indel_weights_and_rates(rates_df)
+    dnm_df = assign_dnm_indel_weights(dnm_df, indel_rates_df)
 
-    return weighted_df
+    # Impute weights for variants with missing scores
+    dnm_df, rates_df = impute_missing_weights(dnm_df, rates_df)
+
+    # Consolidate the rates df by adding the indel rates
+    rates_df = pd.concat([rates_df, indel_rates_df])
+
+    return dnm_df, rates_df
 
 
 def min_max_transformation(df, column, min_score, max_score):
@@ -57,65 +64,125 @@ def min_max_transformation(df, column, min_score, max_score):
     return df
 
 
-def fix_splice_lof(df):
+def infer_indel_weights_and_rates(rates_df):
     """
-    Add a score to splice_lof variants missing one
+    Infer expected inframe and frameshift weights and mutation rates per gene based
+    on the missense and nonsense mutations respectively.
 
     Args:
-        df (pd.DataFrame): DNM or rates dataframe
+        rates_df (pd.DataFrame): rates datafrane
 
     Returns:
-        pd.DataFrame: DNM or rates with imputed missing splice_lof scores
-
+        pd.DataFrame: per-gene inframe and frameshift mutation rates and associated weight
     """
 
-    SHET_HIGH_SPLICELOF_WEIGHT = 0.787
-    SHET_LOW_SPLICELOF_WEIGHT = 0.763
+    indel_rates_list = list()
+    for gene_id, gene_df in rates_df.groupby("gene_id"):
 
-    df.loc[(df["shethigh"] == True) & (df.consequence == "splice_lof"), "ppv"] = df.loc[
-        (df["shethigh"] == True) & (df.consequence == "splice_lof"), "ppv"
-    ].fillna(SHET_HIGH_SPLICELOF_WEIGHT)
-    df.loc[(df["shethigh"] == False) & (df.consequence == "splice_lof"), "ppv"] = df.loc[
-        (df["shethigh"] == False) & (df.consequence == "splice_lof"), "ppv"
-    ].fillna(SHET_LOW_SPLICELOF_WEIGHT)
+        # Get the inframe mutation rate based on the cumulative missense mutation rates, and assign a weight from gene-based median missense weight
+        gene_inframe_rate = gene_df.loc[gene_df.consequence == "missense", "prob"].sum() * utils.INFRAME_MISSENSE_RATIO
+        gene_inframe_weights = gene_df.loc[gene_df.consequence == "missense", "ppv"].median()
 
-    return df
+        # Get the frameshift mutation rate based on the cumulative nonsense mutation rates, and assign a weight from gene-based median nonsense weight
+        gene_frameshift_rate = (
+            gene_df.loc[gene_df.consequence == "nonsense", "prob"].sum() * utils.FRAMESHIFT_NONSENSE_RATIO
+        )
+        gene_frameshift_weights = gene_df.loc[gene_df.consequence == "nonsense", "ppv"].median()
+
+        inframe_row = {
+            "gene_id": gene_id,
+            "consequence": "inframe",
+            "prob": gene_inframe_rate,
+            "ppv": gene_inframe_weights,
+        }
+
+        frameshift_row = {
+            "gene_id": gene_id,
+            "consequence": "frameshift",
+            "prob": gene_frameshift_rate,
+            "ppv": gene_frameshift_weights,
+        }
+
+        indel_rates_list.append(inframe_row)
+        indel_rates_list.append(frameshift_row)
+
+    indel_rates_df = pd.DataFrame(indel_rates_list)
+
+    return indel_rates_df
 
 
-def assign_indel_weights(df, indel_weights):
+def assign_dnm_indel_weights(dnm_df, indel_rates_df):
     """
-    Assigns weights to indels in a DataFrame based on the provided indel_weights.
+    Assign gene-based indel weights taken from the rates file to observed inframe
+    and franeshift variants
 
     Args:
-        df (pandas.DataFrame): The DataFrame containing indel data.
-        indel_weights (pandas.DataFrame): The DataFrame containing indel weights.
+        dnm_df (pd.DataFrame): observed DNM
+        rates_df (pd.DataFrame): expected mutations
 
     Returns:
-        pandas.DataFrame: The DataFrame with assigned indel weights.
+        pd.DataFrame: observed DNM with weights associated to indels
     """
 
-    min_df = df.loc[df.consequence.isin(["frameshift", "inframe"])]
-    df2 = min_df.drop("ppv", axis=1).merge(indel_weights, on=["consequence", "shethigh"])
-    df2.index = min_df.index
-    df.update(df2)
+    list_weights = list()
+    for _, dnm in dnm_df.iterrows():
 
-    return df
+        # If the DNM is not an indel we keep the current weight
+        if not (dnm.consequence in ["inframe", "frameshift"]):
+            list_weights.append(dnm.ppv)
+        # Otherwise we take the corresponding gene-based indel weight from the indel rates dataframe
+        else:
+            list_weights.append(
+                indel_rates_df.loc[
+                    (indel_rates_df.gene_id == dnm.gene_id) & (indel_rates_df.consequence == dnm.consequence), "ppv"
+                ].iloc[0]
+            )
+
+    dnm_df["ppv"] = list_weights
+    return dnm_df
 
 
-def get_indel_weights():
+def impute_missing_weights(dnm_df, rates_df):
     """
-    Returns a dataframe containing only indel weights
+    Some CEPs do not assign a score to each variant.
+    Here we impute the missing weights looking at the median weight for each type
+    of consequence per gene.
 
+    Args:
+        dnm_df (pd.DataFrame): observed DNM
+        rates_df (pd.DataFrame): expected mutations
+
+    Returns:
+        tuple(pd.DataFrame, pd.DataFrame): DNM and rates dataframes with imputed missing weights
     """
 
-    indel_weights = pd.DataFrame(
-        [
-            ["inframe", False, 0.558],
-            ["inframe", True, 0.600],
-            ["frameshift", False, 1],
-            ["frameshift", True, 0.96],
-        ],
-        columns=["consequence", "shethigh", "ppv"],
-    )
+    # Get the median values per gene and per consequence type
+    median_values_dict = dict()
+    for gene_id, generates_df in rates_df.groupby("gene_id"):
+        median_values_dict[gene_id] = dict()
+        for consequence, generates_cq_df in generates_df.groupby("consequence"):
+            median_value = generates_cq_df["ppv"].median()
+            median_values_dict[gene_id][consequence] = median_value
 
-    return indel_weights
+    # Impute missing weights on rates dataframe
+    imputed_rates_weights = list()
+    for _, variant in rates_df.iterrows():
+        if np.isnan(variant.ppv):
+            imputed_rates_weights.append(median_values_dict[variant.gene_id][variant.consequence])
+        else:
+            imputed_rates_weights.append(variant.ppv)
+    rates_df["ppv_before_imputation"] = rates_df["ppv"]
+    rates_df["ppv"] = imputed_rates_weights
+
+    # Impute missing weights on DNM dataframe
+    imputed_dnm_weights = list()
+    for _, variant in dnm_df.iterrows():
+        if np.isnan(variant.ppv):
+            imputed_dnm_weights.append(median_values_dict[variant.gene_id][variant.consequence])
+        else:
+            imputed_dnm_weights.append(variant.ppv)
+
+    dnm_df["ppv_before_imputation"] = dnm_df["ppv"]
+    dnm_df["ppv"] = imputed_dnm_weights
+
+    return dnm_df, rates_df

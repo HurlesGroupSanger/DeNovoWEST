@@ -12,24 +12,47 @@ import utils
 
 
 from utils import init_log, log_configuration, CONSEQUENCES_MAPPING
-from weights import assign_weights, get_indel_weights
+from weights import assign_weights
 from probabilities import get_pvalue
 
 RUNTYPE = None
 
 
-def prepare_dnm(dnmfile: str, column):
+def load_dnm_rates(dnm, rates, column):
+    """
+    Load DNM and rates files and limit the analysis to genes shared by both files.
+    When parallelising DNW on HPC, the rates file is split per gene.
+
+    Args:
+        dnm (str): path to observed DNM
+        rates (str): path to rates file
+        column (str): column that stores scores to use as weights
+    """
+
+    logger = logging.getLogger("logger")
+
+    dnm_df = pd.read_csv(dnm, sep="\t", dtype={"chrom": str, "pos": int, column: float}, na_values=[".", "NA"])
+    rates_df = pd.read_csv(rates, sep="\t", dtype={"chrom": str, "pos": int, column: float}, na_values=[".", "NA"])
+
+    shared_genes = set(dnm_df.gene_id.unique()) & set(rates_df.gene_id.unique())
+    logger.info(
+        f"{len(shared_genes)}/{dnm_df.gene_id.nunique()} genes with at least one observed DNM are found in the rates file"
+    )
+
+    dnm_df = dnm_df.loc[dnm_df.gene_id.isin(shared_genes)]
+    rates_df = rates_df.loc[rates_df.gene_id.isin(shared_genes)]
+
+    return dnm_df, rates_df
+
+
+def prepare_dnm(dnm_df: pd.DataFrame):
     """
     Filter DNM file to remove functional consequence not handled.
     Assign a higher level consequence to each DNM.
-    Assign weights to each DNM.
 
     Args:
         dnmfile (str): DNM file
-        weights_df(pd.DataFrame): weights dataframe
     """
-
-    dnm_df = pd.read_csv(dnmfile, sep="\t", dtype={"chrom": str, "pos": int, column: float}, na_values=[".", "NA"])
 
     dnm_df = filter_on_consequences(dnm_df)
     dnm_df = assign_meta_consequences(dnm_df)
@@ -63,7 +86,6 @@ def filter_on_consequences(df: pd.DataFrame):
 
     discarded_df = df.loc[~filt]
     if not discarded_df.empty:
-        count_discarded = discarded_df["consequence"].value_counts()
         logger.warning(f"{discarded_df.shape[0]}/{df.shape[0]} records were discarded")
     else:
         logger.info("All records have an acceptable consequence.")
@@ -83,7 +105,7 @@ def assign_meta_consequences(df: pd.DataFrame):
 
     logger = logging.getLogger("logger")
 
-    df.consequence = df.consequence.replace(CONSEQUENCES_MAPPING)
+    df.loc[:, "consequence"] = df.consequence.replace(CONSEQUENCES_MAPPING)
 
     consequence_counts = dict(df.consequence.value_counts())
     for consequence, count in consequence_counts.items():
@@ -92,15 +114,13 @@ def assign_meta_consequences(df: pd.DataFrame):
     return df
 
 
-def prepare_rates(ratesfile: str, column, nmales: int, nfemales: int):
+def prepare_rates(rates_df: pd.DataFrame, nmales: int, nfemales: int):
     """
     Load mutation rates file.
 
     Args:
         ratesfile (str): path to mutation rates file
     """
-
-    rates_df = pd.read_csv(ratesfile, sep="\t", dtype={"chrom": str, "pos": int, column: float}, na_values=[".", "NA"])
 
     rates_df = filter_on_consequences(rates_df)
     rates_df = assign_meta_consequences(rates_df)
@@ -122,11 +142,13 @@ def compute_expected_number_of_mutations(rates_df: pd.DataFrame, nmales: int, nf
 
     # Compute the expected number of mutations as the product of the mutation rate and the number of individuals
     autosomal_factor = 2 * (nmales + nfemales)
-    rates_df.prob = rates_df.prob * autosomal_factor
+    rates_df.loc[:, "prob"] = rates_df.prob * autosomal_factor
 
     # Apply an extra correction for the X chromosome
     x_factor_correction = compute_x_factor_correction(nmales, nfemales)
-    rates_df.prob = np.where(rates_df.chrom.isin(["X", "chrX"]), x_factor_correction * rates_df.prob, rates_df.prob)
+    rates_df.loc[:, "prob"] = np.where(
+        rates_df.chrom.isin(["X", "chrX"]), x_factor_correction * rates_df.prob, rates_df.prob
+    )
 
     return rates_df
 
@@ -186,9 +208,7 @@ def assign_weights_dnm_rates(dnm_df, rates_df, score_column, indel_weights):
     return dnm_df, rates_df
 
 
-def run_simulations(
-    dnm_df: pd.DataFrame, rates_df: pd.DataFrame, indel_weights: pd.DataFrame, nsim: int, pvalcap: float
-):
+def run_simulations(dnm_df: pd.DataFrame, rates_df: pd.DataFrame, nsim: int, pvalcap: float):
     """
     For each gene in the DNM file, run nsim simulations and test whether or not this gene is significantly enriched in predictive DNM.
 
@@ -196,7 +216,6 @@ def run_simulations(
         dnm_df (pd.DataFrame): DNM dataframe
         rates_df (pd.DataFrame): rates dataframe that contains all possible SNV
         nsim (int): number of simulations to run
-        indel_weights (pd.DataFrame): indel weights
         pvalcap (float): stop simulations if cumulative p-value > pvalcap
     """
 
@@ -206,7 +225,7 @@ def run_simulations(
     results = []
     cpt = 0
     for gene in genes:
-        simulation_results = run_simulation(rates_df, dnm_df, gene, nsim, indel_weights, pvalcap)
+        simulation_results = run_simulation(rates_df, dnm_df, gene, nsim, pvalcap)
         if simulation_results:
             results.append(simulation_results)
 
@@ -217,7 +236,7 @@ def run_simulations(
     return results
 
 
-def run_simulation(rates_df, dnm_df, gene_id, nsim, indel_weights, pvalcap):
+def run_simulation(rates_df, dnm_df, gene_id, nsim, pvalcap):
     """
     Run nsim simulations and test whether or not gene gene_id is significantly enriched in predictive DNM
 
@@ -226,7 +245,6 @@ def run_simulation(rates_df, dnm_df, gene_id, nsim, indel_weights, pvalcap):
         dnm_df (pd.DataFrame): DNM dataframe that contains all observed DNM for the given gene
         gene_id (str) : gene identifier
         nsim (int): number of simulations to run
-        indel_weights (pd.DataFrame): indels weights
         pvalcap (float): stop simulations if cumulative p-value > pvalcap
     """
 
@@ -238,10 +256,8 @@ def run_simulation(rates_df, dnm_df, gene_id, nsim, indel_weights, pvalcap):
 
     logger.info(f"Testing {gene_id}")
 
+    # Subset rates file to current gene
     generates = rates_df.loc[rates_df.gene_id == gene_id]
-    # Add the gene specific inframe and frameshift rates to the rates dataframe (only in non-synonymous runtype)
-    if RUNTYPE == "ns":
-        generates = get_indel_rates(generates, indel_weights)
 
     # Sum the PPV of all observed DNM in the gene
     obs_sum_ppv = dnm_df[dnm_df.gene_id == gene_id].ppv.sum()
@@ -251,63 +267,6 @@ def run_simulation(rates_df, dnm_df, gene_id, nsim, indel_weights, pvalcap):
 
     # Return the gene id, its expected and observed sum of PPV, the p-value from the enrichment simulation test and some informations about the simulation
     return (gene_id, exp_sum_ppv, obs_sum_ppv, pval, info)
-
-
-def get_indel_rates(generates, indel_weights):
-    """
-    Infer the gene specific indel rates from the rate of missense and nonsense mutations.
-    Rates file contain only SNP rates, so we need to infer the indel rates from the SNP rates.
-
-    Args:
-        generates (pd.DataFrame): rates for the current gene
-        indel_weights (pd.DataFrame): indel weights
-
-    Returns:
-        pd.DataFrame: rates for the current gene updated with indel rates
-    """
-
-    logger = logging.getLogger("logger")
-
-    # Get the overall probability of missense and nonsense mutation across the gene
-    missense_rate = generates[generates.consequence == "missense"].prob.sum()
-    nonsense_rate = generates[generates.consequence == "nonsense"].prob.sum()
-
-    # Infer the inframe and frameshift gene rate based on inframe/missense and frameshift/nonsense ratios observed in several population studies
-    inframe_rate = missense_rate * utils.INFRAME_MISSENSE_RATIO
-    frameshift_rate = nonsense_rate * utils.FRAMESHIFT_NONSENSE_RATIO
-
-    # Get the weights associated to frameshift and inframe indels
-    shethigh = generates.shethigh.iloc[0]
-    try:
-        frameshift_weight = float(
-            indel_weights.loc[
-                (indel_weights.consequence == "frameshift") & (indel_weights.shethigh == shethigh)
-            ].ppv.iloc[0]
-        )
-    except TypeError:
-        logger.warning("No frameshift ppv found in weight file")
-        frameshift_weight = np.nan
-
-    try:
-        inframe_weight = float(
-            indel_weights.loc[(indel_weights.consequence == "inframe") & (indel_weights.shethigh == shethigh)].ppv.iloc[
-                0
-            ]
-        )
-    except TypeError:
-        logger.warning("No inframe ppv found in weight file")
-        inframe_weight = np.nan
-
-    # Add the weights to the rates dataframe
-    indelrates = pd.DataFrame(
-        [
-            ["inframe", inframe_rate, inframe_weight],
-            ["frameshift", frameshift_rate, frameshift_weight],
-        ],
-        columns=["consequence", "prob", "ppv"],
-    )
-    generates = pd.concat([generates, indelrates])
-    return generates
 
 
 def export_results(results: list, outdir: str):
@@ -384,22 +343,19 @@ def main(dnm, rates, column, nmales, nfemales, pvalcap, nsim, runtype, outdir, e
 
     global RUNTYPE
     RUNTYPE = runtype
-    # Retrieve indel weights
-    if runtype == "ns":
-        indel_weights = get_indel_weights()
-    else:
-        # If running the missense test, we do not need any indel weights
-        indel_weights = pd.DataFrame()
+
+    # Load DNM and rates files
+    dnm_df, rates_df = load_dnm_rates(dnm, rates, column)
 
     # Prepare DNM and rates file for weight assignation
-    dnm_df = prepare_dnm(dnm, column)
-    rates_df = prepare_rates(rates, column, nmales, nfemales)
+    dnm_df = prepare_dnm(dnm_df)
+    rates_df = prepare_rates(rates_df, nmales, nfemales)
 
     # Assign weights to variants
-    dnm_df, rates_df = assign_weights_dnm_rates(dnm_df, rates_df, column, indel_weights)
+    dnm_df, rates_df = assign_weights(dnm_df, rates_df, column)
 
     # Run simulations
-    results = run_simulations(dnm_df, rates_df, indel_weights, nsim, pvalcap)
+    results = run_simulations(dnm_df, rates_df, nsim, pvalcap)
 
     # Export results
     export_results(results, outdir)

@@ -98,8 +98,6 @@ def sim_score(mu, obs_sum_ppv, rates, nb_mutation_poisson, nsim):
         nsim (int) : number of simulations to perform
     """
 
-    # randomly select mutations and corresponding weights based on mutation rate probability and sum across genes nsim times
-
     # Split the simulations into chunks of split_sim to avoid memory issues such as the ones observed on GEL
     split_sim = 10000
     nb_more_extreme_scores = 0
