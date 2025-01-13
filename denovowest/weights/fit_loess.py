@@ -237,7 +237,10 @@ def get_CADD_midpoint(cadd_range, consequence):
         if consequence == "missense":
             midpoint = cadd_lb + 3
         if consequence == "nonsense":
-            midpoint = cadd_lb + 3.75
+            if cadd_lb == 0:
+                midpoint = 15
+            else:
+                midpoint = cadd_lb + 3.75
 
     return midpoint
 
@@ -314,9 +317,8 @@ def get_obs_exp_ratio_per_score(obs_exp_table, loess_prediction, new_cadd_scores
         res_df[res_df.obs_exp == min_predicted].score.min(),
         res_df[res_df.obs_exp == max_predicted].score.max(),
     )
-    res_df["obs_exp"] = np.select(
-        [res_df.score < min_score, res_df.score > max_score], [min_predicted, max_predicted], default=res_df.obs_exp
-    )
+    res_df["obs_exp"] = np.select([res_df.score < min_score], [min_predicted], default=res_df.obs_exp)
+    res_df["obs_exp"] = np.select([res_df.score > max_score], [max_predicted], default=res_df.obs_exp)
 
     return res_df
 
