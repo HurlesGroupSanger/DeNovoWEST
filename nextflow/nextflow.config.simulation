@@ -1,15 +1,23 @@
 includeConfig 'conf/local.conf'
 
-workDir = "work"
+conda.enabled = true
+
+// If using singularity, uncomment the following lines and set conda.enabled to false
+//process.container = '../../denovowest_3.sif'
+//singularity.enabled = true
+
+
+workDir = "test/work"
+Date now = new Date()
 
 
 
 params {
   
 
-  dnm = "../resources/examples/example.dnms.annotated.tsv"
-  rates = "../resources/examples/example.rates.annotated.tsv.gz"
-  weights = "/lustre/scratch123/hgi/mdt1/teams/hurles/ed11/DNW/nextflow_runs/publish_dir/b38_full/2023-10-23/weights/weights.tsv"
+  dnm = "../examples/simulation/CADD/input/OR4F5.dnms.annotated.tsv"
+  rates = "../examples/simulation/CADD/input/OR4F5.rates.annotated.tsv.gz"
+  score = "score"
 
   nmales = 17422
   nfemales = 13636
@@ -20,10 +28,17 @@ params {
   // Here we just want to create the rates file and annotate both the rates and DNM files
   annotate_dnm = false
   annotate_rates = false
-  run_weights_creation = false
   run_simulation = true
 
 
+  tracedir = 'test/trace'
+  timestamp = now.format("yyyyMMdd-HH-mm-ss")
+
+  // If bcftools and tabix are not in your PATH but can be accessed via modules
+  // add the module names here (not needed when using containers)
+  useModules = true 
+  bcftoolsModule = 'HGI/softpack/groups/hgi/bcftools1.20/1'
+  tabixModule = 'badger/samtools/1.20'
 
 }
 

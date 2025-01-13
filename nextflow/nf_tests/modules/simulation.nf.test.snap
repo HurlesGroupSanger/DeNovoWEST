@@ -1,12 +1,31 @@
 {
-    "sim_b37_v1_ddx3x": {
+    "simulation_OR4F5": {
         "content": [
             {
                 "0": [
-                    "enrichment_results.tsv:md5,2e594c455642cf94a75710e9f2f90a51"
+                    "enrichment_results.tsv:md5,dd866cc1ad7a7831bd03b7453bb01767"
+                ],
+                "1": [
+                    
+                ],
+                "2": [
+                    
+                ],
+                "dnm": [
+                    
+                ],
+                "rates": [
+                    
+                ],
+                "results": [
+                    "enrichment_results.tsv:md5,dd866cc1ad7a7831bd03b7453bb01767"
                 ]
             }
         ],
-        "timestamp": "2023-07-24T17:37:42+0000"
+        "meta": {
+            "nf-test": "0.8.4",
+            "nextflow": "23.10.1"
+        },
+        "timestamp": "2025-01-13T19:03:12.518765097"
     }
 }

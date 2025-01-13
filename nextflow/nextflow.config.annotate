@@ -1,7 +1,9 @@
-includeConfig 'conf/lsf.conf'
+includeConfig 'conf/local.conf'
+
 conda.enabled = true
+
 // If using singularity, uncomment the following lines and set conda.enabled to false
-//process.container = '../../denovowest_2.sif'
+//process.container = '../../denovowest_3.sif'
 //singularity.enabled = true
 
 workDir = "test/work"
@@ -11,10 +13,10 @@ Date now = new Date()
 
 params {
   
-  gff = "../resources/examples/example.gff"
-  genome_fasta = "../resources/examples/example.grch38.fa"
+  gff = "../examples/annotation/CADD/input/OR4F5.gff"
+  genome_fasta = "../examples/annotation/CADD/input/OR4F5.fa"
   mutation_rate_model = "../resources/rates_model_dnn.tsv"
-  dnm = "../resources/examples/example.dnms.tsv"
+  dnm = "../examples/annotation/CADD/input/OR4F5.dnms.tsv"
 
   outdir = 'outdir'
 
@@ -22,23 +24,20 @@ params {
   // Here we just want to create the rates file and annotate both the rates and DNM files
   // annotate_dnm = true
   // annotate_rates = true
-  run_weights_creation = false
   run_simulation = false
 
   annotation {
-    cadd_file="../resources/examples/example.cadd.tsv.gz"
-    gene_full_constraints="../resources/genes_full_constraint_b38_27022023.tsv"
-	  gene_region_constraints="../resources/genes_regional_data_b38_13022023.tsv"
-    shet="../resources/new_shet"
+    cadd_file="../examples/annotation/CADD/input/OR4F5.cadd.tsv.gz"
   }
 
   tracedir = 'test/trace'
   timestamp = now.format("yyyyMMdd-HH-mm-ss")
 
-  // One can use module to access bcftools and tabix/bgzip
-  //useModules = true 
-  //bcftoolsModule = 'HGI/softpack/groups/hgi/bcftools1.20/1'
-  //tabixModule = 'badger/samtools/1.20'
+  // If bcftools and tabix are not in your PATH but can be accessed via modules
+  // add the module names here (not needed when using containers)
+  useModules = true 
+  bcftoolsModule = 'HGI/softpack/groups/hgi/bcftools1.20/1'
+  tabixModule = 'badger/samtools/1.20'
 
 
 }

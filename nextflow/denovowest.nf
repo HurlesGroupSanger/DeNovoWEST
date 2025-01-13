@@ -10,12 +10,10 @@ include { SPLIT_GENE_LIST } from './modules/rates.nf'
 include { RATE_CREATION } from './modules/rates.nf'
 include { MERGE_RATES } from './modules/rates.nf'
 include { MERGE_WEIGHTED_RATES } from './modules/rates.nf'
-
 include { SPLIT_RATES } from './modules/rates.nf'
 include { RATES_STATS } from './modules/rates.nf'
 include { MERGE_RATES_STATS } from './modules/rates.nf'
 include { SUMMARIZE_RATES_STATS } from './modules/rates.nf'
-
 
 include { FILTER_DNM } from './modules/dnm.nf'
 include { FILTER_DNM_GFF } from './modules/dnm.nf'
@@ -29,14 +27,6 @@ include { CONSTRAINTS; CONSTRAINTS as DNM_CONSTRAINTS} from './modules/annotatio
 include { SHET; SHET as DNM_SHET } from './modules/annotation.nf'
 include { DBNSFP; DBNSFP as DNM_DBNSFP } from './modules/annotation.nf'
 include { CUSTOM; CUSTOM as DNM_CUSTOM } from './modules/annotation.nf'
-
-
-
-include { GET_EXPECTED_COUNTS } from './modules/weights.nf'
-include { MERGE_EXPECTED } from './modules/weights.nf'
-include { GET_OBSERVED_COUNTS } from './modules/weights.nf'
-include { MERGE_COUNTS } from './modules/weights.nf'
-include { LOESS } from './modules/weights.nf'
 
 include { SIMULATION } from './modules/simulation.nf'
 include { MERGE_SIMULATION } from './modules/simulation.nf'
@@ -54,7 +44,6 @@ workflow{
       params.create_rates = true
     }
 
-
     if (!params.containsKey("annotate_rates")) {
       params.annotate_rates = true
     }
@@ -62,19 +51,17 @@ workflow{
     if (!params.containsKey("annotate_dnm")) {
       params.annotate_dnm = true
     }
+
     if (params.annotate_dnm || params.annotate_rates) {
 
       if (!params.annotation.containsKey("annotate_bcftoolscsq")) {
         params.annotation.annotate_bcftoolscsq = true
       }
     }
+
     if (!params.containsKey("run_simulation")) {
       params.run_simulation = true
     }
-    if (!params.containsKey("run_weights_creation")) {
-      params.run_weights_creation = true
-    }
-
 
     // Defines the number of genes to process in one batch
     if (!params.containsKey("split_step")) {
@@ -264,27 +251,6 @@ workflow{
       {
         dnm_annotated_ch = dnm_ch
       }
-    }
-
-    ////////////////////// 
-    // WEIGHTS CREATION //
-    //////////////////////
-
-
-    if (params.containsKey("weights"))
-    {
-      weights_ch = Channel.fromPath(params.weights)
-    }
-    else if (params.run_weights_creation)
-    {
-      expected_ch = GET_EXPECTED_COUNTS(rates_annotated_ch, params.nmales, params.nfemales)
-      expected_merged_ch = MERGE_EXPECTED(expected_ch.collect())
-
-      observed_ch = GET_OBSERVED_COUNTS(dnm_annotated_ch)
-
-      merged_counts_ch = MERGE_COUNTS(expected_merged_ch, observed_ch).merged_counts_ch
-
-      weights_ch = LOESS(merged_counts_ch).weights_ch
     }
 
     //////////////// 

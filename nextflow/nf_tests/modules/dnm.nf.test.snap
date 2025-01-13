@@ -3,13 +3,17 @@
         "content": [
             {
                 "0": [
-                    "dnm_kept.tsv:md5,7ee1dee1e02aa492d9832491868d0343"
+                    "dnm_kept.tsv:md5,aa09d3b0cbbcdbc148887caa6222ce9b"
                 ],
                 "1": [
-                    "dnm_discarded.tsv:md5,4c8ebc1ca40942b1454d401d88301e0d"
+                    "dnm_discarded.tsv:md5,cb3264d7c6216a8c2333f403b47c9952"
                 ]
             }
         ],
-        "timestamp": "2023-10-23T21:47:45+0000"
+        "meta": {
+            "nf-test": "0.8.4",
+            "nextflow": "23.10.1"
+        },
+        "timestamp": "2025-01-13T19:05:48.11717393"
     }
 }
