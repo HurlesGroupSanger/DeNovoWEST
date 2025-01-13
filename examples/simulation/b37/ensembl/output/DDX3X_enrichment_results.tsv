@@ -1,2 +1,0 @@
-symbol	expected	observed	p-value	info
-DDX3X	0.7924579321474083	117.4203986733316	1e-14	150000000|p value was 0, set at 10^-14
