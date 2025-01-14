@@ -1,8 +1,0 @@
-gene_id	chrom	pos	ref	alt	region_type	consequence	raw	score	constrained	shethigh
-ENSG00000186092.7	chr1	65518	A	T	splice	splice_acceptor	0.684197	8.309	False	False
-ENSG00000186092.7	chr1	65549	G	T	UTR	5_prime_utr	-0.202006	0.506	False	False
-ENSG00000186092.7	chr1	65565	A	T	start	start_lost	1.842172	18.04	False	False
-ENSG00000186092.7	chr1	65569	A	T	exon	missense	1.847991	18.09	True	False
-ENSG00000186092.7	chr1	65585	C	A	intron	intron	0.714785	8.59	False	False
-ENSG00000186092.7	chr1	65585	C	A	intron	intron	0.714785	8.59	False	False
-ENSG00000186092.7	chr1	69402	G	A	exon	synonymous	0.486906	6.367	False	False
