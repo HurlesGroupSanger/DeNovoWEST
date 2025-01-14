@@ -271,6 +271,40 @@ workflow{
     }
 
 
+}
+
+import java.time.LocalDateTime
+import java.time.format.DateTimeFormatter
+
+workflow.onComplete {
+
+    def outDir = params.outdir
+    def configOutDir = "${outDir}/configs"
+
+    def timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm"))
+    
+    // Create the directory if it doesn't exist
+    new File(configOutDir).mkdirs()
 
 
-} 
+    workflow.configFiles.each{configFile ->
+        try {
+            def sourceFile = configFile.toString()
+            def filename = sourceFile.split('/').last()
+            def targetFile = "${configOutDir}/${filename}.${timestamp}"
+              
+            def command = ["cp", sourceFile, targetFile]
+            def process = command.execute()
+            process.waitFor()
+
+            if (process.exitValue() != 0) {
+                println "Failed to copy ${sourceFile}: ${process.err.text}"
+            } else {
+                println "Saved config file in ${targetFile}"
+            }
+        } catch (Exception e) {
+            println "Error processing ${configFile}: ${e.message}"
+        }
+    }
+
+}
