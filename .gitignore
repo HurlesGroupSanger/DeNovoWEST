@@ -14,3 +14,4 @@ examples/*
 nextflow/nextflow.config.*
 nextflow/outdir/*
 resources/*
+nextflow/test/*

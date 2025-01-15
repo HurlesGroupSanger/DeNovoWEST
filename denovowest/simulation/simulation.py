@@ -12,7 +12,7 @@ import utils
 
 
 from utils import init_log, log_configuration, CONSEQUENCES_MAPPING
-from weights import assign_weights
+from scores import prepare_scores
 from probabilities import get_pvalue
 
 RUNTYPE = None
@@ -26,7 +26,7 @@ def load_dnm_rates(dnm, rates, column):
     Args:
         dnm (str): path to observed DNM
         rates (str): path to rates file
-        column (str): column that stores scores to use as weights
+        column (str): column that stores variant scores
     """
 
     logger = logging.getLogger("logger")
@@ -41,6 +41,30 @@ def load_dnm_rates(dnm, rates, column):
 
     dnm_df = dnm_df.loc[dnm_df.gene_id.isin(shared_genes)]
     rates_df = rates_df.loc[rates_df.gene_id.isin(shared_genes)]
+
+    return dnm_df, rates_df
+
+
+def prepare_dnm_rates(
+    dnm_df: pd.DataFrame, rates_df: pd.DataFrame, column: str, nmales: int, nfemales: int, impute_missing: bool
+):
+    """
+    Prepare DNM and rates file for the simulation
+
+    Args:
+        dnm_df (pd.DataFrame): DNM dataframe
+        rates_df (pd.DataFrame): mutation rates dataframe
+        column (str): column that stores variant scores
+        nmales (int): number of males in the cohort
+        nfemales (int): number of females in the cohort
+        impute_missing (bool): whether to impute the variant with missing scores or not
+    """
+    # Filter on variant consequence and calculate cohort based expected mutation rates
+    dnm_df = prepare_dnm(dnm_df)
+    rates_df = prepare_rates(rates_df, nmales, nfemales)
+
+    # Prepare scores (indel scores, imputation missing scores...)
+    dnm_df, rates_df = prepare_scores(dnm_df, rates_df, column, RUNTYPE, impute_missing)
 
     return dnm_df, rates_df
 
@@ -178,37 +202,7 @@ def compute_x_factor_correction(nmales: int, nfemales: int):
     return x_factor
 
 
-def assign_weights_dnm_rates(dnm_df, rates_df, score_column, indel_weights):
-    """
-    Assign weights to variants in the DNM and rates file.
-    The score used for the weights is first min-max transformed
-
-    Args:
-        dnm_df (pd.DataFrame): DNM dataframe
-        rates_df (pd.DataFrame): rates dataframe that contains all possible SNV
-        score_column (str) : the column to use as weights
-        indel_weights (pd.DataFrame) : Hardcoded indel weights depending on gene shet score
-
-    """
-
-    # We retrieve the minimum and maximum scores found across the DNM and rates file
-    min_score = min(
-        rates_df[score_column].min(),
-        dnm_df[score_column].min(),
-    )
-    max_score = max(
-        rates_df[score_column].max(),
-        dnm_df[score_column].max(),
-    )
-
-    # Then we assign the weights
-    rates_df = assign_weights(rates_df, score_column, min_score, max_score, RUNTYPE)
-    dnm_df = assign_weights(dnm_df, score_column, min_score, max_score, RUNTYPE, indel_weights)
-
-    return dnm_df, rates_df
-
-
-def run_simulations(dnm_df: pd.DataFrame, rates_df: pd.DataFrame, nsim: int, pvalcap: float):
+def run_simulations(dnm_df: pd.DataFrame, rates_df: pd.DataFrame, nsim: int, pvalcap: float, score_column: str):
     """
     For each gene in the DNM file, run nsim simulations and test whether or not this gene is significantly enriched in predictive DNM.
 
@@ -217,6 +211,7 @@ def run_simulations(dnm_df: pd.DataFrame, rates_df: pd.DataFrame, nsim: int, pva
         rates_df (pd.DataFrame): rates dataframe that contains all possible SNV
         nsim (int): number of simulations to run
         pvalcap (float): stop simulations if cumulative p-value > pvalcap
+        score_column (str) : CEP scores
     """
 
     logger = logging.getLogger("logger")
@@ -225,7 +220,7 @@ def run_simulations(dnm_df: pd.DataFrame, rates_df: pd.DataFrame, nsim: int, pva
     results = []
     cpt = 0
     for gene in genes:
-        simulation_results = run_simulation(rates_df, dnm_df, gene, nsim, pvalcap)
+        simulation_results = run_simulation(rates_df, dnm_df, gene, nsim, pvalcap, score_column)
         if simulation_results:
             results.append(simulation_results)
 
@@ -236,7 +231,7 @@ def run_simulations(dnm_df: pd.DataFrame, rates_df: pd.DataFrame, nsim: int, pva
     return results
 
 
-def run_simulation(rates_df, dnm_df, gene_id, nsim, pvalcap):
+def run_simulation(rates_df, dnm_df, gene_id, nsim, pvalcap, score_column):
     """
     Run nsim simulations and test whether or not gene gene_id is significantly enriched in predictive DNM
 
@@ -246,6 +241,7 @@ def run_simulation(rates_df, dnm_df, gene_id, nsim, pvalcap):
         gene_id (str) : gene identifier
         nsim (int): number of simulations to run
         pvalcap (float): stop simulations if cumulative p-value > pvalcap
+        score_column (str) : CEP scores
     """
 
     logger = logging.getLogger("logger")
@@ -259,15 +255,17 @@ def run_simulation(rates_df, dnm_df, gene_id, nsim, pvalcap):
     # Subset rates file to current gene
     generates = rates_df.loc[rates_df.gene_id == gene_id]
 
-    # Sum the PPV of all observed DNM in the gene
+    # Sum the scores of all observed DNM in the gene
     nb_observed_mutations = dnm_df[dnm_df.gene_id == gene_id].shape[0]
-    obs_sum_ppv = dnm_df[dnm_df.gene_id == gene_id].ppv.sum()
+    obs_sum_scores = dnm_df[dnm_df.gene_id == gene_id][score_column].sum()
 
     # Run nsim simulations
-    pval, info, exp_sum_ppv = get_pvalue(generates, obs_sum_ppv, nsim, pvalcap, nb_observed_mutations)
+    pval, info, exp_sum_scores = get_pvalue(
+        generates, obs_sum_scores, nsim, pvalcap, nb_observed_mutations, score_column
+    )
 
-    # Return the gene id, its expected and observed sum of PPV, the p-value from the enrichment simulation test and some informations about the simulation
-    return (gene_id, exp_sum_ppv, obs_sum_ppv, pval, info)
+    # Return the gene id, its expected and observed sum of scores, the p-value from the enrichment simulation test and some informations about the simulation
+    return (gene_id, exp_sum_scores, obs_sum_scores, pval, info)
 
 
 def export_results(results: list, outdir: str):
@@ -285,28 +283,13 @@ def export_results(results: list, outdir: str):
     df.to_csv(f"{outdir}/enrichment_results.tsv", sep="\t", index=False)
 
 
-def export_weighted_files(outdir: str, dnm_df: pd.DataFrame, rates_df: pd.DataFrame):
-    """
-    Export the DNM and rates file that have been annotated with the corresponding weights
-
-    Args:
-        outdir (str): output directory
-        dnm_df (pd.DataFrame): DNM table with DNW weights
-        rates_df (pd.DataFrame): Rates table with DNW weights
-
-    """
-
-    dnm_df.to_csv(f"{outdir}/weighted_DNM.tsv", sep="\t", index=False)
-    rates_df.to_csv(f"{outdir}/weighted_rates.tsv", sep="\t", index=False)
-
-
 @click.command()
 @click.argument("dnm")
 @click.argument("rates")
 @click.argument("column")
 @click.option("--nmales", required=True, type=int, help="Number of males individual in your cohort")
 @click.option("--nfemales", required=True, type=int, help="Number of females individual in your cohort")
-@click.option("--pvalcap", default=1.0, type=float, help="Stop simulations if cumulative p-value > pvalcap")
+@click.option("--pvalcap", default=1, type=float, help="Stop simulations if cumulative p-value > pvalcap")
 @click.option("--nsim", type=int, help="Minimum number of simulations for each gene", default=10e7)
 @click.option(
     "--runtype",
@@ -317,15 +300,15 @@ def export_weighted_files(outdir: str, dnm_df: pd.DataFrame, rates_df: pd.DataFr
 )
 @click.option("--outdir", default="./")
 @click.option(
-    "--export_weighted_dnmrates",
+    "--impute-missing-scores",
     is_flag=True,
-    help="Export the DNM and rates file that have been annotated with the corresponding weights",
+    help="Impute missing scores by taking the median score for similar variants (i.e. same consequence) in the gene",
 )
-def main(dnm, rates, column, nmales, nfemales, pvalcap, nsim, runtype, outdir, export_weighted_dnmrates):
+def main(dnm, rates, column, nmales, nfemales, pvalcap, nsim, runtype, outdir, impute_missing_scores):
     """
-    DeNovoWEST is a simulation-based method to test for a statistically significant enrichment of damaging de novo mutations (DNMs) in individual genes.
-    This method scores all classes of variants (e.g. nonsense, missense, splice site) on a unified severity scale based on the empirically-estimated positive predictive value of being pathogenic,
-    and incorporates a gene-based weighting derived from the deficit of protein truncating variants in the general population.
+    DeNovoWEST is a simulation-based method that tests for DNM enrichment in each gene separately.
+    It uses computational effect predictors (CEP) scores to reflect the pathogenicity probability for each variant.
+
 
     Args:
         dnm (str): DNM file
@@ -337,7 +320,7 @@ def main(dnm, rates, column, nmales, nfemales, pvalcap, nsim, runtype, outdir, e
         nsim (int): Minimum number of simulations for each gene
         runtype (str): Run type is either missense test (mis) or non-synonymous (ns)
         outdir (str): Output directory
-        export_weighted_dnmrates (str) : Write the DNM and rates file annotated with weights
+        impute_missing_scores (bool) : Impute missing scores by taking the median score for similar variants (i.e. same consequence) in the gene
     """
     init_log()
     log_configuration(click.get_current_context().params)
@@ -348,22 +331,14 @@ def main(dnm, rates, column, nmales, nfemales, pvalcap, nsim, runtype, outdir, e
     # Load DNM and rates files
     dnm_df, rates_df = load_dnm_rates(dnm, rates, column)
 
-    # Prepare DNM and rates file for weight assignation
-    dnm_df = prepare_dnm(dnm_df)
-    rates_df = prepare_rates(rates_df, nmales, nfemales)
-
-    # Assign weights to variants
-    dnm_df, rates_df = assign_weights(dnm_df, rates_df, column)
+    # Prepare DNM and rates file for simulation
+    dnm_df, rates_df = prepare_dnm_rates(dnm_df, rates_df, column, nmales, nfemales, impute_missing_scores)
 
     # Run simulations
-    results = run_simulations(dnm_df, rates_df, nsim, pvalcap)
+    results = run_simulations(dnm_df, rates_df, nsim, pvalcap, column)
 
     # Export results
     export_results(results, outdir)
-
-    # Export the weight annotated dnm and rates files
-    if export_weighted_dnmrates:
-        export_weighted_files(outdir, dnm_df, rates_df)
 
 
 if __name__ == "__main__":
