@@ -9,7 +9,6 @@ include { CREATE_GENE_LIST_FROM_RATES} from './modules/rates.nf'
 include { SPLIT_GENE_LIST } from './modules/rates.nf'
 include { RATE_CREATION } from './modules/rates.nf'
 include { MERGE_RATES } from './modules/rates.nf'
-include { MERGE_WEIGHTED_RATES } from './modules/rates.nf'
 include { SPLIT_RATES } from './modules/rates.nf'
 include { RATES_STATS } from './modules/rates.nf'
 include { MERGE_RATES_STATS } from './modules/rates.nf'
@@ -18,7 +17,6 @@ include { SUMMARIZE_RATES_STATS } from './modules/rates.nf'
 include { FILTER_DNM } from './modules/dnm.nf'
 include { FILTER_DNM_GFF } from './modules/dnm.nf'
 include { PUBLISH_DNM } from './modules/dnm.nf'
-include { PUBLISH_WEIGHTED_DNM } from './modules/dnm.nf'
 
 include { BCFTOOLS_CSQ_FULL; BCFTOOLS_CSQ_FULL as DNM_BCFTOOLS_CSQ_FULL} from './modules/annotation.nf'
 include { CADD; CADD as DNM_CADD } from './modules/annotation.nf'
@@ -28,8 +26,8 @@ include { SHET; SHET as DNM_SHET } from './modules/annotation.nf'
 include { DBNSFP; DBNSFP as DNM_DBNSFP } from './modules/annotation.nf'
 include { CUSTOM; CUSTOM as DNM_CUSTOM } from './modules/annotation.nf'
 
-include { SIMULATION } from './modules/simulation.nf'
-include { MERGE_SIMULATION } from './modules/simulation.nf'
+include { SIMULATION; SIMULATION as SIMULATION_NS; SIMULATION as SIMULATION_MIS } from './modules/simulation.nf'
+include { MERGE_SIMULATION; MERGE_SIMULATION as MERGE_SIMULATION_NS; MERGE_SIMULATION as MERGE_SIMULATION_MIS } from './modules/simulation.nf'
 
 
 
@@ -61,6 +59,7 @@ workflow{
 
     if (!params.containsKey("run_simulation")) {
       params.run_simulation = true
+      
     }
 
     // Defines the number of genes to process in one batch
@@ -72,6 +71,15 @@ workflow{
     if (!params.containsKey("export_weighted_dnmrates")) {
       params.export_weighted_dnmrates = false
     }
+
+
+    // By default we run the non-synonymous test
+    if (params.run_simulation) {
+      if (!params.containsKey("runtype")) {
+        params.runtype = "ns"
+      }
+    }
+
 
     ///////////////////////////////////////
     // TODO : Check config file validity //
@@ -260,13 +268,24 @@ workflow{
     if (params.run_simulation)
     {
       simulation_ch = dnm_annotated_ch.combine(rates_annotated_ch)
-      SIMULATION(simulation_ch, params.score, params.nmales, params.nfemales, params.export_weighted_dnmrates)
-      MERGE_SIMULATION(SIMULATION.out.results.collect())
 
-      if (params.export_weighted_dnmrates) {
-        MERGE_WEIGHTED_RATES(SIMULATION.out.rates.collect())
-        PUBLISH_WEIGHTED_DNM(SIMULATION.out.dnm.first())
+      if(params.runtype == "both") {
+
+        SIMULATION_NS(simulation_ch, params.score, params.nmales, params.nfemales, "ns")
+        MERGE_SIMULATION_NS(SIMULATION_NS.out.results.collect(), "ns")
+
+        SIMULATION_MIS(simulation_ch, params.score, params.nmales, params.nfemales, "mis")
+        MERGE_SIMULATION_MIS(SIMULATION_MIS.out.results.collect(), "mis")
+
       }
+      else {
+
+        SIMULATION(simulation_ch, params.score, params.nmales, params.nfemales, params.runtype)
+        MERGE_SIMULATION(SIMULATION.out.results.collect(), params.runtype)
+
+      }
+
+
 
     }
 

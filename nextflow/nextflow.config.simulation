@@ -30,6 +30,9 @@ params {
   annotate_rates = false
   run_simulation = true
 
+  // The enrichment test can be nonsynonymous (ns), missense (mis) or both when you want to run both tests
+  runtype = "both"
+
 
   tracedir = 'test/trace'
   timestamp = now.format("yyyyMMdd-HH-mm-ss")

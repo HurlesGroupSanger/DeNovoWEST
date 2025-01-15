@@ -148,39 +148,6 @@ process MERGE_RATES {
 
 }
 
-/*
- * Merge weighted rate files 
- */
-process MERGE_WEIGHTED_RATES {
-
-  publishDir "${params.outdir}/rates/", mode: 'copy', overwrite: true
-
-  beforeScript = params.useModules
-    ? "module load $params.tabixModule"
-    : ""
-
-  input : 
-  path rates, stageAs : "mutation_rates_*.tsv"
-  
-  output : 
-  path "merged_weighted_rates.tsv.gz"
-  path "merged_weighted_rates.tsv.gz.tbi"
-
-  script : 
-  """
-  # Concatenates the tsv files and keep only the first header
-  awk 'FNR==1 && NR!=1{next;}{print}' $rates > merged_rates.tsv
-
-  # Sort rates file based on chromosome, position and alternate allele
-  (head -n 1 merged_rates.tsv && tail -n +2 merged_rates.tsv | sort -k2,2 -k3,3n -k5,5) > sorted_merged_rates.tsv
-  
-  # Compress and index rates file
-  mv sorted_merged_rates.tsv merged_weighted_rates.tsv
-  bgzip merged_weighted_rates.tsv
-  tabix -S 1 -s 2 -b 3 -e 3 merged_weighted_rates.tsv.gz
-  """
-
-}
 
 /*
  * Split rate files 
@@ -243,23 +210,6 @@ process MERGE_RATES_STATS {
 
 }
 
-// process MERGE_RATES_STATS {
-
-//   publishDir "${params.outdir}/rates/", mode: 'copy', overwrite: true
-
-//   input : 
-//   path rates_stats, stageAs : "rates_stats_*.json"
-  
-//   output : 
-//   path "rates_stats.json"
-
-//   script : 
-//   """
-//   #jq -s "reduce .[] as \$item ({}; . * \$item)" *.json > rates_stats.json
-//   echo "toto" > rates_stats.json
-//   """
-
-// }
 
 process SUMMARIZE_RATES_STATS {
 

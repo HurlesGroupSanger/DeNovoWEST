@@ -8,7 +8,7 @@ process SIMULATION {
     val column
 	val nmales
 	val nfemales
-    val export_weighted_dnmrates
+    val runtype
 
     output :
     path "enrichment_results.tsv", emit :results
@@ -19,22 +19,17 @@ process SIMULATION {
 
     script :
     """
-    if $export_weighted_dnmrates; then
-        echo "Running DNW simulation and exporting the weight annotated files"
-        simulation.py $dnm $rates $column --nmales $nmales --nfemales $nfemales --export_weighted_dnmrates
-    else
-        echo "Running DNW simulation"
-        simulation.py $dnm $rates $column --nmales $nmales --nfemales $nfemales 
-    fi
+    simulation.py $dnm $rates $column --nmales $nmales --nfemales $nfemales --runtype $runtype
     """
 }
 
 process MERGE_SIMULATION {
 
-	publishDir "${params.outdir}/simulation", mode: 'copy', overwrite: true
+	publishDir "${params.outdir}/simulation/$runtype", mode: 'copy', overwrite: true
     
 	input :
     path enrichment_results, stageAs : "enrichment_results_*.tsv"
+    val runtype
 
     output :
     path "enrichment_results.tsv"
