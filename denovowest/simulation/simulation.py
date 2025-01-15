@@ -2,13 +2,11 @@
 # python enrichment.py ../../input/test/new_format/dnm_min.tsv ../../input/test/new_format/all_rates_min.tsv ../../input/weights_ppv_2020_01_17.tab --nmales 10000 --nfemales 10000
 import logging
 import os
-import sys
+import time
 
 import click
 import pandas as pd
-import logging
 import numpy as np
-import utils
 
 
 from utils import init_log, log_configuration, CONSEQUENCES_MAPPING
@@ -251,6 +249,7 @@ def run_simulation(rates_df, dnm_df, gene_id, nsim, pvalcap, score_column):
         return
 
     logger.info(f"Testing {gene_id}")
+    start_time = time.process_time()
 
     # Subset rates file to current gene
     generates = rates_df.loc[rates_df.gene_id == gene_id]
@@ -263,6 +262,11 @@ def run_simulation(rates_df, dnm_df, gene_id, nsim, pvalcap, score_column):
     pval, info, exp_sum_scores = get_pvalue(
         generates, obs_sum_scores, nsim, pvalcap, nb_observed_mutations, score_column
     )
+
+    # Store how long the simulation took for each gene
+    end_time = time.process_time()
+    cpu_time = end_time - start_time
+    info = f"{info}|{cpu_time:.6f}"
 
     # Return the gene id, its expected and observed sum of scores, the p-value from the enrichment simulation test and some informations about the simulation
     return (gene_id, exp_sum_scores, obs_sum_scores, pval, info)
@@ -280,6 +284,13 @@ def export_results(results: list, outdir: str):
     os.makedirs(outdir, exist_ok=True)
 
     df = pd.DataFrame.from_records(results, columns=["symbol", "expected", "observed", "p-value", "info"])
+    df["nb_sim"] = [x.split("|")[0] for x in df["info"]]
+    df["nb_mutations_stop"] = [x.split("|")[1] for x in df["info"]]
+    df["log"] = [x.split("|")[2] for x in df["info"]]
+    df["time"] = [x.split("|")[3] for x in df["info"]]
+
+    df.drop("info", axis=1, inplace=True)
+
     df.to_csv(f"{outdir}/enrichment_results.tsv", sep="\t", index=False)
 
 
