@@ -29,7 +29,7 @@ CONSEQUENCES_MAPPING = {
 }
 
 DEFAULT_MAX_NB_MUTATIONS_SIM = 250
-DEFAULT_MIN_NB_SIM = int(10e7)
+DEFAULT_MIN_NB_SIM = 10**7
 
 # These inframe/missense and frameshift/nonsense ratios were observed on several databases
 # such ad EXAC, gnomAD, TOPMED or DDD.

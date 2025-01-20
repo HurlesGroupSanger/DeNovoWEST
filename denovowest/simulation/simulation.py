@@ -301,7 +301,7 @@ def export_results(results: list, outdir: str):
 @click.option("--nmales", required=True, type=int, help="Number of males individual in your cohort")
 @click.option("--nfemales", required=True, type=int, help="Number of females individual in your cohort")
 @click.option("--pvalcap", default=1, type=float, help="Stop simulations if cumulative p-value > pvalcap")
-@click.option("--nsim", type=int, help="Minimum number of simulations for each gene", default=10e7)
+@click.option("--nsim", type=int, help="Minimum number of simulations for each gene", default=10**7)
 @click.option(
     "--runtype",
     help="Run type is either missense test (mis) or non-synonymous (ns)",
