@@ -305,7 +305,17 @@ workflow.onComplete {
     // Create the directory if it doesn't exist
     new File(configOutDir).mkdirs()
 
+    // Get the current git commit hash
+    def commitHash = ""
+    try {
+        def command = "git rev-parse HEAD".execute()
+        commitHash = command.text.trim()
+    } catch (Exception e) {
+        println "Unable to retrieve git commit hash: ${e.message}"
+        commitHash = "Unknown"
+    }
 
+    // Copy the config file to the output directory
     workflow.configFiles.each{configFile ->
         try {
             def sourceFile = configFile.toString()
@@ -319,6 +329,8 @@ workflow.onComplete {
             if (process.exitValue() != 0) {
                 println "Failed to copy ${sourceFile}: ${process.err.text}"
             } else {
+                def file = new File(targetFile)
+                file.append("\n\n//Version used (git commit): ${commitHash}\n")
                 println "Saved config file in ${targetFile}"
             }
         } catch (Exception e) {
