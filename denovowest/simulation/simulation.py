@@ -7,13 +7,12 @@ import time
 import click
 import pandas as pd
 import numpy as np
+import utils
 
 
 from utils import init_log, log_configuration, CONSEQUENCES_MAPPING
 from scores import prepare_scores
 from probabilities import get_pvalue
-
-RUNTYPE = None
 
 
 def load_dnm_rates(dnm, rates, column):
@@ -62,7 +61,7 @@ def prepare_dnm_rates(
     rates_df = prepare_rates(rates_df, nmales, nfemales)
 
     # Prepare scores (indel scores, imputation missing scores...)
-    dnm_df, rates_df = prepare_scores(dnm_df, rates_df, column, RUNTYPE, impute_missing)
+    dnm_df, rates_df = prepare_scores(dnm_df, rates_df, column, utils.RUNTYPE, impute_missing)
 
     return dnm_df, rates_df
 
@@ -97,7 +96,7 @@ def filter_on_consequences(df: pd.DataFrame):
     df.consequence = [csq.split("&")[0] if isinstance(csq, str) else csq for csq in list(df.consequence)]
 
     # Filter variants depending on run type : non-synonymous or missense test
-    if RUNTYPE == "ns":
+    if utils.RUNTYPE == "ns":
         filt = df.consequence.isin(CONSEQUENCES_MAPPING.keys())
     else:
         filt = df.consequence.isin(["missense", "start_lost", "stop_lost"])
@@ -249,7 +248,7 @@ def run_simulation(rates_df, dnm_df, gene_id, nsim, pvalcap, score_column):
         return
 
     logger.info(f"Testing {gene_id}")
-    start_time = time.process_time()
+    start_time = time.time()
 
     # Subset rates file to current gene
     generates = rates_df.loc[rates_df.gene_id == gene_id]
@@ -264,9 +263,9 @@ def run_simulation(rates_df, dnm_df, gene_id, nsim, pvalcap, score_column):
     )
 
     # Store how long the simulation took for each gene
-    end_time = time.process_time()
-    cpu_time = end_time - start_time
-    info = f"{info}|{cpu_time:.6f}"
+    end_time = time.time()
+    wall_time = end_time - start_time
+    info = f"{info}|{wall_time:.6f}"
 
     # Return the gene id, its expected and observed sum of scores, the p-value from the enrichment simulation test and some informations about the simulation
     return (gene_id, exp_sum_scores, obs_sum_scores, pval, info)
@@ -287,7 +286,7 @@ def export_results(results: list, outdir: str):
     df["nb_sim"] = [x.split("|")[0] for x in df["info"]]
     df["nb_mutations_stop"] = [x.split("|")[1] for x in df["info"]]
     df["log"] = [x.split("|")[2] for x in df["info"]]
-    df["time"] = [x.split("|")[3] for x in df["info"]]
+    df["wall_time"] = [x.split("|")[3] for x in df["info"]]
 
     df.drop("info", axis=1, inplace=True)
 
@@ -315,7 +314,12 @@ def export_results(results: list, outdir: str):
     is_flag=True,
     help="Impute missing scores by taking the median score for similar variants (i.e. same consequence) in the gene",
 )
-def main(dnm, rates, column, nmales, nfemales, pvalcap, nsim, runtype, outdir, impute_missing_scores):
+@click.option(
+    "--jobs",
+    default=1,
+    help="Number of cores to use during simulation step",
+)
+def main(dnm, rates, column, nmales, nfemales, pvalcap, nsim, runtype, outdir, impute_missing_scores, jobs):
     """
     DeNovoWEST is a simulation-based method that tests for DNM enrichment in each gene separately.
     It uses computational effect predictors (CEP) scores to reflect the pathogenicity probability for each variant.
@@ -335,9 +339,6 @@ def main(dnm, rates, column, nmales, nfemales, pvalcap, nsim, runtype, outdir, i
     """
     init_log()
     log_configuration(click.get_current_context().params)
-
-    global RUNTYPE
-    RUNTYPE = runtype
 
     # Load DNM and rates files
     dnm_df, rates_df = load_dnm_rates(dnm, rates, column)

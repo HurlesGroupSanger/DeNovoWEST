@@ -36,6 +36,9 @@ DEFAULT_MIN_NB_SIM = 10**7
 INFRAME_MISSENSE_RATIO = 0.03
 FRAMESHIFT_NONSENSE_RATIO = 1.3
 
+JOBS = 1
+RUNTYPE = "ns"
+
 
 def init_log():
     """Initialize logging configuration"""
@@ -70,6 +73,12 @@ def log_configuration(conf):
     Args:
         conf (_type_): _description_
     """
+
+    global JOBS
+    JOBS = conf["jobs"]
+
+    global RUNTYPE
+    RUNTYPE = conf["runtype"]
 
     logger = logging.getLogger("logger")
     logger.info("DNW simulation running with the following parameters :")

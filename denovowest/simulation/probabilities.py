@@ -1,5 +1,7 @@
 import numpy as np
+import utils
 from scipy import stats
+from joblib import Parallel, delayed
 
 from utils import DEFAULT_MAX_NB_MUTATIONS_SIM
 from utils import DEFAULT_MIN_NB_SIM
@@ -101,23 +103,31 @@ def sim_score(mu, obs_sum_scores, rates, nb_mutation_poisson, nsim, score_column
         rates (pd.DataFrame): all possible mutations annotated
         nb_mutation_poisson (int): number of mutations to draw
         nsim (int) : number of simulations to perform
+        score_column(str) : column to extract the scores from
     """
 
-    # Split the simulations into chunks of split_sim to avoid memory issues such as the ones observed on GEL
-    split_sim = 10000
-    nb_more_extreme_scores = 0
-    for _ in range(nsim // split_sim):
-        scores = np.sum(
-            np.random.choice(rates[score_column], (nb_mutation_poisson, split_sim), p=rates["prob"] / mu), axis=0
-        )
-        nb_more_extreme_scores += np.sum(scores >= obs_sum_scores)
+    # Precompute probabilities
+    probabilities = rates["prob"] / mu
+    scores = rates[score_column].values
 
-    # If the number of simulations is not a multiple of split_sim, do the remaining simulations
-    if nsim % split_sim:
-        scores = np.sum(
-            np.random.choice(rates[score_column], (nb_mutation_poisson, nsim % split_sim), p=rates["prob"] / mu), axis=0
-        )
-        nb_more_extreme_scores += np.sum(scores >= obs_sum_scores)
+    def simulate_chunk(chunk_size):
+        """Simulate one chunk of scores."""
+        simulated_scores = np.sum(np.random.choice(scores, (nb_mutation_poisson, chunk_size), p=probabilities), axis=0)
+        return np.sum(simulated_scores >= obs_sum_scores)
+
+    # Split simulations into chunks
+    split_sim = 100000
+    num_full_chunks = nsim // split_sim
+    remaining_simulations = nsim % split_sim
+
+    # Run full chunks in parallel
+    full_chunk_results = Parallel(n_jobs=utils.JOBS)(delayed(simulate_chunk)(split_sim) for _ in range(num_full_chunks))
+
+    # Run remaining simulations (if any)
+    remaining_result = simulate_chunk(remaining_simulations) if remaining_simulations > 0 else 0
+
+    # Sum up results
+    nb_more_extreme_scores = sum(full_chunk_results) + remaining_result
 
     return nb_more_extreme_scores
 
