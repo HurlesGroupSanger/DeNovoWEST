@@ -1,0 +1,1 @@
+../../misc/denovonear/prepare_dnms.py

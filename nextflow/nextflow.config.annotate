@@ -25,6 +25,7 @@ params {
   // annotate_dnm = true
   // annotate_rates = true
   run_simulation = false
+  run_clustering = false
 
   annotation {
     cadd_file="../examples/annotation/CADD/input/OR4F5.cadd.tsv.gz"

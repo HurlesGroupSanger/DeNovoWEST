@@ -29,6 +29,8 @@ include { CUSTOM; CUSTOM as DNM_CUSTOM } from './modules/annotation.nf'
 include { SIMULATION; SIMULATION as SIMULATION_NS; SIMULATION as SIMULATION_MIS } from './modules/simulation.nf'
 include { MERGE_SIMULATION; MERGE_SIMULATION as MERGE_SIMULATION_NS; MERGE_SIMULATION as MERGE_SIMULATION_MIS } from './modules/simulation.nf'
 
+include { DENOVONEAR_LINEAR; DENOVONEAR_3D; PREPARE_DNM_DENOVONEAR; SPLIT_DNM; SPLIT_GENE_LIST_CLUSTERING; MERGE_CLUSTERING; MERGE_CLUSTERING as MERGE_CLUSTERING_LINEAR; MERGE_CLUSTERING as MERGE_CLUSTERING_3D} from './modules/denovonear.nf'
+
 
 
 workflow{ 
@@ -62,6 +64,10 @@ workflow{
       
     }
 
+    if (!params.containsKey("run_clustering")) {
+      params.run_clustering = true
+    }
+
     // Defines the number of genes to process in one batch
     if (!params.containsKey("split_step")) {
       params.split_step = 100
@@ -79,6 +85,14 @@ workflow{
         params.runtype = "ns"
       }
     }
+
+    // By default we run the 3D clustering test
+    if (params.run_clustering) {
+      if (!params.containsKey("clustering_runtype")) {
+        params.clustering_runtype = "3D"
+      }
+    }
+
 
 
     ///////////////////////////////////////
@@ -285,6 +299,42 @@ workflow{
 
       }
 
+
+
+    }
+
+
+    //////////////// 
+    // CLUSTERING //
+    ////////////////
+
+    if (params.run_clustering)
+    {
+
+      gene_list_clustering_ch = SPLIT_GENE_LIST_CLUSTERING(dnm_annotated_ch, gene_list_ch, params.split_step)
+      dnm_split_ch = SPLIT_DNM(gene_list_clustering_ch, dnm_annotated_ch)
+      dnm_dnn_ch = PREPARE_DNM_DENOVONEAR(dnm_split_ch, gffutils_db_ch)
+
+      if(params.clustering_runtype == "both") {
+        DENOVONEAR_LINEAR(dnm_dnn_ch, file(params.gff), file(params.genome_fasta))
+        MERGE_CLUSTERING_LINEAR(DENOVONEAR_LINEAR.out.results.collect(), "linear")
+
+        DENOVONEAR_3D(dnm_dnn_ch, file(params.gff), file(params.genome_fasta), file(params.protein_structures))
+        MERGE_CLUSTERING_3D(DENOVONEAR_3D.out.results.collect(), "3D")
+
+      }
+
+      if(params.clustering_runtype == "linear") {
+        DENOVONEAR_LINEAR(dnm_dnn_ch, file(params.gff), file(params.genome_fasta))
+        MERGE_CLUSTERING_LINEAR(DENOVONEAR_LINEAR.out.results.collect(), "linear")
+
+      }
+
+      if(params.clustering_runtype == "3D") {
+        DENOVONEAR_3D(dnm_dnn_ch, file(params.gff), file(params.genome_fasta),  file(params.protein_structures))
+        MERGE_CLUSTERING_3D(DENOVONEAR_3D.out.results.collect(), "3D")
+
+      }
 
 
     }
