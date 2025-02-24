@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 import pandas as pd
 from scipy.stats import combine_pvalues
 import click
@@ -34,18 +36,36 @@ def combine_dne_dnn(dne_file_all, dne_file_mis, dnn_file, out_file):
 
     # Load DNW results
     dne_all = pd.read_csv(dne_file_all, sep="\t")
-    dne_all.columns = ["symbol", "hgnc_id", "expected_all", "observed_all", "dne_all_p", "info_all"]
+    dne_all.columns = [
+        "gene_id",
+        "expected_all",
+        "observed_all",
+        "dne_all_p",
+        "nb_sim_all",
+        "nb_mutations_stop_all",
+        "log_all",
+        "walltime_all",
+    ]
     dne_mis = pd.read_csv(dne_file_mis, sep="\t")
-    dne_mis.columns = ["symbol", "hgnc_id", "expected_mis", "observed_mis", "dne_mis_p", "info_mis"]
+    dne_mis.columns = [
+        "gene_id",
+        "expected_mis",
+        "observed_mis",
+        "dne_mis_p",
+        "nb_sim_mis",
+        "nb_mutations_stop_mis",
+        "log_mis",
+        "walltime_mis",
+    ]
 
     # Load DNN results
     dnn = pd.read_csv(dnn_file, sep="\t")
-    dnn.columns = ["gene_id", "mutation_category", "events_n", "dist", "dnn_p"]
     dnn = dnn[dnn["mutation_category"] == "missense"]
+    dnn.rename({"probability": "dnn_p"}, axis=1, inplace=True)
 
     # Merge dataframes
-    merged_data = pd.merge(dne_all, dnn, left_on="symbol", right_on="gene_id", how="left")
-    merged_data = pd.merge(merged_data, dne_mis, on=["symbol", "hgnc_id"], how="outer")
+    merged_data = pd.merge(dne_all, dnn, on="gene_id", how="left")
+    merged_data = pd.merge(merged_data, dne_mis, on="gene_id", how="outer")
 
     # Combine p-values using Fisher's method (log-likelihood ratio test)
     merged_data["com_p"] = merged_data[["dnn_p", "dne_mis_p"]].apply(
@@ -58,7 +78,7 @@ def combine_dne_dnn(dne_file_all, dne_file_mis, dnn_file, out_file):
     )
 
     # Write to file
-    merged_data.hgnc_id = merged_data.hgnc_id.astype(int)
+    merged_data = merged_data[["gene_id", "gene_symbol", "min_p", "com_p", "dne_all_p", "dne_mis_p", "dnn_p"]]
     merged_data.to_csv(out_file, sep="\t", index=False)
 
 

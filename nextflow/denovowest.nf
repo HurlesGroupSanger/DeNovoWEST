@@ -29,7 +29,9 @@ include { CUSTOM; CUSTOM as DNM_CUSTOM } from './modules/annotation.nf'
 include { SIMULATION; SIMULATION as SIMULATION_NS; SIMULATION as SIMULATION_MIS } from './modules/simulation.nf'
 include { MERGE_SIMULATION; MERGE_SIMULATION as MERGE_SIMULATION_NS; MERGE_SIMULATION as MERGE_SIMULATION_MIS } from './modules/simulation.nf'
 
-include { DENOVONEAR_LINEAR; DENOVONEAR_3D; PREPARE_DNM_DENOVONEAR; SPLIT_DNM; SPLIT_GENE_LIST_CLUSTERING; MERGE_CLUSTERING; MERGE_CLUSTERING as MERGE_CLUSTERING_LINEAR; MERGE_CLUSTERING as MERGE_CLUSTERING_3D} from './modules/denovonear.nf'
+include { DENOVONEAR_LINEAR; DENOVONEAR_3D; PREPARE_DNM_DENOVONEAR; SPLIT_DNM; SPLIT_GENE_LIST_CLUSTERING;
+ MERGE_CLUSTERING; MERGE_CLUSTERING as MERGE_CLUSTERING_LINEAR; MERGE_CLUSTERING as MERGE_CLUSTERING_3D; COMBINE_CLUSTERING; COMBINE_DNE_DNN;
+ ADD_GENE_ID; ADD_GENE_ID as ADD_GENE_ID_3D; ADD_GENE_ID as ADD_GENE_ID_LINEAR} from './modules/denovonear.nf'
 
 
 
@@ -312,29 +314,60 @@ workflow{
     {
 
       gene_list_clustering_ch = SPLIT_GENE_LIST_CLUSTERING(dnm_annotated_ch, gene_list_ch, params.split_step)
-      dnm_split_ch = SPLIT_DNM(gene_list_clustering_ch, dnm_annotated_ch)
-      dnm_dnn_ch = PREPARE_DNM_DENOVONEAR(dnm_split_ch, gffutils_db_ch)
+      dnm_split_ch = SPLIT_DNM(gene_list_clustering_ch.toSortedList().flatten(), dnm_annotated_ch.first())
+      dnm_dnn_ch = PREPARE_DNM_DENOVONEAR(dnm_split_ch, gffutils_db_ch.first())
 
       if(params.clustering_runtype == "both") {
         DENOVONEAR_LINEAR(dnm_dnn_ch, file(params.gff), file(params.genome_fasta))
         MERGE_CLUSTERING_LINEAR(DENOVONEAR_LINEAR.out.results.collect(), "linear")
+        ADD_GENE_ID_LINEAR(MERGE_CLUSTERING_LINEAR.out,  gffutils_db_ch.first(), "linear")
 
         DENOVONEAR_3D(dnm_dnn_ch, file(params.gff), file(params.genome_fasta), file(params.protein_structures))
         MERGE_CLUSTERING_3D(DENOVONEAR_3D.out.results.collect(), "3D")
+        ADD_GENE_ID_3D(MERGE_CLUSTERING_3D.out,  gffutils_db_ch.first(), "3D")
+
+        COMBINE_CLUSTERING(ADD_GENE_ID_LINEAR.out, ADD_GENE_ID_3D.out)
+
+        // Combine enrichment and clustering results
+        if (params.run_simulation) {
+          if(params.runtype == "both") {
+            COMBINE_DNE_DNN(MERGE_SIMULATION_NS.out, MERGE_SIMULATION_MIS.out,COMBINE_CLUSTERING.out)
+          }
+        }
 
       }
 
       if(params.clustering_runtype == "linear") {
+
         DENOVONEAR_LINEAR(dnm_dnn_ch, file(params.gff), file(params.genome_fasta))
         MERGE_CLUSTERING_LINEAR(DENOVONEAR_LINEAR.out.results.collect(), "linear")
+        ADD_GENE_ID_LINEAR(MERGE_CLUSTERING_LINEAR.out,  gffutils_db_ch.first(), "linear")
+
+        // Combine enrichment and clustering results
+        if (params.run_simulation){
+          if(params.runtype == "both") {
+            COMBINE_DNE_DNN(MERGE_SIMULATION_NS.out, MERGE_SIMULATION_MIS.out,ADD_GENE_ID_LINEAR.out)
+          }
+        }
 
       }
 
       if(params.clustering_runtype == "3D") {
+
         DENOVONEAR_3D(dnm_dnn_ch, file(params.gff), file(params.genome_fasta),  file(params.protein_structures))
         MERGE_CLUSTERING_3D(DENOVONEAR_3D.out.results.collect(), "3D")
+        ADD_GENE_ID_3D(MERGE_CLUSTERING_3D.out,  gffutils_db_ch.first(), "3D")
+
+
+        // Combine enrichment and clustering results
+        if (params.run_simulation) {
+          if(params.runtype == "both") {
+            COMBINE_DNE_DNN(MERGE_SIMULATION_NS.out, MERGE_SIMULATION_MIS.out,ADD_GENE_ID_3D.out)
+          }
+        }
 
       }
+
 
 
     }
