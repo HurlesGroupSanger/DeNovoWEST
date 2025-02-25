@@ -17,7 +17,7 @@ def prepare_scores(dnm_df, rates_df, score_column, runtype, impute_missing=False
     # Infer indel scores and mutation rates
     if runtype == "ns":
         indel_rates_df = infer_indel_scores_and_rates(rates_df, score_column)
-        dnm_df = assign_dnm_indel_scores(dnm_df, indel_rates_df, score_column)
+        dnm_df = assign_dnm_indel_scores(dnm_df, indel_rates_df, rates_df, score_column)
 
     # Impute scores for variants with missing scores
     if impute_missing:
@@ -79,14 +79,15 @@ def infer_indel_scores_and_rates(rates_df, score_column):
     return indel_rates_df
 
 
-def assign_dnm_indel_scores(dnm_df, indel_rates_df, score_column):
+def assign_dnm_indel_scores(dnm_df, indel_rates_df, rates_df, score_column):
     """
     Assign gene-based indel scores taken from the rates file to observed inframe
     and frameshift variants
 
     Args:
         dnm_df (pd.DataFrame): observed DNM
-        rates_df (pd.DataFrame): expected mutations
+        indel_rates_df (pd.DataFrame) : per-gene score for frameshit and inframe annotated indels
+        rates_df (pd.DataFrame): rates dataframe
         score_column (str) : CEP scores
 
     Returns:
@@ -97,9 +98,19 @@ def assign_dnm_indel_scores(dnm_df, indel_rates_df, score_column):
     for _, dnm in dnm_df.iterrows():
 
         # If the DNM is not an indel we keep the current score
-        if not (dnm.consequence in ["inframe", "frameshift"]):
+        if (len(dnm.alt) - len(dnm.ref)) == 0:
             list_scores.append(dnm[score_column])
-        # Otherwise we take the corresponding gene-based indel score from the indel rates dataframe
+            continue
+
+        # If it is an indel but not annotated as inframe or frameshift, we get the
+        # gene median corresponding score
+        if not (dnm.consequence in ["inframe", "frameshift"]):
+
+            generates_df = rates_df.loc[rates_df.gene_id == dnm.gene_id]
+            score = generates_df.loc[generates_df.consequence == dnm.consequence, score_column].median()
+            list_scores.append(score)
+
+        # Otherwise we get the gene inframe/frameshift score
         else:
             list_scores.append(
                 indel_rates_df.loc[

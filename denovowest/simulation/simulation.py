@@ -10,7 +10,7 @@ import numpy as np
 import utils
 
 
-from utils import init_log, log_configuration, CONSEQUENCES_MAPPING
+from utils import init_log, log_configuration, CONSEQUENCES_MAPPING, consequences_severities
 from scores import prepare_scores
 from probabilities import get_pvalue
 
@@ -75,25 +75,27 @@ def prepare_dnm(dnm_df: pd.DataFrame):
         dnmfile (str): DNM file
     """
 
-    dnm_df = filter_on_consequences(dnm_df)
+    dnm_df = filter_on_consequences(dnm_df, "dnm")
     dnm_df = assign_meta_consequences(dnm_df)
 
     return dnm_df
 
 
-def filter_on_consequences(df: pd.DataFrame):
+def filter_on_consequences(df: pd.DataFrame, mode: str):
     """
     Filter all variants with a consequence not found in CONSEQUENCES_MAPPING
 
     Args:
         df (pd.DataFrame): variant table (rates or dnm) having a consequence column
+        mode(str) : dnm or rates
     """
 
     logger = logging.getLogger("logger")
 
-    # TODO : Replace with better consequence extraction
-    # When bcftools report several consequences separated by the character "&", we extract the first one
-    df.consequence = [csq.split("&")[0] if isinstance(csq, str) else csq for csq in list(df.consequence)]
+    # Extract the worst consequence but also keep the original consequence called by bcftoolscsq
+    if mode == "dnm":
+        df["original_consequence"] = df.consequence
+    df.consequence = [extract_worst_consequence(csq) if isinstance(csq, str) else csq for csq in list(df.consequence)]
 
     # Filter variants depending on run type : non-synonymous or missense test
     if utils.RUNTYPE == "ns":
@@ -114,6 +116,26 @@ def filter_on_consequences(df: pd.DataFrame):
     logger.info(f"After consequence filtering : {kept_df.shape[0]} records")
 
     return kept_df
+
+
+def extract_worst_consequence(csq):
+    """
+    Bcftoolscsq sometimes return multiple consequences
+    separated by an "&". We extract the worst one.
+
+    Args:
+        csq (str): consequences separated by "&"
+    """
+
+    list_csq = csq.split("&")
+    worst_csq_value = 1
+    worst_csq = ""
+    for cur_csq in list_csq:
+        if consequences_severities[cur_csq] > worst_csq_value:
+            worst_csq_value = consequences_severities[cur_csq]
+            worst_csq = cur_csq
+
+    return worst_csq
 
 
 def assign_meta_consequences(df: pd.DataFrame):
@@ -143,7 +165,7 @@ def prepare_rates(rates_df: pd.DataFrame, nmales: int, nfemales: int):
         ratesfile (str): path to mutation rates file
     """
 
-    rates_df = filter_on_consequences(rates_df)
+    rates_df = filter_on_consequences(rates_df, "rates")
     rates_df = assign_meta_consequences(rates_df)
 
     rates_df = compute_expected_number_of_mutations(rates_df, nmales, nfemales)

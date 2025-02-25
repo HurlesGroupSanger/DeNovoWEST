@@ -28,6 +28,47 @@ CONSEQUENCES_MAPPING = {
     "inframe": "inframe",
 }
 
+consequences_severities = {
+    "intergenic": 1,
+    "feature_truncation": 2,
+    "feature_elongation": 2,
+    "regulatory": 3,
+    "TF_binding_site": 4,
+    "TFBS": 4,
+    "downstream": 5,
+    "upstream": 5,
+    "non_coding_transcript": 6,
+    "non_coding": 6,
+    "intron": 7,
+    "NMD_transcript": 7,
+    "non_coding_transcript_exon": 8,
+    "5_prime_utr": 9,
+    "3_prime_utr": 9,
+    "coding_sequence": 10,
+    "mature_miRNA": 10,
+    "stop_retained": 11,
+    "start_retained": 11,
+    "synonymous": 11,
+    "incomplete_terminal_codon": 12,
+    "splice_region": 13,
+    "missense": 14,
+    "inframe": 14,
+    "inframe_insertion": 14,
+    "inframe_deletion": 14,
+    "protein_altering": 14,
+    "transcript_amplification": 15,
+    "exon_loss": 16,
+    "disruptive": 17,
+    "start_lost": 18,
+    "stop_lost": 18,
+    "stop_gained": 18,
+    "frameshift": 18,
+    "splice_acceptor": 19,
+    "splice_donor": 19,
+    "transcript_ablation": 20,
+}
+
+
 DEFAULT_MAX_NB_MUTATIONS_SIM = 250
 DEFAULT_MIN_NB_SIM = 10**7
 
