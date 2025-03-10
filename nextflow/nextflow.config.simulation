@@ -5,7 +5,8 @@ conda.enabled = true
 // If using singularity, uncomment the following lines and set conda.enabled to false
 //process.container = '../../denovowest_4.sif'
 //singularity.enabled = true
-
+//process.container = 'delagee/denovowest:4'
+//docker.enabled = true
 
 workDir = "test/work"
 Date now = new Date()
