@@ -4,12 +4,7 @@ import pandas as pd
 import gffutils
 
 
-consequences_dict = {
-    "missense": "missense_variant",
-    "missense_variant": "missense_variant",
-    "start_lost": "missense_variant",
-    "stop_lost": "missense_variant",
-}
+consequences_dict = {"missense": "missense_variant", "missense_variant": "missense_variant"}
 
 
 def snp_or_indel(row):
