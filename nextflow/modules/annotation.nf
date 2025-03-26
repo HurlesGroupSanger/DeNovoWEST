@@ -130,7 +130,7 @@ process DBNSFP {
 process CUSTOM {
 
     input :
-    path rates_or_dnm 
+    path rates_or_dnm , stageAs : "custom_input.tsv"
     path custom_file
     path custom_file_index
     val columns_to_extract
@@ -144,5 +144,25 @@ process CUSTOM {
     """
     # Annotate dbnsfp
     annotate_custom.py $rates_or_dnm $custom_file ${type}_custom.tsv --columns $columns_to_extract
+    """
+}
+
+process VCF {
+
+    input :
+    path rates_or_dnm , stageAs : "vcf_input.tsv"
+    path vcf
+    path vcf_index
+    val columns_to_extract
+    path gffutils_db
+    val type
+
+    output :
+    path "${type}_vcf.tsv"
+
+    script:
+    """
+    # Annotate dbnsfp
+    annotate_vcf.py $rates_or_dnm $vcf ${type}_vcf.tsv --columns $columns_to_extract --gff $gffutils_db
     """
 }

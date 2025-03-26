@@ -25,6 +25,12 @@ include { CONSTRAINTS; CONSTRAINTS as DNM_CONSTRAINTS} from './modules/annotatio
 include { SHET; SHET as DNM_SHET } from './modules/annotation.nf'
 include { DBNSFP; DBNSFP as DNM_DBNSFP } from './modules/annotation.nf'
 include { CUSTOM; CUSTOM as DNM_CUSTOM } from './modules/annotation.nf'
+include { CUSTOM as CUSTOM_2; CUSTOM as DNM_CUSTOM_2 } from './modules/annotation.nf'
+include { CUSTOM as CUSTOM_3; CUSTOM as DNM_CUSTOM_3 } from './modules/annotation.nf'
+include { VCF; VCF as DNM_VCF } from './modules/annotation.nf'
+include { VCF as VCF_2; VCF as DNM_VCF_2 } from './modules/annotation.nf'
+include { VCF as VCF_3; VCF as DNM_VCF_3 } from './modules/annotation.nf'
+
 
 include { SIMULATION; SIMULATION as SIMULATION_NS; SIMULATION as SIMULATION_MIS } from './modules/simulation.nf'
 include { MERGE_SIMULATION; MERGE_SIMULATION as MERGE_SIMULATION_NS; MERGE_SIMULATION as MERGE_SIMULATION_MIS } from './modules/simulation.nf'
@@ -200,8 +206,86 @@ workflow{
         rates_annotated_ch = DBNSFP(rates_annotated_ch,  file(params.annotation.dbnsfp_file),  file(params.annotation.dbnsfp_file + ".tbi"), params.annotation.dbnsfp_columns,  gffutils_db_ch.first(), "rates")
       }
 
-      if (params.annotation.containsKey("custom_file")){
-        rates_annotated_ch = CUSTOM(rates_annotated_ch,  file(params.annotation.custom_file),  file(params.annotation.custom_file + ".tbi"), params.annotation.custom_columns,  gffutils_db_ch.first(),"rates")
+      if (params.annotation.containsKey("custom")){
+
+        // TODO : dirty solution to run mutliple annotation from several custom files (max 3)
+          // Did not find a better workaround
+          cpt = 1
+          params.annotation.custom.each { key, custom ->
+              
+              if (cpt == 1){
+                rates_annotated_ch = CUSTOM(
+                    rates_annotated_ch,
+                    file(custom.path),
+                    file(custom.path + ".tbi"),
+                    custom.columns,
+                    gffutils_db_ch.first(),
+                    "rates"
+                )
+              }
+              else if (cpt == 2){
+                rates_annotated_ch = CUSTOM_2(
+                    rates_annotated_ch,
+                    file(custom.path),
+                    file(custom.path + ".tbi"),
+                    custom.columns,
+                    gffutils_db_ch.first(),
+                    "rates"
+                )
+              }
+              else if (cpt == 3){
+                rates_annotated_ch = CUSTOM_3(
+                    rates_annotated_ch,
+                    file(custom.path),
+                    file(custom.path + ".tbi"),
+                    custom.columns,
+                    gffutils_db_ch.first(),
+                    "rates"
+                )
+              }
+              cpt = cpt + 1
+          }
+      }
+
+      if (params.annotation.containsKey("vcf")){
+
+          // TODO : dirty solution to run mutliple annotation from several VCF files (max 3)
+          // Did not find a better workaround
+          cpt = 1
+          params.annotation.vcf.each { key, vcf ->
+              
+              if (cpt == 1){
+                rates_annotated_ch = VCF(
+                    rates_annotated_ch,
+                    file(vcf.path),
+                    file(vcf.path + ".tbi"),
+                    vcf.columns,
+                    gffutils_db_ch.first(),
+                    "rates"
+                )
+              }
+              else if (cpt == 2){
+                rates_annotated_ch = VCF_2(
+                    rates_annotated_ch,
+                    file(vcf.path),
+                    file(vcf.path + ".tbi"),
+                    vcf.columns,
+                    gffutils_db_ch.first(),
+                    "rates"
+                )
+              }
+              else if (cpt == 3){
+                rates_annotated_ch = VCF_3(
+                    rates_annotated_ch,
+                    file(vcf.path),
+                    file(vcf.path + ".tbi"),
+                    vcf.columns,
+                    gffutils_db_ch.first(),
+                    "rates"
+                )
+              }
+              cpt = cpt + 1
+          }
       }
 
       // Merge results
@@ -264,8 +348,86 @@ workflow{
           dnm_annotated_ch = DNM_DBNSFP(dnm_annotated_ch,  file(params.annotation.dbnsfp_file),  file(params.annotation.dbnsfp_file + ".tbi"), params.annotation.dbnsfp_columns,  gffutils_db_ch.first(),"dnm")
         }
 
-        if (params.annotation.containsKey("custom_file")){
-          dnm_annotated_ch = DNM_CUSTOM(dnm_annotated_ch,  file(params.annotation.custom_file),  file(params.annotation.custom_file + ".tbi"), params.annotation.custom_columns,  gffutils_db_ch.first(),"dnm")
+        if (params.annotation.containsKey("custom")){
+
+          // TODO : dirty solution to run mutliple annotation from several custom files (max 3)
+          // Did not find a better workaround
+          cpt = 1
+          params.annotation.custom.each { key, custom ->
+              
+              if (cpt == 1){
+                dnm_annotated_ch = DNM_CUSTOM(
+                    dnm_annotated_ch,
+                    file(custom.path),
+                    file(custom.path + ".tbi"),
+                    custom.columns,
+                    gffutils_db_ch.first(),
+                    "dnm"
+                )
+              }
+              else if (cpt == 2){
+                dnm_annotated_ch = DNM_CUSTOM_2(
+                    dnm_annotated_ch,
+                    file(custom.path),
+                    file(custom.path + ".tbi"),
+                    custom.columns,
+                    gffutils_db_ch.first(),
+                    "dnm"
+                )
+              }
+              else if (cpt == 3){
+                dnm_annotated_ch = DNM_CUSTOM_3(
+                    dnm_annotated_ch,
+                    file(custom.path),
+                    file(custom.path + ".tbi"),
+                    custom.columns,
+                    gffutils_db_ch.first(),
+                    "dnm"
+                )
+              }
+              cpt = cpt + 1
+          }
+        }
+
+        if (params.annotation.containsKey("vcf")){
+
+          // TODO : dirty solution to run mutliple annotation from several VCF files (max 3)
+          // Did not find a better workaround
+          cpt = 1
+          params.annotation.vcf.each { key, vcf ->
+              
+              if (cpt == 1){
+                dnm_annotated_ch = DNM_VCF(
+                    dnm_annotated_ch,
+                    file(vcf.path),
+                    file(vcf.path + ".tbi"),
+                    vcf.columns,
+                    gffutils_db_ch.first(),
+                    "rates"
+                )
+              }
+              else if (cpt == 2){
+                dnm_annotated_ch = DNM_VCF_2(
+                    dnm_annotated_ch,
+                    file(vcf.path),
+                    file(vcf.path + ".tbi"),
+                    vcf.columns,
+                    gffutils_db_ch.first(),
+                    "rates"
+                )
+              }
+              else if (cpt == 3){
+                dnm_annotated_ch = DNM_VCF_3(
+                    dnm_annotated_ch,
+                    file(vcf.path),
+                    file(vcf.path + ".tbi"),
+                    vcf.columns,
+                    gffutils_db_ch.first(),
+                    "rates"
+                )
+              }
+              cpt = cpt + 1
+          }
         }
 
         PUBLISH_DNM(dnm_annotated_ch)

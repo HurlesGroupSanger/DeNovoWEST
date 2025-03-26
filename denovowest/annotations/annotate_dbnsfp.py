@@ -312,7 +312,7 @@ def remove_duplicates(block_dbnsfp):
     ):
         indices = min_df.index
         if min_df["transcript_in_dbnsfp"].sum() != 0:
-            min_df = min_df.loc[min_df["transcript_in_dbnsfp"] == True]
+            min_df = min_df.loc[min_df["transcript_in_dbnsfp"] == True].copy()
 
         # Keep the record with the most values annotated
         min_df["nb_missing_values"] = (min_df != ".").sum(axis=1)

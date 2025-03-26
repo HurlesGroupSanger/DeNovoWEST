@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 import click
 import pysam
 import pandas as pd
@@ -171,6 +172,7 @@ def format_gene_annotation(gene_id, list_block_df, match_gene, gene_mapping):
     if match_gene:
 
         if gene_content == "ensembl_id":
+            # TODO : handle ensembl gene version
             gene_annotations_df = gene_annotations_df.loc[gene_annotations_df[gene_field] == gene_id]
         else:
             gene_symbol = gene_mapping[gene_id]
@@ -352,6 +354,22 @@ def check_columns(variants_df, annotation_vcf, columns):
     return annotation_columns
 
 
+def build_gene_mapping_from_column(variants_df):
+    """
+    Build a dictionnary that maps gene ENSEMBL identifiers to gene symbol
+
+    Args:
+        variants_df (pd.DataFrame): variants file
+    """
+
+    df = variants_df[["gene_id", "symbol"]]
+    df = df.loc[~df[["gene_id"]].duplicated()]
+
+    gene_mapping = dict(zip(df.gene_id, df.symbol))
+
+    return gene_mapping
+
+
 @click.command()
 @click.argument("variants", type=click.Path(exists=True))
 @click.argument("annotation", type=click.Path(exists=True))
@@ -399,9 +417,13 @@ def cli(variants, annotation, output, columns, match_gene, gff):
         match_gene = False
 
     # Some annotations rely on gene symbol rather than identifiers, we therefore build a mapping dictionnary
+    # either from the gff file that was used to generate the rates file
     if gff:
         gff_db = load_gff(gff, "gff.db")
         gene_mapping = build_gene_mapping_from_gff(gff_db)
+    # or from a symbol column if found in the file
+    elif "symbol" in variants_df.columns:
+        gene_mapping = build_gene_mapping_from_column(variants_df)
     else:
         gene_mapping = dict()
 
