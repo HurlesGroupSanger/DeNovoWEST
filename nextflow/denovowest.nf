@@ -101,6 +101,15 @@ workflow{
       }
     }
 
+    if (params.containsKey("annotation")) {
+        if (params.annotation.containsKey("dbnsfp_file")) {
+          if (!params.annotation.containsKey("dbnsfp_columns")){
+            params.annotation.dbnsfp_columns = ""
+          }
+        }
+    }
+
+
 
 
     ///////////////////////////////////////

@@ -6,6 +6,8 @@ import sys
 import gffutils
 import os
 from itertools import groupby, count
+import utils
+import logging
 
 
 def load_dbnsfp(dbnsfp_file, chrom, start, end, columns_indices, gene_id, gff_db=None):
@@ -55,6 +57,7 @@ def parse(record, columns_indices, gene_id, transcript_ids_gff=list()):
     record_dict["ref"] = record[2]
     record_dict["alt"] = record[3]
 
+    # TODO : should retrieve the index rather than relying ona position that might change with versions of dbNSDP
     ensembl_gene_ids_dbnsfp = record[13].split(";")
     transcript_ids_dbnsfp = record[14].split(";")
 
@@ -116,7 +119,14 @@ def get_transcript_based_score(list_scores, transcript_ids_gff, transcript_ids_d
         if transcript_id in transcript_ids_gff:
             list_idx.append(idx)
 
-    return max_value([list_scores[i] for i in list_idx])
+    # Not all dbNSFP columns contain scores, and they do not necessarily match the number of values in gene/transcript columns
+    try:
+        max_score = max_value([list_scores[i] for i in list_idx])
+    except IndexError:
+        # In that case we just return the whole value
+        max_score = ";".join(list_scores)
+
+    return max_score
 
 
 def get_gene_based_score(list_scores, gene_id, gene_ids_dbnsfp):
@@ -134,7 +144,14 @@ def get_gene_based_score(list_scores, gene_id, gene_ids_dbnsfp):
         if dbnsfp_gene_id == gene_id:
             list_idx.append(idx)
 
-    return max_value([list_scores[i] for i in list_idx])
+    # Not all dbNSFP columns contain scores, and they do not necessarily match the number of values in gene/transcript columns
+    try:
+        max_score = max_value([list_scores[i] for i in list_idx])
+    except IndexError:
+        # In that case we just return the whole value
+        max_score = ";".join(list_scores)
+
+    return max_score
 
 
 def max_value(list_scores):
@@ -150,33 +167,16 @@ def max_value(list_scores):
     try:
         max_score = max([float(x) for x in list_scores if x != "."])
     except ValueError:
-        max_score = "."
+
+        # Not all dbNSFP columns contain scores, and they do not necessarily match the number of values in gene/transcript columns
+        if set(list_scores) == {"."}:
+            # If there is no score we return "."
+            max_score = "."
+        else:
+            # If it was not a score column we return the whole value
+            max_score = ";".join(list_scores)
 
     return max_score
-
-
-# def max_value(list_scores):
-#     """
-#     Return the maximum value in a list that can contains "."
-
-#     Args:
-#         list_scores (list): list of transcript-based scores for a given metric
-
-#     Returns:
-#         float: maximum score in the list
-#     """
-
-#     max_score = -100000
-#     max_idx = -1
-#     for idx, score in enumerate(list_scores):
-#         try:
-#             if float(score) > max_score:
-#                 max_score = score
-#                 max_idx = idx
-#         except ValueError:
-#             continue
-
-#     return max_idx, max_score
 
 
 def get_transcripts(gene_id, gff_db):
@@ -190,7 +190,10 @@ def get_transcripts(gene_id, gff_db):
     Returns:
         list: list of transcripts identifiers
     """
-    gene = gff_db[gene_id]
+
+    global ensembl_gene_version
+
+    gene = gff_db[ensembl_gene_version[gene_id]]
 
     list_transcript_ids = list()
     for transcript in gff_db.children(gene, featuretype="transcript", order_by="start"):
@@ -222,8 +225,11 @@ def extract_columns_from_dbNFP(dbnsfp, annotation_names):
         annotation_names (str): path to a file listing column names from dbNSFP to retrieve
     """
 
-    with open(annotation_names, "r") as f:
-        columns_to_extract = [x.strip() for x in f.readlines()]
+    if annotation_names:
+        with open(annotation_names, "r") as f:
+            columns_to_extract = [x.strip() for x in f.readlines()]
+    else:
+        columns_to_extract = dbnsfp.header[0].split("\t")[4:]
 
     dbnsfp_columns = dbnsfp.header[0].split("\t")
 
@@ -248,15 +254,15 @@ def load_rates_file(rates, output):
     Load rates file
 
     Args:
-        rates (_type_): _description_
-        output (_type_): _description_
+        rates (str): path to a variant file in TSV format
+        output (str): output file
 
-    Returns:
-        _type_: _description_
     """
 
     # Load rates file
     rates_df = pd.read_table(rates, dtype={"chrom": str, "pos": int, "ref": str, "alt": str})
+
+    # Edge case where when splitting the processes we end up with an empty input file
     if rates_df.empty:
         print("Rates file is empty")
         rates_df["raw"] = None
@@ -296,6 +302,11 @@ def load_gff(gff_file):
 
         gff_db = gffutils.create_db(gff_file, gff_db_path, merge_strategy="create_unique")
 
+    global ensembl_gene_version
+    ensembl_gene_version = dict()
+    for gene in gff_db.features_of_type("gene", order_by="start"):
+        ensembl_gene_version[gene.id.split(".")[0]] = gene.id
+
     return gff_db
 
 
@@ -325,23 +336,52 @@ def remove_duplicates(block_dbnsfp):
     return block_dbnsfp
 
 
+def check_columns(input_columns, dbnsfp_columns):
+    """
+    Check which column to retrieve from the VCF annotation file
+
+    Args:
+        variants_df (pd.DataFrame): variants file
+        annotation_vcf (VariantFile): VCF file containing the annotations
+        columns (list): list of annotation to retrieve
+
+    """
+
+    logger = logging.getLogger("logger")
+
+    shared_columns = set(input_columns) & set(dbnsfp_columns)
+
+    for shared_column in shared_columns:
+        logger.warning(
+            f"{shared_column} column exists already in variant file. The one coming from dbNSFP will be suffixed with _dbnsfp"
+        )
+
+    return shared_columns
+
+
 @click.command()
 @click.argument("rates_dnm")
 @click.argument("dbnsfp")
-@click.argument("annotation_names")
 @click.argument("output")
+@click.option("--annotation_names", default="")
 @click.option("--gff", default="")
-def annotate_dbnsfp(rates_dnm, dbnsfp, annotation_names, output, gff):
+def annotate_dbnsfp(rates_dnm, dbnsfp, output, annotation_names, gff):
     """
-    Annotatate a rates/DNM file with CEP scores from dbNSFP
+    Annotatate a rates/DNM file with CEP scores from dbNSFP.
+    When multiple scores exist for a variant (e.g. multiple transcripts, overlapping genes),
+    the maximum score among transcripts found in the GFF are retrieved.
+    When no GFF are provided, the maximum score for the gene associated to the variant is retrieved.
 
     Args:
-        df (str): Path to rates/DNM file
+        df (str): Path to rates/DNM file [gene_id,chrom,pos,ref,alt]
         dbnsfp (str): Path to dbNSFP file
-        annotation_names (str): Path to a file listing which annotations to extract from dbNSFP
         output (str): Path to output file (merged dataframe)
+        annotation_names (str): Path to a file listing which annotations to extract from dbNSFP
         gff(str) : Path to gff file or gffutils database
     """
+
+    utils.init_log()
+    logger = logging.getLogger("logger")
 
     # Load rates/DNM file
     df, add_chr = load_rates_file(rates_dnm, output)
@@ -359,9 +399,15 @@ def annotate_dbnsfp(rates_dnm, dbnsfp, annotation_names, output, gff):
     # Retrieve columns to extract from dbnsfp_df
     dbnsfp_columns_indices, dbnsfp_columns_names = extract_columns_from_dbNFP(dbnsfp_df, annotation_names)
 
+    # If some columns are already found in the input file, we prefix the new ones with "dbnsfp"
+    existing_columns = check_columns(rates_df_columns, dbnsfp_columns_names)
+    dbnsfp_columns_names = [f"{col}_dbnsfp" if col in existing_columns else col for col in dbnsfp_columns_names]
+
     # For each gene
     list_merged_df = list()
     for gene_id, gene_rates_df in df.groupby("gene_id"):
+
+        logger.info(f"Annotating {gene_id}")
 
         chrom = str(gene_rates_df.chrom.values[0]).replace("chr", "")
 

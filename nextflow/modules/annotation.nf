@@ -122,7 +122,12 @@ process DBNSFP {
     script:
     """
     # Annotate dbnsfp
-    annotate_dbnsfp.py --gff $gffutils_db $rates_or_dnm $dbnsfp $dbnsfp_columns_to_extract ${type}_dbnsfp.tsv
+
+    if [ -z "$dbnsfp_columns_to_extract" ]; then
+        annotate_dbnsfp.py $rates_or_dnm $dbnsfp ${type}_dbnsfp.tsv  --gff $gffutils_db 
+    else
+        annotate_dbnsfp.py $rates_or_dnm $dbnsfp ${type}_dbnsfp.tsv  --annotation_names $dbnsfp_columns_to_extract --gff $gffutils_db 
+    fi
     """
 }
 
