@@ -3,14 +3,18 @@ import pandas as pd
 import click
 import pysam
 import sys
-import gffutils
-import os
 from itertools import groupby, count
 import utils
 import logging
 
 
-def load_dbnsfp(dbnsfp_file, chrom, start, end, columns_indices, gene_id, gff_db=None):
+# TODO : Better handle the ENSG versions
+# TODO : See if we could improve the selection when multiple records exist for a same variant (@remove_duplicates)
+
+
+def load_dbnsfp(
+    dbnsfp_file, chrom, start, end, columns_indices, gene_id, gff_db=None, ensembl_gene_id_map_version=None
+):
     """
     Access to specific region in an dbNSFP indexed file
     Args:
@@ -20,12 +24,13 @@ def load_dbnsfp(dbnsfp_file, chrom, start, end, columns_indices, gene_id, gff_db
         end (int): terminating position of the region
         columns_indices(list) : indices of the dbNSFP columns to retrieve
         gene_id(str) : gene identifier used in DNM and rates file
-        gff_db()
+        gff_db (gffutils.FeatureDB): gffutils database
+        ensembl_gene_id_map_version (dict) : maps ENSG with version to ENSG without version (e.g. {ENSG00000010404 : ENSG00000010404.1})
     """
 
     # Retrieve the transcripts associated to the genes from the GFF file
     if gff_db:
-        transcript_ids = get_transcripts(gene_id, gff_db)
+        transcript_ids = get_transcripts(gene_id, gff_db, ensembl_gene_id_map_version)
     else:
         transcript_ids = list()
 
@@ -38,12 +43,40 @@ def load_dbnsfp(dbnsfp_file, chrom, start, end, columns_indices, gene_id, gff_db
     return pd.DataFrame(list_annotated_records)
 
 
+def get_transcripts(gene_id, gff_db, ensembl_gene_id_map_version):
+    """
+    Return transcripts identifiers of the transcripts found in the GFF file for a given gene
+
+    Args:
+        gene_id (str): gene identifier
+        gff_db (gffutils.FeatureDB): gffutils database
+        ensembl_gene_id_map_version (dict) : maps ENSG with version to ENSG without version (e.g. {ENSG00000010404 : ENSG00000010404.1})
+
+    Returns:
+        list: list of transcripts identifiers
+    """
+
+    if "." in gene_id:
+        gene = gff_db[gene_id]
+    else:
+        gene = gff_db[ensembl_gene_id_map_version[gene_id]]
+
+    list_transcript_ids = list()
+    for transcript in gff_db.children(gene, featuretype="transcript", order_by="start"):
+        list_transcript_ids += [x.split(".")[0] for x in transcript["transcript_id"]]
+
+    return list_transcript_ids
+
+
 def parse(record, columns_indices, gene_id, transcript_ids_gff=list()):
     """
     Parse a dbNSFP record (line) and extract the data of interest
 
     Args:
         record (str): line in dbNSFP
+        columns_indices (list): indices of columns to retrieve from the dbNSFP records
+        gene_id(str) : ENSEMBL gene identifier from the input file
+        transcript_ids_gff (list) : list of {gene_id} transcripts found in the GFF file (if provided)
 
     Returns:
         dict: informations about a mutation (pos, CEP scores)
@@ -179,29 +212,6 @@ def max_value(list_scores):
     return max_score
 
 
-def get_transcripts(gene_id, gff_db):
-    """
-    Return transcripts identifiers of the transcripts found in the GFF file for a given gene
-
-    Args:
-        gene_id (str): gene identifier
-        gff_db (gffutils.FeatureDB): gffutils database
-
-    Returns:
-        list: list of transcripts identifiers
-    """
-
-    global ensembl_gene_version
-
-    gene = gff_db[ensembl_gene_version[gene_id]]
-
-    list_transcript_ids = list()
-    for transcript in gff_db.children(gene, featuretype="transcript", order_by="start"):
-        list_transcript_ids += [x.split(".")[0] for x in transcript["transcript_id"]]
-
-    return list_transcript_ids
-
-
 def as_range(region):
     """
     Returns genomic region boundaries
@@ -216,23 +226,30 @@ def as_range(region):
     return region[0], region[-1]
 
 
-def extract_columns_from_dbNFP(dbnsfp, annotation_names):
+def extract_columns_from_dbNFP(dbnsfp, columns, columns_file):
     """
     Extract the indices of the column to use in dbnsfp
 
     Args:
         dbnsfp (pysam.TabixFile): dbNSFP indexed file
-        annotation_names (str): path to a file listing column names from dbNSFP to retrieve
+        columns(str) : Annotations to extract form dbNSFP (comma separated)
+        columns_file (str): File listing which annotations to extract from dbNSFP
     """
 
-    if annotation_names:
-        with open(annotation_names, "r") as f:
-            columns_to_extract = [x.strip() for x in f.readlines()]
+    # If the user provided the columns to extract in a separate file we read it
+    if columns_file:
+        columns_to_extract = utils.read_columns_from_file(columns_file)
+    # If he provided them as a string we split it
+    elif columns:
+        columns_to_extract = columns.split(",")
+    # If he did not provide any column we retrieve all columns in dbNSFP
     else:
         columns_to_extract = dbnsfp.header[0].split("\t")[4:]
 
+    # Retrieve dbNSFP columns
     dbnsfp_columns = dbnsfp.header[0].split("\t")
 
+    # Find the index of all columns asked by the user
     list_indices = list()
     found_column = list()
     for idx, name in enumerate(dbnsfp_columns):
@@ -240,7 +257,7 @@ def extract_columns_from_dbNFP(dbnsfp, annotation_names):
             list_indices.append(idx)
             found_column.append(name)
 
-    # If a score can not be retrieved from dbNSFP we stop here
+    # If a column can not be retrieved from dbNSFP we stop here
     columns_not_found = set(columns_to_extract) - set(found_column)
     if columns_not_found:
         print(f"ERROR : The following columns could not be retrieved from dbNFSP : {columns_not_found}")
@@ -249,101 +266,13 @@ def extract_columns_from_dbNFP(dbnsfp, annotation_names):
     return list_indices, found_column
 
 
-def load_rates_file(rates, output):
-    """
-    Load rates file
-
-    Args:
-        rates (str): path to a variant file in TSV format
-        output (str): output file
-
-    """
-
-    # Load rates file
-    rates_df = pd.read_table(rates, dtype={"chrom": str, "pos": int, "ref": str, "alt": str})
-
-    # Edge case where when splitting the processes we end up with an empty input file
-    if rates_df.empty:
-        print("Rates file is empty")
-        rates_df["raw"] = None
-        rates_df["score"] = None
-        rates_df.to_csv(output, sep="\t", index=False)
-        sys.exit(0)
-
-    # Depending on the gff, chromosome can be defined as "chrX" or just "X"
-    if str(rates_df.iloc[0].chrom).startswith("chr"):
-        add_chr = True
-    else:
-        add_chr = False
-
-    return rates_df, add_chr
-
-
-def load_gff(gff_file):
-    """Create the gff database used by gffutils.
-
-    Args:
-        gff_file (str): Path to a GFF or a gffutils database file.
-    Returns:
-        gffutils.db: GFF database.
-
-    """
-
-    # gffutils db input
-    if gff_file.endswith(".db"):
-        gff_db = gffutils.FeatureDB(gff_file)
-    # GFF input
-    else:
-        gff_db_path = gff_file + ".db"
-        try:
-            os.remove(gff_db_path)
-        except OSError:
-            pass
-
-        gff_db = gffutils.create_db(gff_file, gff_db_path, merge_strategy="create_unique")
-
-    global ensembl_gene_version
-    ensembl_gene_version = dict()
-    for gene in gff_db.features_of_type("gene", order_by="start"):
-        ensembl_gene_version[gene.id.split(".")[0]] = gene.id
-
-    return gff_db
-
-
-def remove_duplicates(block_dbnsfp):
-    """_summary_
-
-    Args:
-        block_dbnsfp (_type_): _description_
-    """
-
-    indices_to_remove = list()
-    for pos, min_df in block_dbnsfp.loc[block_dbnsfp[["chrom", "pos", "ref", "alt"]].duplicated(keep=False)].groupby(
-        ["pos", "alt"]
-    ):
-        indices = min_df.index
-        if min_df["transcript_in_dbnsfp"].sum() != 0:
-            min_df = min_df.loc[min_df["transcript_in_dbnsfp"] == True].copy()
-
-        # Keep the record with the most values annotated
-        min_df["nb_missing_values"] = (min_df != ".").sum(axis=1)
-        keep_idx = min_df.sort_values("nb_missing_values", ascending=False).index[0]
-
-        indices_to_remove = indices_to_remove + list(set(indices) - set([keep_idx]))
-
-    block_dbnsfp = block_dbnsfp.drop(indices_to_remove)
-
-    return block_dbnsfp
-
-
 def check_columns(input_columns, dbnsfp_columns):
     """
-    Check which column to retrieve from the VCF annotation file
+    Check whether some of the columns wanted by the user are already in the input file
 
     Args:
-        variants_df (pd.DataFrame): variants file
-        annotation_vcf (VariantFile): VCF file containing the annotations
-        columns (list): list of annotation to retrieve
+        input_columns (str): input data frame columns
+        dbnsfp_columns (str): annotation columns
 
     """
 
@@ -359,13 +288,97 @@ def check_columns(input_columns, dbnsfp_columns):
     return shared_columns
 
 
+def load_rates_file(rates, output):
+    """
+    Load rates file
+
+    Args:
+        rates (str): path to a variant file in TSV format
+        output (str): output file
+
+    """
+
+    logger = logging.getLogger("logger")
+
+    # Load rates file
+    rates_df = pd.read_table(rates, dtype={"chrom": str, "pos": int, "ref": str, "alt": str})
+
+    # Edge case where when splitting the processes we end up with an empty input file
+    if rates_df.empty:
+        logger.info("Rates file is empty")
+        rates_df["raw"] = None
+        rates_df["score"] = None
+        rates_df.to_csv(output, sep="\t", index=False)
+        sys.exit(0)
+
+    # Depending on the gff, chromosome can be defined as "chrN" or just "N"
+    if str(rates_df.iloc[0].chrom).startswith("chr"):
+        add_chr = True
+    else:
+        add_chr = False
+
+    return rates_df, add_chr
+
+
+def remove_duplicates(block_dbnsfp):
+    """
+    Looking at dbNSFP it looks like we can have two records for a same variant if it leads to
+    a different amino acid.
+    For now we prioritise the record that matches the transcript in the input GFF (if any) and,
+    if several, the record with less missing annotations.
+
+
+    Args:
+        block_dbnsfp (pd.DataFrame): subset of the annotated data frame
+    """
+
+    indices_to_remove = list()
+    for pos, min_df in block_dbnsfp.loc[block_dbnsfp[["chrom", "pos", "ref", "alt"]].duplicated(keep=False)].groupby(
+        ["pos", "alt"]
+    ):
+
+        indices = min_df.index
+        if min_df["transcript_in_dbnsfp"].sum() != 0:
+            min_df = min_df.loc[min_df["transcript_in_dbnsfp"] == True].copy()
+
+        # Keep the record with the most values annotated
+        min_df["nb_missing_values"] = (min_df != ".").sum(axis=1)
+        keep_idx = min_df.sort_values("nb_missing_values", ascending=False).index[0]
+
+        indices_to_remove = indices_to_remove + list(set(indices) - set([keep_idx]))
+
+    block_dbnsfp = block_dbnsfp.drop(indices_to_remove)
+
+    return block_dbnsfp
+
+
+def extract_ensembl_gene_id_without_version(gff_db):
+    """
+    It might happen that the user input file contains ENSEMBL gene ids without version number
+    when the GFF file does contain them. In that case we need to map the two together.
+
+    Args:
+        gff_db (gffutils.FeatureDB): gffutils database
+
+    Returns:
+        dict: maps ENSG with version to ENSG without version (e.g. {ENSG00000010404 : ENSG00000010404.1})
+    """
+
+    ensembl_gene_id_map_version = dict()
+    for gene in gff_db.features_of_type("gene", order_by="start"):
+        ensembl_gene_id_map_version[gene.id.split(".")[0]] = gene.id
+
+    return ensembl_gene_id_map_version
+
+
 @click.command()
 @click.argument("rates_dnm")
 @click.argument("dbnsfp")
 @click.argument("output")
-@click.option("--annotation_names", default="")
+@click.option("-c", "--columns", default="")
+@click.option("-C", "--columns-file", default="")
 @click.option("--gff", default="")
-def annotate_dbnsfp(rates_dnm, dbnsfp, output, annotation_names, gff):
+def annotate_dbnsfp(rates_dnm, dbnsfp, output, columns, columns_file, gff):
     """
     Annotatate a rates/DNM file with CEP scores from dbNSFP.
     When multiple scores exist for a variant (e.g. multiple transcripts, overlapping genes),
@@ -373,11 +386,12 @@ def annotate_dbnsfp(rates_dnm, dbnsfp, output, annotation_names, gff):
     When no GFF are provided, the maximum score for the gene associated to the variant is retrieved.
 
     Args:
-        df (str): Path to rates/DNM file [gene_id,chrom,pos,ref,alt]
-        dbnsfp (str): Path to dbNSFP file
-        output (str): Path to output file (merged dataframe)
-        annotation_names (str): Path to a file listing which annotations to extract from dbNSFP
-        gff(str) : Path to gff file or gffutils database
+        rates_dnm (str): Variants file (e.g. rates, DNM) starting with the following columns [gene_id,chrom,pos,ref,alt]
+        dbnsfp (str): dbNSFP genome wide file
+        output (str): Output file (annotated dataframe)
+        columns(str) : Annotations to extract form dbNSFP (comma separated)
+        columns_file (str): File listing which annotations to extract from dbNSFP
+        gff(str) : Gff file or gffutils database
     """
 
     utils.init_log()
@@ -392,12 +406,13 @@ def annotate_dbnsfp(rates_dnm, dbnsfp, output, annotation_names, gff):
 
     # Load gff file/DB (to match annotation based on user selected transcripts)
     if gff:
-        gff_db = load_gff(gff)
+        gff_db = utils.load_gff(gff)
+        ensembl_gene_id_map_version = extract_ensembl_gene_id_without_version(gff_db)
     else:
         gff_db = None
 
     # Retrieve columns to extract from dbnsfp_df
-    dbnsfp_columns_indices, dbnsfp_columns_names = extract_columns_from_dbNFP(dbnsfp_df, annotation_names)
+    dbnsfp_columns_indices, dbnsfp_columns_names = extract_columns_from_dbNFP(dbnsfp_df, columns, columns_file)
 
     # If some columns are already found in the input file, we prefix the new ones with "dbnsfp"
     existing_columns = check_columns(rates_df_columns, dbnsfp_columns_names)
@@ -416,7 +431,16 @@ def annotate_dbnsfp(rates_dnm, dbnsfp, output, annotation_names, gff):
         for _, block in groupby(sorted(set(gene_rates_df["pos"])), key=lambda n, c=count(): n - next(c)):
             start, end = as_range(list(block))
             try:
-                block_dbnsfp = load_dbnsfp(dbnsfp_df, chrom, start - 1, end, dbnsfp_columns_indices, gene_id, gff_db)
+                block_dbnsfp = load_dbnsfp(
+                    dbnsfp_df,
+                    chrom,
+                    start - 1,
+                    end,
+                    dbnsfp_columns_indices,
+                    gene_id,
+                    gff_db,
+                    ensembl_gene_id_map_version,
+                )
                 if not block_dbnsfp.empty:
                     block_dbnsfp = remove_duplicates(block_dbnsfp)
                     list_block_df.append(block_dbnsfp)

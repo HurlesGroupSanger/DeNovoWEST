@@ -4,12 +4,24 @@ import click
 import pysam
 import sys
 from itertools import groupby, count
+import utils
+import logging
 
 is_chr_prefixed_variants = False
 is_chr_prefixed_annotation = False
 
 
 def is_chr_prefixed(df_path):
+    """
+    Chromosomes can be defined as "N" or "chrN"
+    If it differs between the input file and the annotation file it prevents records matching
+
+    Args:
+        df_path (str): variants or annotation file
+
+    Returns:
+        bool: whether the chromosomes are prefixed or not in {df_path}
+    """
 
     df = pd.read_csv(df_path, sep="\t", nrows=100)
 
@@ -26,10 +38,11 @@ def is_chr_prefixed(df_path):
 
 
 def load_variants_file(variants):
-    """_summary_
+    """
+    Load variants file (e.g. DNM/rates file)
 
     Args:
-        variants (_type_): _description_
+        variants (str): variants file
     """
 
     variants_df = pd.read_table(variants, dtype={"chrom": str, "pos": int, "ref": str, "alt": str})
@@ -37,9 +50,16 @@ def load_variants_file(variants):
     return variants_df
 
 
-def annotate(variants_df, annotation_df, columns):
+def annotate(variants_df, annotation_df, columns_indices, columns_names):
+    """
+    Annotate variants file with the selected columns from the annotation file.
 
-    columns_indices, columns_names = extract_columns_indices(annotation_df, columns)
+    Args:
+        variants_df (pd.DataFrame): variants
+        annotation_df (pd.DataFrame): annotations
+        columns_indices (list):  index of annotations to extract
+        columns_names (list):  names of annotations to extract
+    """
 
     list_annotated_df = list()
     for gene_id, gene_df in variants_df.groupby("gene_id"):
@@ -50,52 +70,31 @@ def annotate(variants_df, annotation_df, columns):
     # Combine results for all genes
     annotated_df = pd.concat(list_annotated_df)
     annotated_df.rename(dict(zip([str(x) for x in columns_indices], columns_names)), axis=1, inplace=True)
+    assert variants_df.shape[0] == annotated_df.shape[0]
 
     return annotated_df
 
 
-def extract_columns_indices(annotation_df, columns):
+def annotate_gene(gene_id, gene_df, annotation_df, columns):
     """
-    Extract the indices of the column to use from the annotation file
+    Annotate the current gene
 
     Args:
-        annotation_df (pysam.TabixFile): annotation indexed file
-        columns (str): columns to extract from the annotation file
+        gene_id (str): current gene identifier
+        gene_df (pd.DataFrame): variants found in the current gene
+        annotation_df (pd.DataFrame): annotations
+        columns (list):  indices of annotation to retrieve
+
     """
 
-    all_columns = annotation_df.header[0].split("\t")
-
-    # If no columns have been specified we annotate with all non standard columns
-    if columns:
-        columns_to_extract = columns.split(",")
-    else:
-        columns_to_extract = all_columns[4:]
-
-    # Retrieve indices of columns to extract
-    columns_indices = list()
-    columns_names = list()
-    for idx, name in enumerate(all_columns):
-        if name in columns_to_extract:
-            columns_indices.append(idx)
-            columns_names.append(name)
-
-    # If a score can not be retrieved from dbNSFP we stop here
-    columns_not_found = set(columns_to_extract) - set(columns_names)
-    if columns_not_found:
-        print(f"ERROR : The following columns could not be retrieved from the annotation file : {columns_not_found}")
-        sys.exit(1)
-
-    return columns_indices, columns_names
-
-
-def annotate_gene(gene_id, gene_df, annotation_df, columns):
+    logger = logging.getLogger("logger")
 
     gene_annotation_df = retrieve_annotation(gene_df, annotation_df, columns)
 
     if not gene_annotation_df.empty:
         gene_annotated_df = gene_df.merge(gene_annotation_df, how="left", on=["chrom", "pos", "ref", "alt"])
     else:
-        print(f"WARNING : No annotations for gene {gene_id}")
+        logger.warning(f"No annotations for gene {gene_id}")
         gene_annotated_df = gene_df
 
     # for column in columns:
@@ -106,14 +105,14 @@ def annotate_gene(gene_id, gene_df, annotation_df, columns):
 
 
 def retrieve_annotation(gene_df, annotation_df, columns):
-    """_summary_
+    """
+    Retrieve annoations for the current gene
 
     Args:
-        gene_df (_type_): _description_
-        annotation_df (_type_): _description_
+        gene_df (pd.DataFrame): _description_
+        annotation_df (pd.DataFrame): _description_
+        columns (list):  indices of annotation to retrieve
 
-    Returns:
-        _type_: _description_
     """
 
     gene_chrom = str(gene_df.chrom.values[0]).replace("chr", "")
@@ -196,23 +195,95 @@ def parse(line, columns):
     return record_dict
 
 
+def extract_columns_indices(annotation_df, columns, columns_file):
+    """
+    Extract the indices of the column to use from the annotation file
+
+    Args:
+        annotation_df (pysam.TabixFile): annotation indexed file
+        columns (str): columns to extract from the annotation file, comma separated
+        columns_file (str)
+    """
+
+    logger = logging.getLogger("logger")
+
+    all_columns = annotation_df.header[0].split("\t")
+
+    # If the user provided the columns to extract in a separate file we read it
+    if columns_file:
+        columns_to_extract = utils.read_columns_from_file(columns_file)
+    # If he provided them as a string we split it
+    elif columns:
+        columns_to_extract = columns.split(",")
+    # If he did not provide any column we retrieve all non standard columns
+    else:
+        columns_to_extract = all_columns[4:]
+
+    # Retrieve indices of columns to extract
+    columns_indices = list()
+    columns_names = list()
+    for idx, name in enumerate(all_columns):
+        if name in columns_to_extract:
+            columns_indices.append(idx)
+            columns_names.append(name)
+
+    # If a score can not be retrieved from dbNSFP we stop here
+    columns_not_found = set(columns_to_extract) - set(columns_names)
+    if columns_not_found:
+        logger.error(f"The following columns could not be retrieved from the annotation file : {columns_not_found}")
+        sys.exit(1)
+
+    return columns_indices, columns_names
+
+
+def check_columns(input_columns, custom_columns):
+    """
+    Check whether some of the columns wanted by the user are already in the input file
+
+    Args:
+        input_columns (str): input data frame columns
+        custom_columns (str): annotation columns
+
+    """
+
+    logger = logging.getLogger("logger")
+
+    shared_columns = set(input_columns) & set(custom_columns)
+
+    for shared_column in shared_columns:
+        logger.warning(
+            f"{shared_column} column exists already in variant file. The one coming from the custom annotation file will be suffixed with _custom"
+        )
+
+    return shared_columns
+
+
 @click.command()
 @click.argument("variants", type=click.Path(exists=True))
 @click.argument("annotation", type=click.Path(exists=True))
 @click.argument("output", type=click.Path())
-@click.option("--columns", type=str, help="Columns to use in the annotation file. Should be comma separated")
-def cli(variants, annotation, output, columns):
+@click.option(
+    "-c", "--columns", default="", type=str, help="Columns to use in the annotation file. Should be comma separated"
+)
+@click.option(
+    "-C", "--columns-file", default="", type=str, help="File listing columns to extract from the annotation file"
+)
+def cli(variants, annotation, output, columns, columns_file):
     """
     Annotate a TSV variants file (DNM or rates) with information coming from a
     TAB-delimited genome position file indexed with tabix
     (https://www.htslib.org/doc/tabix.html)
 
     Args:
-        variants (str): variants (DNM, rates) file
+        variants (str): Variants file (e.g. rates, DNM) starting with the following columns [gene_id,chrom,pos,ref,alt]
         annotation (str): annotation file
         output (str): variants file annotated
-        columns (str): columns to use in the annotation file
+        columns (str): columns to use in the annotation file (comma separated)
+        columns_file (str): File listing which annotations to extract from dbNSFP
+
     """
+
+    utils.init_log()
 
     global is_chr_prefixed_variants, is_chr_prefixed_annotation
     is_chr_prefixed_variants = is_chr_prefixed(variants)
@@ -224,8 +295,15 @@ def cli(variants, annotation, output, columns):
     # Load indexed annotation file
     annotation_df = pysam.TabixFile(annotation)
 
+    # Get colums
+    columns_indices, columns_names = extract_columns_indices(annotation_df, columns, columns_file)
+
+    # If some columns are already found in the input file, we prefix the new ones with "dbnsfp"
+    existing_columns = check_columns(variants_df.columns, columns_names)
+    columns_names = [f"{col}_custom" if col in existing_columns else col for col in columns_names]
+
     # Annotate variants file
-    annotated_df = annotate(variants_df, annotation_df, columns)
+    annotated_df = annotate(variants_df, annotation_df, columns_indices, columns_names)
 
     # Export annotated file
     annotated_df.to_csv(output, sep="\t", index=False, na_rep=".")

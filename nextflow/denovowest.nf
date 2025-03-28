@@ -106,6 +106,9 @@ workflow{
           if (!params.annotation.containsKey("dbnsfp_columns")){
             params.annotation.dbnsfp_columns = ""
           }
+          if (!params.annotation.containsKey("dbnsfp_columns_file")){
+            params.annotation.dbnsfp_columns_file = ""
+          }
         }
     }
 
@@ -212,7 +215,7 @@ workflow{
       }
 
       if (params.annotation.containsKey("dbnsfp_file")){
-        rates_annotated_ch = DBNSFP(rates_annotated_ch,  file(params.annotation.dbnsfp_file),  file(params.annotation.dbnsfp_file + ".tbi"), params.annotation.dbnsfp_columns,  gffutils_db_ch.first(), "rates")
+        rates_annotated_ch = DBNSFP(rates_annotated_ch,  file(params.annotation.dbnsfp_file),  file(params.annotation.dbnsfp_file + ".tbi"), params.annotation.dbnsfp_columns, params.annotation.dbnsfp_columns_file,  gffutils_db_ch.first(), "rates")
       }
 
       if (params.annotation.containsKey("custom")){
@@ -354,7 +357,7 @@ workflow{
         }
 
         if (params.annotation.containsKey("dbnsfp_file")){
-          dnm_annotated_ch = DNM_DBNSFP(dnm_annotated_ch,  file(params.annotation.dbnsfp_file),  file(params.annotation.dbnsfp_file + ".tbi"), params.annotation.dbnsfp_columns,  gffutils_db_ch.first(),"dnm")
+          dnm_annotated_ch = DNM_DBNSFP(dnm_annotated_ch,  file(params.annotation.dbnsfp_file),  file(params.annotation.dbnsfp_file + ".tbi"), params.annotation.dbnsfp_columns,  params.annotation.dbnsfp_columns_file,  gffutils_db_ch.first(),"dnm")
         }
 
         if (params.annotation.containsKey("custom")){
@@ -363,6 +366,14 @@ workflow{
           // Did not find a better workaround
           cpt = 1
           params.annotation.custom.each { key, custom ->
+
+              if (!custom.containsKey("columns")) {
+                custom.columns = ""
+              }
+
+              if (!custom.containsKey("columns_file")) {
+                custom.columns_file = ""
+              }
               
               if (cpt == 1){
                 dnm_annotated_ch = DNM_CUSTOM(
@@ -370,6 +381,7 @@ workflow{
                     file(custom.path),
                     file(custom.path + ".tbi"),
                     custom.columns,
+                    custom.columns_file,
                     gffutils_db_ch.first(),
                     "dnm"
                 )
@@ -380,6 +392,7 @@ workflow{
                     file(custom.path),
                     file(custom.path + ".tbi"),
                     custom.columns,
+                    custom.columns_file,
                     gffutils_db_ch.first(),
                     "dnm"
                 )
@@ -390,6 +403,7 @@ workflow{
                     file(custom.path),
                     file(custom.path + ".tbi"),
                     custom.columns,
+                    custom.columns_file,
                     gffutils_db_ch.first(),
                     "dnm"
                 )
@@ -404,6 +418,15 @@ workflow{
           // Did not find a better workaround
           cpt = 1
           params.annotation.vcf.each { key, vcf ->
+
+
+              if (!vcf.containsKey("columns")) {
+                vcf.columns = ""
+              }
+
+              if (!vcf.containsKey("columns_file")) {
+                vcf.columns_file = ""
+              }
               
               if (cpt == 1){
                 dnm_annotated_ch = DNM_VCF(
@@ -411,6 +434,7 @@ workflow{
                     file(vcf.path),
                     file(vcf.path + ".tbi"),
                     vcf.columns,
+                    vcf.columns_file,
                     gffutils_db_ch.first(),
                     "rates"
                 )
@@ -421,6 +445,7 @@ workflow{
                     file(vcf.path),
                     file(vcf.path + ".tbi"),
                     vcf.columns,
+                    vcf.columns_file,
                     gffutils_db_ch.first(),
                     "rates"
                 )
@@ -431,6 +456,7 @@ workflow{
                     file(vcf.path),
                     file(vcf.path + ".tbi"),
                     vcf.columns,
+                    vcf.columns_file,
                     gffutils_db_ch.first(),
                     "rates"
                 )

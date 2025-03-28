@@ -134,7 +134,6 @@ def retrieve_annotation(gene_id, gene_df, annotation_vcf, match_gene, gene_mappi
             block_df = load_annotation(annotation_vcf, gene_chrom, start - 1, end)
             list_block_df.append(block_df)
         except ValueError as e:
-            print(e)
             continue
 
     gene_annotations_df = format_gene_annotation(gene_id, list_block_df, match_gene, gene_mapping)
@@ -323,7 +322,7 @@ def build_gene_mapping_from_gff(gff_db):
     return gene_mapping
 
 
-def check_columns(variants_df, annotation_vcf, columns):
+def check_columns(variants_df, annotation_vcf, columns, columns_file):
     """
     Check which column to retrieve from the VCF annotation file
 
@@ -336,9 +335,13 @@ def check_columns(variants_df, annotation_vcf, columns):
 
     logger = logging.getLogger("logger")
 
-    if columns:
-        annotation_columns = columns.split(";")
-    # If the user did not specify any info field to retrieve we retrieve all the fields
+    # If the user provided the columns to extract in a separate file we read it
+    if columns_file:
+        annotation_columns = utils.read_columns_from_file(columns_file)
+    # If he provided them as a string we split it
+    elif columns:
+        annotation_columns = columns.split(",")
+    # If he did not provide any column we retrieve all the fields in INFO
     else:
         for i, record in enumerate(annotation_vcf):
             break
@@ -374,14 +377,19 @@ def build_gene_mapping_from_column(variants_df):
 @click.argument("variants", type=click.Path(exists=True))
 @click.argument("annotation", type=click.Path(exists=True))
 @click.argument("output", type=click.Path())
-@click.option("--columns", type=str, help="Columns to use in the annotation file. Should be comma separated")
+@click.option(
+    "-c", "--columns", default="", type=str, help="Columns to use in the annotation file. Should be comma separated"
+)
+@click.option(
+    "-C", "--columns-file", default="", type=str, help="File listing columns to extract from the annotation file"
+)
 @click.option("--match-gene", is_flag=True, help="Match the annotation based on gene identifier or symbol")
 @click.option(
     "--gff",
     type=str,
     help="GFF file used to build the rates file, and that contains the ENSEMBL identifier / gene symbol matching",
 )
-def cli(variants, annotation, output, columns, match_gene, gff):
+def cli(variants, annotation, output, columns, columns_file, match_gene, gff):
     """
     Annotate a variants file (e.g. rates file) with informations stored in a VCF.
     CAVEAT : For now the script works only with variant file using ENSEMBL gene identifiers, and with VCF
@@ -392,6 +400,7 @@ def cli(variants, annotation, output, columns, match_gene, gff):
         annotation (str): annotation to add to the variant file in VCF format
         output (str): annotated variant file
         columns (str): columns to retrieve from the VCF. Should be comma separated
+        columns_file (str): File listing which annotations to extract from dbNSFP
         match_gene (boolean): whether to match annotation using coordinates only or gene id
         gff (str): gff file used to build the rates file, contains matching between gene identifier and gene symbol that
         can be used if the annotation contains only gene symbol
@@ -428,8 +437,8 @@ def cli(variants, annotation, output, columns, match_gene, gff):
         gene_mapping = dict()
 
     # Annotate variants file
-    columns = check_columns(variants_df, annotation_vcf, columns)
-    annotated_df = annotate(variants_df, annotation_vcf, columns, match_gene, gene_mapping)
+    annotation_columns = check_columns(variants_df, annotation_vcf, columns, columns_file)
+    annotated_df = annotate(variants_df, annotation_vcf, annotation_columns, match_gene, gene_mapping)
 
     # Export annotated file
     annotated_df.to_csv(output, sep="\t", index=False, na_rep=".")

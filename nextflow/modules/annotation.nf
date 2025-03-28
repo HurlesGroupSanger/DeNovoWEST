@@ -112,7 +112,8 @@ process DBNSFP {
     path rates_or_dnm 
     path dbnsfp
     path dbnsfp_index
-    path dbnsfp_columns_to_extract
+    val dbnsfp_columns_to_extract
+    val dbnsfp_columns_file
     path gffutils_db
     val type
 
@@ -123,10 +124,12 @@ process DBNSFP {
     """
     # Annotate dbnsfp
 
-    if [ -z "$dbnsfp_columns_to_extract" ]; then
-        annotate_dbnsfp.py $rates_or_dnm $dbnsfp ${type}_dbnsfp.tsv  --gff $gffutils_db 
+    if [ -n "$dbnsfp_columns_file" ]; then
+        annotate_dbnsfp.py $rates_or_dnm $dbnsfp ${type}_dbnsfp.tsv  -C $dbnsfp_columns_file --gff $gffutils_db 
+    elif [ -n "$dbnsfp_columns_to_extract" ]; then
+        annotate_dbnsfp.py $rates_or_dnm $dbnsfp ${type}_dbnsfp.tsv  -c $dbnsfp_columns_to_extract --gff $gffutils_db 
     else
-        annotate_dbnsfp.py $rates_or_dnm $dbnsfp ${type}_dbnsfp.tsv  --annotation_names $dbnsfp_columns_to_extract --gff $gffutils_db 
+        annotate_dbnsfp.py $rates_or_dnm $dbnsfp ${type}_dbnsfp.tsv --gff $gffutils_db 
     fi
     """
 }
@@ -139,6 +142,7 @@ process CUSTOM {
     path custom_file
     path custom_file_index
     val columns_to_extract
+    val columns_file
     path gffutils_db
     val type
 
@@ -147,8 +151,14 @@ process CUSTOM {
 
     script:
     """
-    # Annotate dbnsfp
-    annotate_custom.py $rates_or_dnm $custom_file ${type}_custom.tsv --columns $columns_to_extract
+    # Annotate from custom file
+    if [ -n "$columns_file" ]; then
+        annotate_custom.py $rates_or_dnm $custom_file ${type}_custom.tsv -C $columns_file
+    elif [ -n "$columns_to_extract" ]; then
+        annotate_custom.py $rates_or_dnm $custom_file ${type}_custom.tsv -c $columns_to_extract
+    else
+        annotate_custom.py $rates_or_dnm $custom_file ${type}_custom.tsv
+    fi
     """
 }
 
@@ -159,6 +169,7 @@ process VCF {
     path vcf
     path vcf_index
     val columns_to_extract
+    val columns_file
     path gffutils_db
     val type
 
@@ -167,7 +178,14 @@ process VCF {
 
     script:
     """
-    # Annotate dbnsfp
-    annotate_vcf.py $rates_or_dnm $vcf ${type}_vcf.tsv --columns $columns_to_extract --gff $gffutils_db
+
+    # Annotate from VCF file
+    if [ -n "$columns_file" ]; then
+        annotate_vcf.py $rates_or_dnm $vcf ${type}_vcf.tsv -C $columns_file --gff $gffutils_db
+    elif [ -n "$columns_to_extract" ]; then
+        annotate_vcf.py $rates_or_dnm $vcf ${type}_vcf.tsv -c $columns_to_extract --gff $gffutils_db
+    else
+        annotate_vcf.py $rates_or_dnm $vcf ${type}_vcf.tsv --gff $gffutils_db
+    fi
     """
 }
