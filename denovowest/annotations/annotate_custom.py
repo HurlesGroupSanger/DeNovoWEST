@@ -6,9 +6,12 @@ import sys
 from itertools import groupby, count
 import utils
 import logging
+import gzip
 
 is_chr_prefixed_variants = False
 is_chr_prefixed_annotation = False
+
+# TODO : Handle annotation with matching on gene identifier/symbol
 
 
 def is_chr_prefixed(df_path):
@@ -70,7 +73,6 @@ def annotate(variants_df, annotation_df, columns_indices, columns_names):
     # Combine results for all genes
     annotated_df = pd.concat(list_annotated_df)
     annotated_df.rename(dict(zip([str(x) for x in columns_indices], columns_names)), axis=1, inplace=True)
-    assert variants_df.shape[0] == annotated_df.shape[0]
 
     return annotated_df
 
@@ -89,13 +91,15 @@ def annotate_gene(gene_id, gene_df, annotation_df, columns):
 
     logger = logging.getLogger("logger")
 
-    gene_annotation_df = retrieve_annotation(gene_df, annotation_df, columns)
+    gene_annotation_df = retrieve_annotation(gene_df, annotation_df, columns, gene_id)
 
     if not gene_annotation_df.empty:
         gene_annotated_df = gene_df.merge(gene_annotation_df, how="left", on=["chrom", "pos", "ref", "alt"])
     else:
         logger.warning(f"No annotations for gene {gene_id}")
         gene_annotated_df = gene_df
+
+    assert gene_df.shape[0] == gene_annotated_df.shape[0]
 
     # for column in columns:
     #     if column not in gene_annotated_df.columns:
@@ -104,7 +108,7 @@ def annotate_gene(gene_id, gene_df, annotation_df, columns):
     return gene_annotated_df
 
 
-def retrieve_annotation(gene_df, annotation_df, columns):
+def retrieve_annotation(gene_df, annotation_df, columns, gene_id):
     """
     Retrieve annoations for the current gene
 
@@ -112,8 +116,11 @@ def retrieve_annotation(gene_df, annotation_df, columns):
         gene_df (pd.DataFrame): _description_
         annotation_df (pd.DataFrame): _description_
         columns (list):  indices of annotation to retrieve
+        gene_id (str) : gene identifier
 
     """
+
+    logger = logging.getLogger("logger")
 
     gene_chrom = str(gene_df.chrom.values[0]).replace("chr", "")
     # Split each gene in contiguous block (i.e. exons) and retrieve annotations
@@ -139,6 +146,13 @@ def retrieve_annotation(gene_df, annotation_df, columns):
             gene_annotations_df["chrom"] = ["chr" + x for x in gene_annotations_df["chrom"]]
     else:
         gene_annotations_df = pd.DataFrame()
+
+    # Remove duplicated rows if any
+    if not gene_annotations_df.empty:
+        nb_rows_before_duplication = gene_annotations_df.shape[0]
+        gene_annotations_df = gene_annotations_df.loc[~gene_annotations_df[["chrom", "pos", "ref", "alt"]].duplicated()]
+        if nb_rows_before_duplication != gene_annotations_df.shape[0]:
+            logger.warning(f"There were multiple annotation available for {gene_id}")
 
     return gene_annotations_df
 
@@ -207,7 +221,13 @@ def extract_columns_indices(annotation_df, columns, columns_file):
 
     logger = logging.getLogger("logger")
 
-    all_columns = annotation_df.header[0].split("\t")
+    try:
+        all_columns = annotation_df.header[0].split("\t")
+    except IndexError:
+        # If the annotation file header does not start with #, the Tabix header will be empty
+        # and we need to retrieve it another way
+        with gzip.open(annotation_df.filename, "rt") as f:
+            all_columns = f.readline().strip().split("\t")
 
     # If the user provided the columns to extract in a separate file we read it
     if columns_file:
