@@ -224,6 +224,14 @@ workflow{
           // Did not find a better workaround
           cpt = 1
           params.annotation.custom.each { key, custom ->
+
+              if (!custom.containsKey("columns")) {
+                custom.columns = ""
+              }
+
+              if (!custom.containsKey("columns_file")) {
+                custom.columns_file = ""
+              }
               
               if (cpt == 1){
                 rates_annotated_ch = CUSTOM(
@@ -231,6 +239,7 @@ workflow{
                     file(custom.path),
                     file(custom.path + ".tbi"),
                     custom.columns,
+                    custom.columns_file,
                     gffutils_db_ch.first(),
                     "rates"
                 )
@@ -241,6 +250,7 @@ workflow{
                     file(custom.path),
                     file(custom.path + ".tbi"),
                     custom.columns,
+                    custom.columns_file,
                     gffutils_db_ch.first(),
                     "rates"
                 )
@@ -251,6 +261,7 @@ workflow{
                     file(custom.path),
                     file(custom.path + ".tbi"),
                     custom.columns,
+                    custom.columns_file,
                     gffutils_db_ch.first(),
                     "rates"
                 )
@@ -265,6 +276,16 @@ workflow{
           // Did not find a better workaround
           cpt = 1
           params.annotation.vcf.each { key, vcf ->
+
+
+              if (!vcf.containsKey("columns")) {
+                vcf.columns = ""
+              }
+
+              if (!vcf.containsKey("columns_file")) {
+                vcf.columns_file = ""
+              }
+              
               
               if (cpt == 1){
                 rates_annotated_ch = VCF(
@@ -272,6 +293,7 @@ workflow{
                     file(vcf.path),
                     file(vcf.path + ".tbi"),
                     vcf.columns,
+                    vcf.columns_file,
                     gffutils_db_ch.first(),
                     "rates"
                 )
@@ -282,6 +304,7 @@ workflow{
                     file(vcf.path),
                     file(vcf.path + ".tbi"),
                     vcf.columns,
+                    vcf.columns_file,
                     gffutils_db_ch.first(),
                     "rates"
                 )
@@ -292,6 +315,7 @@ workflow{
                     file(vcf.path),
                     file(vcf.path + ".tbi"),
                     vcf.columns,
+                    vcf.columns_file,
                     gffutils_db_ch.first(),
                     "rates"
                 )
@@ -304,9 +328,9 @@ workflow{
       rates_merged_ch = MERGE_RATES(rates_annotated_ch.collect())
 
       // Create rates stats
-      rates_stats_ch = RATES_STATS(rates_annotated_ch)
-      rates_stats_merged_ch = MERGE_RATES_STATS(rates_stats_ch.collect())
-      rates_stats_summary_ch = SUMMARIZE_RATES_STATS(rates_stats_merged_ch)
+      // rates_stats_ch = RATES_STATS(rates_annotated_ch)
+      // rates_stats_merged_ch = MERGE_RATES_STATS(rates_stats_ch.collect())
+      // rates_stats_summary_ch = SUMMARIZE_RATES_STATS(rates_stats_merged_ch)
 
     }
     // If the rates file is already annotated, nothing to do
