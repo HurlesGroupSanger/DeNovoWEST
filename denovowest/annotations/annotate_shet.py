@@ -2,6 +2,9 @@
 import pandas as pd
 import click
 import sys
+import logging
+
+from denovowest.utils.log import init_log
 
 
 @click.command()
@@ -18,10 +21,13 @@ def annotate_shet(rates, shet, output, threshold):
         output (str): Path to output file (merged dataframe)
     """
 
+    init_log()
+    logger = logging.getLogger("logger")
+
     # Load rates file
     rates_df = pd.read_table(rates)
     if rates_df.empty:
-        print("Rates file is empty")
+        logger.warning("Rates file is empty")
         rates_df["shethigh"] = None
         rates_df.to_csv(output, sep="\t", index=False)
         sys.exit(0)
@@ -31,7 +37,6 @@ def annotate_shet(rates, shet, output, threshold):
     shet_df = pd.read_table(shet, index_col=1)
 
     # For each gene
-    list_merged_df = list()
     nb_gene_not_in_shet = 0
     for gene_id_orig, gene_rates_df in rates_df.groupby("gene_id"):
         # Remove gene version if any
@@ -46,7 +51,7 @@ def annotate_shet(rates, shet, output, threshold):
         except KeyError:
             nb_gene_not_in_shet += 1
 
-    print(f"{nb_gene_not_in_shet}/{len(set(rates_df['gene_id']))} genes from rates file not found in shet")
+    logger.info(f"{nb_gene_not_in_shet}/{len(set(rates_df['gene_id']))} genes from rates file not found in shet")
 
     # Export results
     rates_df.to_csv(output, sep="\t", index=False)

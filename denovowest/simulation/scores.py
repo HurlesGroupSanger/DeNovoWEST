@@ -1,6 +1,7 @@
 import pandas as pd
 import numpy as np
-import utils
+
+from denovowest.utils.params import INFRAME_MISSENSE_RATIO, FRAMESHIFT_NONSENSE_RATIO
 
 
 def prepare_scores(dnm_df, rates_df, score_column, runtype, impute_missing=False):
@@ -48,13 +49,11 @@ def infer_indel_scores_and_rates(rates_df, score_column):
     for gene_id, gene_df in rates_df.groupby("gene_id"):
 
         # Get the inframe mutation rate based on the cumulative missense mutation rates, and assign a score from gene-based median missense score
-        gene_inframe_rate = gene_df.loc[gene_df.consequence == "missense", "prob"].sum() * utils.INFRAME_MISSENSE_RATIO
+        gene_inframe_rate = gene_df.loc[gene_df.consequence == "missense", "prob"].sum() * INFRAME_MISSENSE_RATIO
         gene_inframe_scores = gene_df.loc[gene_df.consequence == "missense", score_column].median()
 
         # Get the frameshift mutation rate based on the cumulative nonsense mutation rates, and assign a score from gene-based median nonsense score
-        gene_frameshift_rate = (
-            gene_df.loc[gene_df.consequence == "nonsense", "prob"].sum() * utils.FRAMESHIFT_NONSENSE_RATIO
-        )
+        gene_frameshift_rate = gene_df.loc[gene_df.consequence == "nonsense", "prob"].sum() * FRAMESHIFT_NONSENSE_RATIO
         gene_frameshift_scores = gene_df.loc[gene_df.consequence == "nonsense", score_column].median()
 
         inframe_row = {
@@ -119,7 +118,7 @@ def assign_dnm_indel_scores(dnm_df, indel_rates_df, rates_df, score_column):
                 ].iloc[0]
             )
 
-    dnm_df[score_column] = list_scores
+    dnm_df.loc[:, score_column] = list_scores
     return dnm_df
 
 

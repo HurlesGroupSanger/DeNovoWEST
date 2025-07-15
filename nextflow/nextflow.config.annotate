@@ -1,4 +1,4 @@
-includeConfig 'conf/local.conf'
+includeConfig 'conf/lsf_test.conf'
 
 conda.enabled = true
 
@@ -8,7 +8,7 @@ conda.enabled = true
 //process.container = 'delagee/denovowest:4'
 //docker.enabled = true
 
-workDir = "test/work"
+workDir = "test/annotation/work"
 Date now = new Date()
 
 
@@ -18,9 +18,9 @@ params {
   gff = "../examples/annotation/CADD/input/OR4F5.gff"
   genome_fasta = "../examples/annotation/CADD/input/OR4F5.fa"
   mutation_rate_model = "../resources/rates_model_dnn.tsv"
-  dnm = "../examples/annotation/CADD/input/OR4F5.dnms.tsv"
+  dnm = "../examples/annotation/CADD/input/OR4F5_dnms.tsv"
 
-  outdir = 'outdir'
+  outdir = 'test/annotation/outdir'
 
   // Following parameters are true by default, set to false if you want to skip some steps
   // Here we just want to create the rates file and annotate both the rates and DNM files
@@ -33,7 +33,7 @@ params {
     cadd_file="../examples/annotation/CADD/input/OR4F5.cadd.tsv.gz"
   }
 
-  tracedir = 'test/trace'
+  tracedir = 'test/annotation/trace'
   timestamp = now.format("yyyyMMdd-HH-mm-ss")
 
   // If bcftools and tabix are not in your PATH but can be accessed via modules

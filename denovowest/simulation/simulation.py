@@ -7,12 +7,11 @@ import time
 import click
 import pandas as pd
 import numpy as np
-import utils
 
-
-from utils import init_log, log_configuration, CONSEQUENCES_MAPPING, consequences_severities
-from scores import prepare_scores
-from probabilities import get_pvalue
+from denovowest.utils.log import init_log
+from denovowest.utils.params import CONSEQUENCES_MAPPING, CONSEQUENCES_SEVERITIES
+from denovowest.simulation.scores import prepare_scores
+from denovowest.simulation.probabilities import get_pvalue
 
 
 def load_dnm_rates(dnm, rates, column):
@@ -61,7 +60,8 @@ def prepare_dnm_rates(
     rates_df = prepare_rates(rates_df, nmales, nfemales)
 
     # Prepare scores (indel scores, imputation missing scores...)
-    dnm_df, rates_df = prepare_scores(dnm_df, rates_df, column, utils.RUNTYPE, impute_missing)
+    ctx = click.get_current_context()
+    dnm_df, rates_df = prepare_scores(dnm_df, rates_df, column, ctx.params["runtype"], impute_missing)
 
     return dnm_df, rates_df
 
@@ -98,14 +98,15 @@ def filter_on_consequences(df: pd.DataFrame, mode: str):
     df.consequence = [extract_worst_consequence(csq) if isinstance(csq, str) else csq for csq in list(df.consequence)]
 
     # Filter variants depending on run type : non-synonymous or missense test
-    if utils.RUNTYPE == "ns":
+    ctx = click.get_current_context()
+    if ctx.params["runtype"] == "ns":
         filt = df.consequence.isin(CONSEQUENCES_MAPPING.keys())
     else:
         filt = df.consequence.isin(["missense", "start_lost", "stop_lost"])
 
     kept_df = df.loc[filt]
 
-    logger.info(f"Before consequence filtering : {df.shape[0]} records")
+    logger.info(f"{mode.upper()} - Before consequence filtering : {df.shape[0]} records")
 
     discarded_df = df.loc[~filt]
     if not discarded_df.empty:
@@ -113,7 +114,7 @@ def filter_on_consequences(df: pd.DataFrame, mode: str):
     else:
         logger.info("All records have an acceptable consequence.")
 
-    logger.info(f"After consequence filtering : {kept_df.shape[0]} records")
+    logger.info(f"{mode.upper()} - After consequence filtering : {kept_df.shape[0]} records")
 
     return kept_df
 
@@ -131,8 +132,8 @@ def extract_worst_consequence(csq):
     worst_csq_value = 1
     worst_csq = ""
     for cur_csq in list_csq:
-        if consequences_severities[cur_csq] > worst_csq_value:
-            worst_csq_value = consequences_severities[cur_csq]
+        if CONSEQUENCES_SEVERITIES[cur_csq] > worst_csq_value:
+            worst_csq_value = CONSEQUENCES_SEVERITIES[cur_csq]
             worst_csq = cur_csq
 
     return worst_csq
@@ -307,12 +308,30 @@ def export_results(results: list, outdir: str):
     df = pd.DataFrame.from_records(results, columns=["symbol", "expected", "observed", "p-value", "info"])
     df["nb_sim"] = [x.split("|")[0] for x in df["info"]]
     df["nb_mutations_stop"] = [x.split("|")[1] for x in df["info"]]
-    df["log"] = [x.split("|")[2] for x in df["info"]]
-    df["wall_time"] = [x.split("|")[3] for x in df["info"]]
+    df["sequential_simulation"] = [x.split("|")[2] for x in df["info"]]
+    df["log"] = [x.split("|")[3] for x in df["info"]]
+    df["wall_time"] = [x.split("|")[4] for x in df["info"]]
 
     df.drop("info", axis=1, inplace=True)
 
     df.to_csv(f"{outdir}/enrichment_results.tsv", sep="\t", index=False)
+
+
+def log_configuration(conf):
+    """
+
+    Log the configuration the simulation script was run with
+
+    Args:
+        conf (dict): script arguments
+    """
+
+    logger = logging.getLogger("logger")
+    logger.info("DNW simulation running with the following parameters :")
+    logger.info("----------")
+    for key, value in sorted(conf.items()):
+        logger.info(f"{key} : {value}")
+    logger.info("----------")
 
 
 @click.command()
@@ -321,7 +340,7 @@ def export_results(results: list, outdir: str):
 @click.argument("column")
 @click.option("--nmales", required=True, type=int, help="Number of males individual in your cohort")
 @click.option("--nfemales", required=True, type=int, help="Number of females individual in your cohort")
-@click.option("--pvalcap", default=1, type=float, help="Stop simulations if cumulative p-value > pvalcap")
+@click.option("--pvalcap", default=0.01, type=float, help="Stop simulations if cumulative p-value > pvalcap")
 @click.option("--nsim", type=int, help="Minimum number of simulations for each gene", default=10**7)
 @click.option(
     "--runtype",

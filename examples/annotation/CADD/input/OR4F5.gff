@@ -1,0 +1,43 @@
+##gff-version 3
+#description: evidence-based annotation of the human genome (GRCh38), version 48 (Ensembl 114)
+#provider: GENCODE
+#contact: gencode-help@ebi.ac.uk
+#format: gff3
+#date: 2025-01-19
+##sequence-region chr1 1 248956422
+chr1	HAVANA	gene	65419	71585	.	+	.	ID=ENSG00000186092.7;gene_id=ENSG00000186092.7;gene_type=protein_coding;gene_name=OR4F5;level=2;hgnc_id=HGNC:14825;havana_gene=OTTHUMG00000001094.4;biotype=protein_coding;Name=OR4F5
+chr1	HAVANA	transcript	65419	71585	.	+	.	ID=ENST00000641515.2;Parent=ENSG00000186092.7;gene_id=ENSG00000186092.7;transcript_id=ENST00000641515.2;gene_type=protein_coding;gene_name=OR4F5;transcript_type=protein_coding;transcript_name=OR4F5-201;level=2;protein_id=ENSP00000493376.2;hgnc_id=HGNC:14825;tag=RNA_Seq_supported_partial,basic,Ensembl_canonical,GENCODE_Primary,MANE_Select,appris_principal_1,CCDS;ccdsid=CCDS30547.2;havana_gene=OTTHUMG00000001094.4;havana_transcript=OTTHUMT00000003223.4;biotype=protein_coding
+chr1	HAVANA	exon	65419	65433	.	+	.	ID=exon:ENST00000641515.2:1;Parent=ENST00000641515.2;gene_id=ENSG00000186092.7;transcript_id=ENST00000641515.2;gene_type=protein_coding;gene_name=OR4F5;transcript_type=protein_coding;transcript_name=OR4F5-201;exon_number=1;exon_id=ENSE00003812156.1;level=2;protein_id=ENSP00000493376.2;hgnc_id=HGNC:14825;tag=RNA_Seq_supported_partial,basic,Ensembl_canonical,GENCODE_Primary,MANE_Select,appris_principal_1,CCDS;ccdsid=CCDS30547.2;havana_gene=OTTHUMG00000001094.4;havana_transcript=OTTHUMT00000003223.4
+chr1	HAVANA	exon	65520	65573	.	+	.	ID=exon:ENST00000641515.2:2;Parent=ENST00000641515.2;gene_id=ENSG00000186092.7;transcript_id=ENST00000641515.2;gene_type=protein_coding;gene_name=OR4F5;transcript_type=protein_coding;transcript_name=OR4F5-201;exon_number=2;exon_id=ENSE00003813641.1;level=2;protein_id=ENSP00000493376.2;hgnc_id=HGNC:14825;tag=RNA_Seq_supported_partial,basic,Ensembl_canonical,GENCODE_Primary,MANE_Select,appris_principal_1,CCDS;ccdsid=CCDS30547.2;havana_gene=OTTHUMG00000001094.4;havana_transcript=OTTHUMT00000003223.4
+chr1	HAVANA	CDS	65565	65573	.	+	0	ID=CDS:ENST00000641515.2;Parent=ENST00000641515.2;gene_id=ENSG00000186092.7;transcript_id=ENST00000641515.2;gene_type=protein_coding;gene_name=OR4F5;transcript_type=protein_coding;transcript_name=OR4F5-201;exon_number=2;exon_id=ENSE00003813641.1;level=2;protein_id=ENSP00000493376.2;hgnc_id=HGNC:14825;tag=RNA_Seq_supported_partial,basic,Ensembl_canonical,GENCODE_Primary,MANE_Select,appris_principal_1,CCDS;ccdsid=CCDS30547.2;havana_gene=OTTHUMG00000001094.4;havana_transcript=OTTHUMT00000003223.4
+chr1	HAVANA	start_codon	65565	65567	.	+	0	ID=start_codon:ENST00000641515.2;Parent=ENST00000641515.2;gene_id=ENSG00000186092.7;transcript_id=ENST00000641515.2;gene_type=protein_coding;gene_name=OR4F5;transcript_type=protein_coding;transcript_name=OR4F5-201;exon_number=2;exon_id=ENSE00003813641.1;level=2;protein_id=ENSP00000493376.2;hgnc_id=HGNC:14825;tag=RNA_Seq_supported_partial,basic,Ensembl_canonical,GENCODE_Primary,MANE_Select,appris_principal_1,CCDS;ccdsid=CCDS30547.2;havana_gene=OTTHUMG00000001094.4;havana_transcript=OTTHUMT00000003223.4
+chr1	HAVANA	exon	69037	71585	.	+	.	ID=exon:ENST00000641515.2:3;Parent=ENST00000641515.2;gene_id=ENSG00000186092.7;transcript_id=ENST00000641515.2;gene_type=protein_coding;gene_name=OR4F5;transcript_type=protein_coding;transcript_name=OR4F5-201;exon_number=3;exon_id=ENSE00003813949.1;level=2;protein_id=ENSP00000493376.2;hgnc_id=HGNC:14825;tag=RNA_Seq_supported_partial,basic,Ensembl_canonical,GENCODE_Primary,MANE_Select,appris_principal_1,CCDS;ccdsid=CCDS30547.2;havana_gene=OTTHUMG00000001094.4;havana_transcript=OTTHUMT00000003223.4
+chr1	HAVANA	CDS	69037	70008	.	+	0	ID=CDS:ENST00000641515.2;Parent=ENST00000641515.2;gene_id=ENSG00000186092.7;transcript_id=ENST00000641515.2;gene_type=protein_coding;gene_name=OR4F5;transcript_type=protein_coding;transcript_name=OR4F5-201;exon_number=3;exon_id=ENSE00003813949.1;level=2;protein_id=ENSP00000493376.2;hgnc_id=HGNC:14825;tag=RNA_Seq_supported_partial,basic,Ensembl_canonical,GENCODE_Primary,MANE_Select,appris_principal_1,CCDS;ccdsid=CCDS30547.2;havana_gene=OTTHUMG00000001094.4;havana_transcript=OTTHUMT00000003223.4
+chr1	HAVANA	stop_codon	70006	70008	.	+	0	ID=stop_codon:ENST00000641515.2;Parent=ENST00000641515.2;gene_id=ENSG00000186092.7;transcript_id=ENST00000641515.2;gene_type=protein_coding;gene_name=OR4F5;transcript_type=protein_coding;transcript_name=OR4F5-201;exon_number=3;exon_id=ENSE00003813949.1;level=2;protein_id=ENSP00000493376.2;hgnc_id=HGNC:14825;tag=RNA_Seq_supported_partial,basic,Ensembl_canonical,GENCODE_Primary,MANE_Select,appris_principal_1,CCDS;ccdsid=CCDS30547.2;havana_gene=OTTHUMG00000001094.4;havana_transcript=OTTHUMT00000003223.4
+chr1	HAVANA	five_prime_UTR	65419	65433	.	+	.	ID=UTR5:ENST00000641515.2;Parent=ENST00000641515.2;gene_id=ENSG00000186092.7;transcript_id=ENST00000641515.2;gene_type=protein_coding;gene_name=OR4F5;transcript_type=protein_coding;transcript_name=OR4F5-201;exon_number=1;exon_id=ENSE00003812156.1;level=2;protein_id=ENSP00000493376.2;hgnc_id=HGNC:14825;tag=RNA_Seq_supported_partial,basic,Ensembl_canonical,GENCODE_Primary,MANE_Select,appris_principal_1,CCDS;ccdsid=CCDS30547.2;havana_gene=OTTHUMG00000001094.4;havana_transcript=OTTHUMT00000003223.4
+chr1	HAVANA	five_prime_UTR	65520	65564	.	+	.	ID=UTR5:ENST00000641515.2;Parent=ENST00000641515.2;gene_id=ENSG00000186092.7;transcript_id=ENST00000641515.2;gene_type=protein_coding;gene_name=OR4F5;transcript_type=protein_coding;transcript_name=OR4F5-201;exon_number=2;exon_id=ENSE00003813641.1;level=2;protein_id=ENSP00000493376.2;hgnc_id=HGNC:14825;tag=RNA_Seq_supported_partial,basic,Ensembl_canonical,GENCODE_Primary,MANE_Select,appris_principal_1,CCDS;ccdsid=CCDS30547.2;havana_gene=OTTHUMG00000001094.4;havana_transcript=OTTHUMT00000003223.4
+chr1	HAVANA	three_prime_UTR	70009	71585	.	+	.	ID=UTR3:ENST00000641515.2;Parent=ENST00000641515.2;gene_id=ENSG00000186092.7;transcript_id=ENST00000641515.2;gene_type=protein_coding;gene_name=OR4F5;transcript_type=protein_coding;transcript_name=OR4F5-201;exon_number=3;exon_id=ENSE00003813949.1;level=2;protein_id=ENSP00000493376.2;hgnc_id=HGNC:14825;tag=RNA_Seq_supported_partial,basic,Ensembl_canonical,GENCODE_Primary,MANE_Select,appris_principal_1,CCDS;ccdsid=CCDS30547.2;havana_gene=OTTHUMG00000001094.4;havana_transcript=OTTHUMT00000003223.4
+##sequence-region chr2 1 242193529
+##sequence-region chr3 1 198295559
+##sequence-region chr4 1 190214555
+##sequence-region chr5 1 181538259
+##sequence-region chr6 1 170805979
+##sequence-region chr7 1 159345973
+##sequence-region chr8 1 145138636
+##sequence-region chr9 1 138394717
+##sequence-region chr10 1 133797422
+##sequence-region chr11 1 135086622
+##sequence-region chr12 1 133275309
+##sequence-region chr13 1 114364328
+##sequence-region chr14 1 107043718
+##sequence-region chr15 1 101991189
+##sequence-region chr16 1 90338345
+##sequence-region chr17 1 83257441
+##sequence-region chr18 1 80373285
+##sequence-region chr19 1 58617616
+##sequence-region chr20 1 64444167
+##sequence-region chr21 1 46709983
+##sequence-region chr22 1 50818468
+##sequence-region chrX 1 156040895
+##sequence-region chrY 1 57227415
+##sequence-region chrM 1 16569

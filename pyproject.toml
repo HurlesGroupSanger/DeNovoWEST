@@ -1,0 +1,29 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "denovowest"
+version = "0.1"
+description = "A de novo mutation simulation framework"
+readme = { file = "README.md", content-type = "text/markdown" }
+authors = [{ name = "Erwan Delage" }]
+requires-python = ">=3.8"
+dependencies = [
+    "numpy",
+    "scipy",
+	"pandas",
+	"gffutils",
+	"click",
+	"pyyaml",
+	"pysam",
+	"joblib"
+]
+
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["denovowest*"]
+
+[project.scripts]
+denovowest = "denovowest.cli:main"

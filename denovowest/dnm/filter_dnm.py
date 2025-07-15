@@ -2,12 +2,11 @@
 import click
 import pandas as pd
 import logging
-import os
-import sys
 import re
 
-sys.path.append(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
-from utils import utils
+from denovowest.utils.log import init_log
+from denovowest.utils.params import CDS_OFFSET
+from denovowest.utils.io_helpers import load_gff
 
 
 @click.command()
@@ -75,7 +74,7 @@ def filter_on_gff(dnm_df, gff):
         gff (str): path to GFF file or gffutils database
     """
 
-    gff_db = utils.load_gff(gff)
+    gff_db = load_gff(gff)
 
     idx_not_in_cds = []
     for idx, dnm in dnm_df.iterrows():
@@ -104,7 +103,7 @@ def is_in_cds(gff_db, dnm):
     gene = gff_db[gene_id]
     for transcript in gff_db.children(gene, level=1):
         for cds in gff_db.children(transcript, featuretype="CDS", order_by="start"):
-            if (pos >= cds.start - utils.CDS_OFFSET) and (pos <= cds.end + utils.CDS_OFFSET):
+            if (pos >= cds.start - CDS_OFFSET) and (pos <= cds.end + CDS_OFFSET):
                 return True
 
     return False
@@ -188,5 +187,5 @@ def log_stats(dnm_kept_df, dnm_discarded_df, output_discarded_dnm):
 
 
 if __name__ == "__main__":
-    utils.init_log()
+    init_log()
     filter_dnm()

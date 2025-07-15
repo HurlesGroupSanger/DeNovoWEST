@@ -1,4 +1,5 @@
-includeConfig 'conf/local.conf'
+includeConfig 'conf/lsf.conf'
+
 
 conda.enabled = true
 
@@ -8,7 +9,7 @@ conda.enabled = true
 //process.container = 'delagee/denovowest:4'
 //docker.enabled = true
 
-workDir = "test/work"
+workDir = "test/simulation/work"
 Date now = new Date()
 
 
@@ -16,14 +17,14 @@ Date now = new Date()
 params {
   
 
-  dnm = "../examples/simulation/CADD/input/OR4F5.dnms.annotated.tsv"
-  rates = "../examples/simulation/CADD/input/OR4F5.rates.annotated.tsv.gz"
+  dnm = "../examples/simulation/CADD/input/OR4F5_dnms_annotated.tsv"
+  rates = "../examples/simulation/CADD/input/OR4F5_rates_annotated.tsv.gz"
   score = "score"
 
   nmales = 17422
   nfemales = 13636
 
-  outdir = 'outdir'
+  outdir = 'test/simulation/outdir'
 
   // Following parameters are true by default, set to false if you want to skip some steps
   // Here we just want to create the rates file and annotate both the rates and DNM files
@@ -36,7 +37,7 @@ params {
   runtype = "both"
 
 
-  tracedir = 'test/trace'
+  tracedir = 'test/simulation/trace'
   timestamp = now.format("yyyyMMdd-HH-mm-ss")
 
   // If bcftools and tabix are not in your PATH but can be accessed via modules

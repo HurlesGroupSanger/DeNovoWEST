@@ -1,0 +1,12 @@
+gene_id	chrom	pos	ref	alt	region_type	consequence	raw	score
+ENSG00000186092.7	chr1	65518	A	T	splice	splice_acceptor	2.232995	17.82
+ENSG00000186092.7	chr1	65549	G	T	UTR	5_prime_utr	0.362594	3.97
+ENSG00000186092.7	chr1	65565	A	T	start	start_lost	2.134086	17.37
+ENSG00000186092.7	chr1	65569	A	T	exon	missense	3.646822	23.1
+ENSG00000186092.7	chr1	65585	C	A	intron	intron	0.888984	9.15
+ENSG00000186092.7	chr1	65585	C	A	intron	intron	0.888984	9.15
+ENSG00000186092.7	chr1	69175	G	T	exon	stop_gained	4.883274	27.2
+ENSG00000186092.7	chr1	69181	AT	A	exon	frameshift		
+ENSG00000186092.7	chr1	69402	G	A	exon	synonymous	0.687653	7.271
+ENSG00000186092.7	chr1	69486	C	A	exon	missense	-1.272251	0.01
+ENSG00000186092.7	chr1	69552	G	GGAC	exon	inframe_insertion		

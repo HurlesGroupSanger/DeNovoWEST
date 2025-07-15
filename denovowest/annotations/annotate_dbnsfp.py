@@ -3,9 +3,11 @@ import pandas as pd
 import click
 import pysam
 import sys
-from itertools import groupby, count
-import utils
 import logging
+
+from itertools import groupby, count
+from denovowest.utils.log import init_log
+from denovowest.utils.io_helpers import read_columns_from_file, load_gff
 
 
 # TODO : Better handle the ENSG versions
@@ -236,9 +238,11 @@ def extract_columns_from_dbNFP(dbnsfp, columns, columns_file):
         columns_file (str): File listing which annotations to extract from dbNSFP
     """
 
+    logger = logging.getLogger("logger")
+
     # If the user provided the columns to extract in a separate file we read it
     if columns_file:
-        columns_to_extract = utils.read_columns_from_file(columns_file)
+        columns_to_extract = read_columns_from_file(columns_file)
     # If he provided them as a string we split it
     elif columns:
         columns_to_extract = columns.split(",")
@@ -260,7 +264,7 @@ def extract_columns_from_dbNFP(dbnsfp, columns, columns_file):
     # If a column can not be retrieved from dbNSFP we stop here
     columns_not_found = set(columns_to_extract) - set(found_column)
     if columns_not_found:
-        print(f"ERROR : The following columns could not be retrieved from dbNFSP : {columns_not_found}")
+        logger.error(f"The following columns could not be retrieved from dbNFSP : {columns_not_found}")
         sys.exit(1)
 
     return list_indices, found_column
@@ -394,7 +398,7 @@ def annotate_dbnsfp(rates_dnm, dbnsfp, output, columns, columns_file, gff):
         gff(str) : Gff file or gffutils database
     """
 
-    utils.init_log()
+    init_log()
     logger = logging.getLogger("logger")
 
     # Load rates/DNM file
@@ -406,7 +410,7 @@ def annotate_dbnsfp(rates_dnm, dbnsfp, output, columns, columns_file, gff):
 
     # Load gff file/DB (to match annotation based on user selected transcripts)
     if gff:
-        gff_db = utils.load_gff(gff)
+        gff_db = load_gff(gff)
         ensembl_gene_id_map_version = extract_ensembl_gene_id_without_version(gff_db)
     else:
         gff_db = None

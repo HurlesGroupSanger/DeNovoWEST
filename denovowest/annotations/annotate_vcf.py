@@ -2,11 +2,12 @@
 import click
 import pysam
 import pandas as pd
-from itertools import groupby, count
-import gffutils
-import os
 import logging
-import utils
+
+from itertools import groupby, count
+
+from denovowest.utils.log import init_log
+from denovowest.utils.io_helpers import load_gff, read_columns_from_file
 
 
 def is_chr_prefixed(df_path):
@@ -133,7 +134,7 @@ def retrieve_annotation(gene_id, gene_df, annotation_vcf, match_gene, gene_mappi
         try:
             block_df = load_annotation(annotation_vcf, gene_chrom, start - 1, end)
             list_block_df.append(block_df)
-        except ValueError as e:
+        except ValueError:
             continue
 
     gene_annotations_df = format_gene_annotation(gene_id, list_block_df, match_gene, gene_mapping)
@@ -269,38 +270,6 @@ def detect_gene_field_vcf(annotation):
     return gene_field, gene_content
 
 
-def load_gff(gff_file, gff_db_path):
-    """Create the gff database used by gffutils.
-
-    Args:
-        gff_file (str): Path to a GFF or a gffutils database file.
-        gff_db_path (str): Path to the newly created gff database.
-
-    Returns:
-        gffutils.db: GFF database.
-
-    """
-
-    logger = logging.getLogger("logger")
-
-    # gffutils db input
-    if gff_file.endswith(".db"):
-        logger.info(f"Loading gffutils database : {gff_file}")
-        gff_db = gffutils.FeatureDB(gff_file)
-    # GFF input
-    else:
-        try:
-            os.remove(gff_db_path)
-            logger.info(f"Removed old gffutil database : {gff_db_path}")
-        except OSError:
-            pass
-
-        logger.info(f"Creating gffutil database : {gff_db_path}")
-        gff_db = gffutils.create_db(gff_file, gff_db_path, merge_strategy="create_unique")
-
-    return gff_db
-
-
 def build_gene_mapping_from_gff(gff_db):
     """
     Build mapping between gene identifier (ENSEMBL) and symbol.
@@ -314,7 +283,7 @@ def build_gene_mapping_from_gff(gff_db):
     gene_mapping = dict()
     for gene in gff_db.all_features(featuretype="gene"):
 
-        gene_id = gene.attributes["gene_id"][0]
+        gene_id = gene.attributes["gene_id"][0].split(".")[0]
         gene_name = gene.attributes["gene_name"][0]
 
         gene_mapping[gene_id] = gene_name
@@ -337,7 +306,7 @@ def check_columns(variants_df, annotation_vcf, columns, columns_file):
 
     # If the user provided the columns to extract in a separate file we read it
     if columns_file:
-        annotation_columns = utils.read_columns_from_file(columns_file)
+        annotation_columns = read_columns_from_file(columns_file)
     # If he provided them as a string we split it
     elif columns:
         annotation_columns = columns.split(",")
@@ -406,7 +375,7 @@ def cli(variants, annotation, output, columns, columns_file, match_gene, gff):
         can be used if the annotation contains only gene symbol
     """
 
-    utils.init_log()
+    init_log()
 
     # Handle differences in chromosome representations
     global is_chr_prefixed_variants, is_chr_prefixed_annotation

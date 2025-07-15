@@ -5,8 +5,9 @@ import click
 import json
 import pysam
 import subprocess
-import utils
 import logging
+
+from denovowest.utils.log import init_log
 
 
 def rates_stats(rates_df):
@@ -169,7 +170,7 @@ def main(rates, output, fullgenome):
         fullgenome (boolean) : to use with full genome indexed mutation rates file
     """
 
-    utils.init_log()
+    init_log()
     logger = logging.getLogger("logger")
 
     # If using a full genome indexed rates file

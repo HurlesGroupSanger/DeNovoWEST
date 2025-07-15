@@ -3,11 +3,15 @@
 import sys
 import pandas as pd
 import click
+import logging
+
 from scipy.stats import chi2
+from denovowest.utils.log import init_log
 
 
 def set_constraints_loci(region, gene_rates, threshold, ratio):
-    """_summary_
+    """
+    Flag constrained loci
 
     Args:
         region (pd.Series): Informations about a constrained region
@@ -44,10 +48,10 @@ def annotate_constraint(rates, geneconstraint, regionconstraint, outrates, thres
         outrates (str) : output path to constrained annotated rates file
         threshold (float, optional): _description_. Defaults to 1e-3.
         ratio (float, optional): _description_. Defaults to 0.4.
-
-    Returns:
-        _type_: _description_
     """
+
+    init_log()
+    logger = logging.getLogger("logger")
 
     # Read constraints files
     geneconstraint_df = pd.read_table(geneconstraint)
@@ -56,7 +60,7 @@ def annotate_constraint(rates, geneconstraint, regionconstraint, outrates, thres
     # Read rates file and initialize all positions as non constrained
     rates_df = pd.read_csv(rates, sep="\t")
     if rates_df.empty:
-        print("Rates file is empty")
+        logger.warning("Rates file is empty")
         rates_df["constrained"] = None
         rates_df.to_csv(outrates, sep="\t", index=False)
         sys.exit(0)
@@ -70,7 +74,7 @@ def annotate_constraint(rates, geneconstraint, regionconstraint, outrates, thres
 
         # If the gene is not found in the constraint file, print as a warning
         if ensembl_id not in set(geneconstraint_df["ensembl_gene_id"]):
-            print(f"Could not find id {ensembl_id} in full constraint file")
+            logger.warning(f"Could not find id {ensembl_id} in full constraint file")
         # If the gene is found in the constraint file
         else:
             # Restrict the constraint data frame to current gene

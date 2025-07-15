@@ -3,7 +3,10 @@ import pandas as pd
 import click
 import pysam
 import sys
+import logging
+
 from itertools import groupby, count
+from denovowest.utils.log import init_log
 
 
 def load_cadd(cadd_file, chrom, start, end):
@@ -58,10 +61,13 @@ def annotate_cadd(rates, cadd, output):
         output (str): Path to output file (merged dataframe)
     """
 
+    init_log()
+    logger = logging.getLogger("logger")
+
     # Load rates file
     rates_df = pd.read_table(rates, dtype={"chrom": str, "pos": int, "ref": str, "alt": str})
     if rates_df.empty:
-        print("Rates file is empty")
+        logger.warning("Rates file is empty")
         rates_df["raw"] = None
         rates_df["score"] = None
         rates_df.to_csv(output, sep="\t", index=False)

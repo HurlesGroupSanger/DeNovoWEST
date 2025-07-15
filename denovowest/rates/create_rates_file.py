@@ -9,10 +9,11 @@ import gffutils
 import pandas as pd
 import pyfaidx
 import pysam
-import utils
 import glob
 
-CDS_OFFSET = 50
+from denovowest.utils.params import CDS_OFFSET, ROULETTE_SCALING_FACTOR, CARLSON_SCALING_FACTOR
+from denovowest.utils.log import init_log
+from denovowest.utils.io_helpers import load_conf, superseed_conf
 
 
 def load_mutation_rate_model(mutation_rate_model_file):
@@ -354,10 +355,10 @@ def calculate_rates_roulette(roulette_dir, gff_db, gene_list, model):
     # Select the mutation rate info field and the per generation mutation rate scaling factor depending on the model
     if model == "roulette":
         info_field = "MR"
-        scaling_factor = utils.ROULETTE_SCALING_FACTOR
+        scaling_factor = ROULETTE_SCALING_FACTOR
     else:
         info_field = "MC"
-        scaling_factor = utils.CARLSON_SCALING_FACTOR
+        scaling_factor = CARLSON_SCALING_FACTOR
 
     nb_genes = len(gene_list)
     logger.info(f"Start computing rates for {nb_genes} genes")
@@ -499,14 +500,14 @@ def main(config, gff, fasta, mutation_rate_model, gene_list, outdir, model):
     """
 
     # Initiate logger
-    utils.init_log()
+    init_log()
     logger = logging.getLogger("logger")
     logger.info("Running {}".format(__file__.split("/")[-1]))
 
     # Load configuration file
     if config:
         try:
-            conf = utils.load_conf(config)
+            conf = load_conf(config)
         except FileNotFoundError:
             logger.error(f"No such config file {config}")
             sys.exit(1)
@@ -515,7 +516,7 @@ def main(config, gff, fasta, mutation_rate_model, gene_list, outdir, model):
 
     # Superseed configuration in config file with the configuration passed through command line arguments
     ctx = click.get_current_context()
-    conf = utils.superseed_conf(conf, ctx.params)
+    conf = superseed_conf(conf, ctx.params)
 
     # Log configuration
     logger.info(f"Parameters :")

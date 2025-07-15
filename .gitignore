@@ -10,8 +10,9 @@ dev/*
 .vscode
 *old*
 .*
-examples/*
 nextflow/nextflow.config.*
 nextflow/outdir/*
 resources/*
 nextflow/test/*
+denovowest.egg-info/
+nextflow/test

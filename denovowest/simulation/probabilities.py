@@ -1,10 +1,9 @@
 import numpy as np
-import utils
+import click
+
 from scipy import stats
 from joblib import Parallel, delayed
-
-from utils import DEFAULT_MAX_NB_MUTATIONS_SIM
-from utils import DEFAULT_MIN_NB_SIM
+from denovowest.utils.params import DEFAULT_MAX_NB_MUTATIONS_SIM, DEFAULT_MIN_NB_SIM
 
 
 def calc_p0(mu, obs_sum_scores):
@@ -70,15 +69,21 @@ def calc_pn(mu, obs_sum_scores, rates, nb_mutation_poisson, nsim, scores_sorted,
     # TODO : see if there is a room for improvement here too
     nsim = max([int(round(nsim * pndnm)), DEFAULT_MIN_NB_SIM])
 
+    # If pndm (see above) is really low there is no point in calculating a combined p-value as it will be epsilon
+    if pndnm < 10 ** (-12):
+        pscore = 0
+        nsim = 0
     # If the top nb_mutation_poisson scores are not enough to reach the observed sum of scores, then there is no possible nb_mutation_poisson combination that
     # will achieve a higher score and the p-value is 0
-    if np.sum(scores_sorted[-nb_mutation_poisson:]) < obs_sum_scores:
+    elif np.sum(scores_sorted[-nb_mutation_poisson:]) < obs_sum_scores:
         pscore = 0.0
+        nsim = 0
 
     # On the contrary, if the lowest nb_mutation_poisson scores are enough to reach the observed sum of scores, then there is no possible nb_mutation_poisson combination that
     # will achieve a lower score and the p-value is 1
     elif np.sum(scores_sorted[0:nb_mutation_poisson] >= obs_sum_scores):
         pscore = 1.0
+        nsim = 0
 
     # Otherwise, we simulate the cumulated scores for nb_mutation_poisson randomly picked mutations nsim times and calculate the proportion of simulations
     # for which we obtain a score greater than or equal to the observed score
@@ -121,7 +126,10 @@ def sim_score(mu, obs_sum_scores, rates, nb_mutation_poisson, nsim, score_column
     remaining_simulations = nsim % split_sim
 
     # Run full chunks in parallel
-    full_chunk_results = Parallel(n_jobs=utils.JOBS)(delayed(simulate_chunk)(split_sim) for _ in range(num_full_chunks))
+    ctx = click.get_current_context()
+    full_chunk_results = Parallel(n_jobs=ctx.params["jobs"])(
+        delayed(simulate_chunk)(split_sim) for _ in range(num_full_chunks)
+    )
 
     # Run remaining simulations (if any)
     remaining_result = simulate_chunk(remaining_simulations) if remaining_simulations > 0 else 0
@@ -158,7 +166,7 @@ def get_pvalue(rates, obs_sum_scores, nsim, pvalcap, nb_observed_mutations, scor
     # If the observed score is already lower than the expected one, no need to run the simulation
     if obs_sum_scores < exp_sum_scores:
         ptot = 1
-        info = "0|0|observed < expected, pvalue set at 1"
+        info = "0|0|True|observed < expected, pvalue set at 1"
         return ptot, info, exp_sum_scores
 
     # We sort the scores in order to use stopping rules that improve the speed of the simulations
@@ -168,39 +176,42 @@ def get_pvalue(rates, obs_sum_scores, nsim, pvalcap, nb_observed_mutations, scor
     p0 = calc_p0(mu, obs_sum_scores)
     p1 = calc_p1(mu, obs_sum_scores, rates, score_column)
 
+    # If the gene has a really high number of observed mutations, we increase the default threshold to two times the number of observed mutations
+    nb_putative_mutations_sim = max(2 * nb_observed_mutations, DEFAULT_MAX_NB_MUTATIONS_SIM)
+
+    # For long genes with a high number of expected mutations, it is a better strategy
+    # to start with a poisson mutation rate close to the expected mutation rate,
+    # that way, as most genes will not have an enrichment, we can discard them more quickly
+    if mu > 50:
+        range_mutation = list(diverging_range(int(mu), 2, nb_putative_mutations_sim))
+        sequential = False
+    else:
+        range_mutation = range(2, nb_putative_mutations_sim)
+        sequential = True
+
+    # Running simulations
     ptot = p0 + p1
     nbsim_tot = 0
-    # Simulate for 2 to 250 putative mutations in the gene.
-    # If the gene has a really high number of observed mutations, we increase this threshold to two times the number of observed mutations
-    nb_putative_mutations_sim = max(2 * nb_observed_mutations, DEFAULT_MAX_NB_MUTATIONS_SIM)
-    for nb_mutation_poisson in range(2, nb_putative_mutations_sim):
+    info = ""
+    for nb_mutation_poisson in range_mutation:
 
         # Calculate the probability of seeing a similar or more extreme observed gene score | nb_mutation_poisson mutations
         pi, nb_sim = calc_pn(mu, obs_sum_scores, rates, nb_mutation_poisson, nsim, scores_sorted, score_column)
         ptot = ptot + pi
         nbsim_tot = nbsim_tot + nb_sim
 
-        ### Stopping rules ###
+        # If we are increasing the number of mutation in sequential order we can
+        # stop if the poisson p-value becomes too low from a certain point
+        if sequential:
+            # Probability of observing more than nb_mutation_poisson event given mu
+            picdf = 1 - stats.poisson.cdf(nb_mutation_poisson, mu)
 
-        # If the probability of observing the current number of putative mutations is too low and
-        # if we already exceeded the poisson rate reflecting the expected number of mutations
-        # then we can stop the simulation as the remaining p-values will be really small
-        picdf = 1 - stats.poisson.cdf(nb_mutation_poisson, mu)
-        if picdf < 10 ** (-12) and nb_mutation_poisson > mu:
-            info = "probability of observing >= " + str(nb_mutation_poisson) + " mutations is too small"
-            break
-
-        # If the sum of the lowest nb_mutation_poisson scores is above the observed sum of scores,
-        # then there is no possible nb_mutation_poisson combination that
-        # will achieve a lower score, and this holds if we increase the number of mutations.
-        # TODO : Never seen
-        if np.sum(scores_sorted[0:nb_mutation_poisson]) > obs_sum_scores:
-            ptot = ptot + picdf
-            info = "observed is lower than whole distribution - probability is 1"
-            break
+            # If this probability is too low, the resulting p-values will
+            if (picdf < 10 ** (-12)) and (nb_mutation_poisson > mu):
+                info = "probability of observing >= " + str(nb_mutation_poisson) + " mutations is too small"
+                break
 
         # if p value is over threshold then stop going further
-        # TODO : Never seen as pvalcap is defaulted to 1.
         if ptot > pvalcap:
             info = "pvalue > " + str(pvalcap) + ", stop simulations"
             break
@@ -211,6 +222,43 @@ def get_pvalue(rates, obs_sum_scores, nsim, pvalcap, nb_observed_mutations, scor
         info = "p value was 0, set at 10^-14"
 
     # Add the number of simulations performed to the simulation information
-    info = f"{nbsim_tot}|{nb_mutation_poisson}|{info}"
+    info = f"{nbsim_tot}|{nb_mutation_poisson}|{sequential}|{info}"
 
     return (ptot, info, exp_sum_scores)
+
+
+def diverging_range(median, min_val, max_val):
+    """
+    Yields a sequence of integers starting from `median` and alternating outward
+    in both directions (e.g., median+1, median-1, median+2, median-2, ...),
+    within the bounds [min_val, max_val].
+
+    Example:
+        list(diverging_range(5, 2, 8))
+        → [5, 6, 4, 7, 3, 8, 2]
+    """
+
+    yield median  # Start by yielding the median value
+    offset = 1  # Initialize the offset from the median
+
+    while True:
+        lower = median - offset  # Step downward
+        upper = median + offset  # Step upward
+        did_yield = False  # Track if any value was yielded this round
+
+        # If upper value is within bounds, yield it
+        if upper <= max_val:
+            yield upper
+            did_yield = True
+
+        # If lower value is within bounds, yield it
+        if lower >= min_val:
+            yield lower
+            did_yield = True
+
+        # Stop the loop if no values were yielded in this iteration
+        if not did_yield:
+            break
+
+        # Increase the distance from the median for the next iteration
+        offset += 1

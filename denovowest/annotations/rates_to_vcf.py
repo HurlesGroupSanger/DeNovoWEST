@@ -3,47 +3,10 @@ import click
 import gffutils
 import pandas as pd
 import sys
+import logging
 
-# Built from bcftools +split-vep -S -
-consequences_severities = {
-    "intergenic": 1,
-    "feature_truncation": 2,
-    "feature_elongation": 2,
-    "regulatory": 3,
-    "TF_binding_site": 4,
-    "TFBS": 4,
-    "downstream": 5,
-    "upstream": 5,
-    "non_coding_transcript": 6,
-    "non_coding": 6,
-    "intron": 7,
-    "NMD_transcript": 7,
-    "non_coding_transcript_exon": 8,
-    "5_prime_utr": 9,
-    "3_prime_utr": 9,
-    "coding_sequence": 10,
-    "mature_miRNA": 10,
-    "stop_retained": 11,
-    "start_retained": 11,
-    "synonymous": 11,
-    "incomplete_terminal_codon": 12,
-    "splice_region": 13,
-    "missense": 14,
-    "inframe": 14,
-    "inframe_insertion": 14,
-    "inframe_deletion": 14,
-    "protein_altering": 14,
-    "transcript_amplification": 15,
-    "exon_loss": 16,
-    "disruptive": 17,
-    "start_lost": 18,
-    "stop_lost": 18,
-    "stop_gained": 18,
-    "frameshift": 18,
-    "splice_acceptor": 19,
-    "splice_donor": 19,
-    "transcript_ablation": 20,
-}
+from denovowest.utils.log import init_log
+from denovowest.utils.params import CONSEQUENCES_SEVERITIES
 
 
 @click.group()
@@ -123,8 +86,8 @@ def extract_consequence(x, gff_db):
             if cur_csq.split("|")[1] in gene_names:
                 csqs = cur_csq.split("|")[0]
                 for csq in csqs.split("&"):
-                    if consequences_severities[csq] > worst_csq_value:
-                        worst_csq_value = consequences_severities[csq]
+                    if CONSEQUENCES_SEVERITIES[csq] > worst_csq_value:
+                        worst_csq_value = CONSEQUENCES_SEVERITIES[csq]
                         worst_csq = csqs
 
         if worst_csq:
@@ -132,7 +95,7 @@ def extract_consequence(x, gff_db):
         else:
             csq = ""
 
-    except IndexError as e:
+    except IndexError:
         # bcftoolscsq return sometimes empty consequences
         csq = ""
 
@@ -153,6 +116,9 @@ def vcf_to_rates(vcf, rates, gff_db, out_rates):
         out_rates (str): Path of the output rates file
     """
 
+    init_log()
+    logger = logging.getLogger("logger")
+
     # Read rates
     rates_df = pd.read_csv(rates, sep="\t", dtype={"chrom": str})
 
@@ -166,14 +132,13 @@ def vcf_to_rates(vcf, rates, gff_db, out_rates):
         vcf_df["#CHROM"] = vcf_df["#CHROM"].astype(str)
 
     except pd.errors.EmptyDataError:
-        # TODO : use logger
         if rates_df.empty:
-            print("Rates file is empty")
+            logger.warning("Rates file is empty")
             rates_df["consequence"] = None
             rates_df.to_csv(out_rates, sep="\t", index=False)
             sys.exit(0)
         else:
-            print("Bcftools csq file is empty")
+            logger.error("Bcftools csq file is empty")
             sys.exit(1)
 
     # Load gffutils database
