@@ -14,5 +14,7 @@ nextflow/nextflow.config.*
 nextflow/outdir/*
 resources/*
 nextflow/test/*
+nextflow/runs
 denovowest.egg-info/
 nextflow/test
+dist/

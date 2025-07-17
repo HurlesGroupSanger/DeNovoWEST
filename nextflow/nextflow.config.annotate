@@ -1,4 +1,4 @@
-includeConfig 'conf/lsf_test.conf'
+includeConfig 'conf/lsf.conf'
 
 conda.enabled = true
 

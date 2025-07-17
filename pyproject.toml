@@ -4,10 +4,12 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "denovowest"
-version = "0.1"
+version = "0.1.1"
 description = "A de novo mutation simulation framework"
 readme = { file = "README.md", content-type = "text/markdown" }
-authors = [{ name = "Erwan Delage" }]
+authors = [{ name = "Erwan Delage", email = "ed11@sanger.ac.uk" },
+    { name = "Joanna Kaplanis"},
+    { name = "Kaitlin Samocha" } ]
 requires-python = ">=3.8"
 dependencies = [
     "numpy",
@@ -19,7 +21,18 @@ dependencies = [
 	"pysam",
 	"joblib"
 ]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Intended Audience :: Science/Research",
+    "Topic :: Scientific/Engineering :: Bio-Informatics"
+]
 
+license = { file = "LICENSE" }
+
+[tool.setuptools]
+license-files = ["LICENSE"]
 
 [tool.setuptools.packages.find]
 where = ["."]
