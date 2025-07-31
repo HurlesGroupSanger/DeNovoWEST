@@ -1,5 +1,6 @@
 import pandas as pd
 import numpy as np
+import logging
 
 from denovowest.utils.params import INFRAME_MISSENSE_RATIO, FRAMESHIFT_NONSENSE_RATIO
 
@@ -23,6 +24,8 @@ def prepare_scores(dnm_df, rates_df, score_column, runtype, impute_missing=False
     # Impute scores for variants with missing scores
     if impute_missing:
         dnm_df, rates_df = impute_missing_scores(dnm_df, rates_df, score_column)
+    else:
+        dnm_df, rates_df = remove_missing_scores(dnm_df, rates_df, score_column)
 
     # Consolidate the rates df by adding the indel rates
     if runtype == "ns":
@@ -131,6 +134,8 @@ def impute_missing_scores(dnm_df, rates_df, score_column):
     Args:
         dnm_df (pd.DataFrame): observed DNM
         rates_df (pd.DataFrame): expected mutations
+        score_column (str) : score to use for the simulation
+
 
     Returns:
         tuple(pd.DataFrame, pd.DataFrame): DNM and rates dataframes with imputed missing scores
@@ -164,5 +169,44 @@ def impute_missing_scores(dnm_df, rates_df, score_column):
 
     dnm_df["score_before_imputation"] = dnm_df[score_column]
     dnm_df[score_column] = imputed_dnm_scores
+
+    return dnm_df, rates_df
+
+
+def remove_missing_scores(dnm_df, rates_df, score_column):
+    """
+    Some CEPs do not assign a score to each variant. Or depending on the source (dbNSFP) some
+    annotations can be missing.
+    Here we remove all records that do not have a score assigned.
+
+    Args:
+        dnm_df (pd.DataFrame): observed DNM
+        rates_df (pd.DataFrame): expected mutations
+        score_column (str) : score to use for the simulation
+
+    Returns:
+        tuple(pd.DataFrame, pd.DataFrame): DNM and rates dataframes with records with missing scores removed
+    """
+
+    logger = logging.getLogger("logger")
+
+    nb_records_dnm_before = dnm_df.shape[0]
+    nb_records_rates_before = rates_df.shape[0]
+
+    dnm_df = dnm_df.loc[~dnm_df[score_column].isna()]
+    rates_df = rates_df.loc[~rates_df[score_column].isna()]
+
+    nb_records_dnm_after = dnm_df.shape[0]
+    nb_records_rates_after = rates_df.shape[0]
+
+    if nb_records_dnm_after - nb_records_dnm_before:
+        logger.info(
+            f"{nb_records_dnm_before - nb_records_dnm_after } observed DNMs were removed as they do not have a {score_column} score"
+        )
+
+    if nb_records_rates_after - nb_records_rates_before:
+        logger.info(
+            f"{nb_records_rates_before - nb_records_rates_after} variants were removed from the rates file as they do not have a {score_column} score"
+        )
 
     return dnm_df, rates_df
