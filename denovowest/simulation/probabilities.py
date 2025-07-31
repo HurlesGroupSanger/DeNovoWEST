@@ -121,7 +121,7 @@ def sim_score(mu, obs_sum_scores, rates, nb_mutation_poisson, nsim, score_column
         return np.sum(simulated_scores >= obs_sum_scores)
 
     # Split simulations into chunks
-    split_sim = 100000
+    split_sim = 100
     num_full_chunks = nsim // split_sim
     remaining_simulations = nsim % split_sim
 
