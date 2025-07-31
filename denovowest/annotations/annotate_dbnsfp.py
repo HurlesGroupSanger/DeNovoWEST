@@ -465,7 +465,14 @@ def annotate_dbnsfp(rates_dnm, dbnsfp, output, columns, columns_file, gff):
 
     # Combine results for all genes
     merged_df = pd.concat(list_merged_df)
-    merged_df.columns = rates_df_columns + ["transcript_in_dbnsfp"] + dbnsfp_columns_names
+
+    # If there is no data in dbNSFP for any gene we fill the columns with NA
+    if merged_df.shape[1] == len(rates_df_columns):
+        merged_df["transcript_in_dbnsfp"] = False
+        for column in dbnsfp_columns_names:
+            merged_df[column] = pd.NA
+    else:
+        merged_df.columns = rates_df_columns + ["transcript_in_dbnsfp"] + dbnsfp_columns_names
     merged_df.to_csv(output, sep="\t", index=False)
 
 

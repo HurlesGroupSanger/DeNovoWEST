@@ -100,6 +100,9 @@ def annotate_gene(gene_id, gene_df, annotation_vcf, match_gene, gene_mapping, co
 
     # We merge it with the variant file
     if not gene_annotation_df.empty:
+
+        gene_annotation_df = gene_annotation_df[["chrom", "pos", "ref", "alt"] + columns]
+
         gene_annotated_df = gene_df.merge(gene_annotation_df, how="left", on=["chrom", "pos", "ref", "alt"])
         assert gene_df.shape[0] == gene_annotated_df.shape[0]
     else:
@@ -284,7 +287,13 @@ def build_gene_mapping_from_gff(gff_db):
     for gene in gff_db.all_features(featuretype="gene"):
 
         gene_id = gene.attributes["gene_id"][0].split(".")[0]
-        gene_name = gene.attributes["gene_name"][0]
+
+        if "gene_name" in dict(gene.attributes).keys():
+            gene_name = gene.attributes["gene_name"][0]
+        elif "Name" in dict(gene.attributes).keys():
+            gene_name = gene.attributes["Name"][0]
+        else:
+            gene_name = ""
 
         gene_mapping[gene_id] = gene_name
 

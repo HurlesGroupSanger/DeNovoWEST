@@ -386,6 +386,7 @@ def calculate_rates_roulette(roulette_dir, gff_db, gene_list, model):
                 continue
             else:
                 logger.warning(f"Can't find any roulette file corresponding to chromosome {chrom} for gene {gene_id}")
+                continue
 
         # Store mutation rates for the current gene
         list_mutation_rates_gene = list()
