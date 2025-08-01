@@ -8,7 +8,7 @@ import click
 import pandas as pd
 import numpy as np
 
-from denovowest.utils.log import init_log
+from denovowest.utils.log import init_log, set_plain_log, set_regular_log
 from denovowest.utils.params import CONSEQUENCES_MAPPING, CONSEQUENCES_SEVERITIES
 from denovowest.simulation.scores import prepare_scores
 from denovowest.simulation.probabilities import get_pvalue
@@ -31,8 +31,14 @@ def load_dnm_rates(dnm, rates, column):
     rates_df = pd.read_csv(rates, sep="\t", dtype={"chrom": str, "pos": int, column: float}, na_values=[".", "NA"])
 
     shared_genes = set(dnm_df.gene_id.unique()) & set(rates_df.gene_id.unique())
+
+    set_plain_log()
+    logger.info("=" * 50)
+    logger.info("[DNM/RATES CONSISTENCY]")
+    logger.info("=" * 50)
+    set_regular_log()
     logger.info(
-        f"{len(shared_genes)}/{dnm_df.gene_id.nunique()} genes with at least one observed DNM are found in the rates file"
+        f"{len(shared_genes)}/{rates_df.gene_id.nunique()} genes from the rates file have at least one observation in the DNM file"
     )
 
     dnm_df = dnm_df.loc[dnm_df.gene_id.isin(shared_genes)]
@@ -91,6 +97,12 @@ def filter_on_consequences(df: pd.DataFrame, mode: str):
     """
 
     logger = logging.getLogger("logger")
+
+    set_plain_log()
+    logger.info("=" * 50)
+    logger.info(f"[{mode.upper()}]")
+    logger.info("=" * 50)
+    set_regular_log()
 
     # Extract the worst consequence but also keep the original consequence called by bcftoolscsq
     if mode == "dnm":
@@ -266,6 +278,12 @@ def run_simulation(rates_df, dnm_df, gene_id, nsim, pvalcap, score_column):
 
     logger = logging.getLogger("logger")
 
+    set_plain_log()
+    logger.info("=" * 50)
+    logger.info("[SIMULATION]")
+    logger.info("=" * 50)
+    set_regular_log()
+
     if gene_id not in rates_df.gene_id.unique():
         logger.debug("could not find " + str(gene_id))
         return
@@ -303,6 +321,14 @@ def export_results(results: list, outdir: str):
         outdir (str): output directory
     """
 
+    logger = logging.getLogger("logger")
+
+    set_plain_log()
+    logger.info("=" * 50)
+    logger.info("[EXPORT]")
+    logger.info("=" * 50)
+    set_regular_log()
+
     os.makedirs(outdir, exist_ok=True)
 
     df = pd.DataFrame.from_records(results, columns=["symbol", "expected", "observed", "p-value", "info"])
@@ -316,6 +342,8 @@ def export_results(results: list, outdir: str):
 
     df.to_csv(f"{outdir}/enrichment_results.tsv", sep="\t", index=False)
 
+    logger.info(f"Simulation results exported to {outdir}/enrichment_results.tsv")
+
 
 def log_configuration(conf):
     """
@@ -327,11 +355,15 @@ def log_configuration(conf):
     """
 
     logger = logging.getLogger("logger")
-    logger.info("DNW simulation running with the following parameters :")
-    logger.info("----------")
+
+    set_plain_log()
+    logger.info("=" * 50)
+    logger.info("[CONFIGURATION]")
+    logger.info("=" * 50)
+    set_regular_log()
+
     for key, value in sorted(conf.items()):
         logger.info(f"{key} : {value}")
-    logger.info("----------")
 
 
 @click.command()

@@ -1,6 +1,13 @@
 import logging.config
 
 
+_formatter_with_time = logging.Formatter(fmt="[%(levelname)s:%(asctime)s] %(message)s", datefmt="%Y-%m-%d %H:%M:%S")
+
+_formatter_plain_level = logging.Formatter(fmt="%(levelname)s | %(message)s")
+
+_formatter_plain = logging.Formatter(fmt="%(message)s")
+
+
 def init_log(show_time=True):
     """
     Initialise logger
@@ -36,3 +43,21 @@ def init_log(show_time=True):
     }
 
     logging.config.dictConfig(MY_LOGGING_CONFIG)
+
+
+def set_plain_log():
+
+    logger = logging.getLogger("logger")
+
+    for handler in logger.handlers:
+        if isinstance(handler, logging.StreamHandler):
+            handler.setFormatter(_formatter_plain)
+
+
+def set_regular_log():
+
+    logger = logging.getLogger("logger")
+
+    for handler in logger.handlers:
+        if isinstance(handler, logging.StreamHandler):
+            handler.setFormatter(_formatter_with_time)

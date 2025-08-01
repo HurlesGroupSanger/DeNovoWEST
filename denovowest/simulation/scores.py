@@ -2,7 +2,9 @@ import pandas as pd
 import numpy as np
 import logging
 
+
 from denovowest.utils.params import INFRAME_MISSENSE_RATIO, FRAMESHIFT_NONSENSE_RATIO
+from denovowest.utils.log import set_plain_log, set_regular_log
 
 
 def prepare_scores(dnm_df, rates_df, score_column, runtype, impute_missing=False):
@@ -141,6 +143,16 @@ def impute_missing_scores(dnm_df, rates_df, score_column):
         tuple(pd.DataFrame, pd.DataFrame): DNM and rates dataframes with imputed missing scores
     """
 
+    logger = logging.getLogger("logger")
+
+    set_plain_log()
+    logger.info("=" * 50)
+    logger.info("[MISSING SCORES]")
+    logger.info("=" * 50)
+    set_regular_log()
+
+    logger.info("Imputing missing scores")
+
     # Get the median values per gene and per consequence type
     median_values_dict = dict()
     for gene_id, generates_df in rates_df.groupby("gene_id"):
@@ -189,6 +201,12 @@ def remove_missing_scores(dnm_df, rates_df, score_column):
     """
 
     logger = logging.getLogger("logger")
+
+    set_plain_log()
+    logger.info("=" * 50)
+    logger.info("[MISSING SCORES]")
+    logger.info("=" * 50)
+    set_regular_log()
 
     nb_records_dnm_before = dnm_df.shape[0]
     nb_records_rates_before = rates_df.shape[0]
