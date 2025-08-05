@@ -168,8 +168,19 @@ def impute_missing_scores(dnm_df, rates_df, score_column):
             imputed_rates_scores.append(median_values_dict[variant.gene_id][variant.consequence])
         else:
             imputed_rates_scores.append(variant[score_column])
-    rates_df["score_before_imputation"] = rates_df[score_column]
-    rates_df[score_column] = imputed_rates_scores
+    rates_df.loc[:, "score_before_imputation"] = rates_df[score_column]
+    rates_df.loc[:, score_column] = imputed_rates_scores
+
+    # Log inmputing results on rates
+    for consequence, consequence_rates_df in rates_df.groupby("consequence"):
+        nb_imputed = sum(
+            (~consequence_rates_df[score_column].isna()) & (consequence_rates_df["score_before_imputation"].isna())
+        )
+        nb_still_no_score = sum(consequence_rates_df[score_column].isna())
+        logger.info(f"RATES - {consequence} : {nb_imputed} / {consequence_rates_df.shape[0]} imputed")
+
+        if nb_still_no_score:
+            logger.warning(f"RATES - {consequence} : {nb_still_no_score} were not imputed")
 
     # Impute missing scores on DNM dataframe
     imputed_dnm_scores = list()
@@ -179,8 +190,18 @@ def impute_missing_scores(dnm_df, rates_df, score_column):
         else:
             imputed_dnm_scores.append(variant[score_column])
 
-    dnm_df["score_before_imputation"] = dnm_df[score_column]
-    dnm_df[score_column] = imputed_dnm_scores
+    dnm_df.loc[:, "score_before_imputation"] = dnm_df[score_column]
+    dnm_df.loc[:, score_column] = imputed_dnm_scores
+
+    # Log inmputing results on DNM
+    for consequence, consequence_dnm_df in dnm_df.groupby("consequence"):
+        nb_imputed = sum(
+            (~consequence_dnm_df[score_column].isna()) & (consequence_dnm_df["score_before_imputation"].isna())
+        )
+        nb_still_no_score = sum(consequence_dnm_df[score_column].isna())
+        logger.info(f"DNM - {consequence} : {nb_imputed} / {consequence_dnm_df.shape[0]} imputed")
+        if nb_still_no_score:
+            logger.warning(f"DNM - {consequence} : {nb_still_no_score} were not imputed")
 
     return dnm_df, rates_df
 

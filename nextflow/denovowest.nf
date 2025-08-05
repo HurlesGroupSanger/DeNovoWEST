@@ -92,6 +92,14 @@ workflow{
       if (!params.containsKey("runtype")) {
         params.runtype = "ns"
       }
+
+      if (!params.containsKey("nsim")) {
+        params.nsim = 10000000
+      }
+
+      if (!params.containsKey("impute_missing_scores")) {
+        params.impute_missing_scores = false
+      }
     }
 
     // By default we run the 3D clustering test
@@ -508,16 +516,16 @@ workflow{
 
       if(params.runtype == "both") {
 
-        SIMULATION_NS(simulation_ch, params.score, params.nmales, params.nfemales, "ns")
+        SIMULATION_NS(simulation_ch, params.score, params.nmales, params.nfemales, "ns", params.nsim, params.impute_missing_scores)
         MERGE_SIMULATION_NS(SIMULATION_NS.out.results.collect(), "ns")
 
-        SIMULATION_MIS(simulation_ch, params.score, params.nmales, params.nfemales, "mis")
+        SIMULATION_MIS(simulation_ch, params.score, params.nmales, params.nfemales, "mis", params.nsim, params.impute_missing_scores)
         MERGE_SIMULATION_MIS(SIMULATION_MIS.out.results.collect(), "mis")
 
       }
       else {
 
-        SIMULATION(simulation_ch, params.score, params.nmales, params.nfemales, params.runtype)
+        SIMULATION(simulation_ch, params.score, params.nmales, params.nfemales, params.runtype, params.nsim, params.impute_missing_scores)
         MERGE_SIMULATION(SIMULATION.out.results.collect(), params.runtype)
 
       }
