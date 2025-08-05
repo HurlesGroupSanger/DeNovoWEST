@@ -169,6 +169,12 @@ def get_pvalue(rates, obs_sum_scores, nsim, pvalcap, nb_observed_mutations, scor
         info = "0|0|True|observed < expected, pvalue set at 1"
         return ptot, info, exp_sum_scores
 
+    # With some resources like dbNSFP we might have no scores at all for a gene
+    if obs_sum_scores == 0:
+        ptot = 1
+        info = "0|0|True|observed = 0"
+        return ptot, info, exp_sum_scores
+
     # We sort the scores in order to use stopping rules that improve the speed of the simulations
     scores_sorted = np.sort(rates[score_column])
 
