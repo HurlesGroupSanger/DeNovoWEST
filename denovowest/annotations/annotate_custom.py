@@ -4,9 +4,11 @@ import click
 import pysam
 import sys
 from itertools import groupby, count
-import utils
 import logging
 import gzip
+
+from denovowest.utils.log import init_log
+
 
 is_chr_prefixed_variants = False
 is_chr_prefixed_annotation = False
@@ -303,7 +305,7 @@ def cli(variants, annotation, output, columns, columns_file):
 
     """
 
-    utils.init_log()
+    init_log()
 
     global is_chr_prefixed_variants, is_chr_prefixed_annotation
     is_chr_prefixed_variants = is_chr_prefixed(variants)

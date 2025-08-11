@@ -41,8 +41,8 @@ def load_dnm_rates(dnm, rates, column):
         f"{len(shared_genes)}/{rates_df.gene_id.nunique()} genes from the rates file have at least one observation in the DNM file"
     )
 
-    dnm_df = dnm_df.loc[dnm_df.gene_id.isin(shared_genes)]
-    rates_df = rates_df.loc[rates_df.gene_id.isin(shared_genes)]
+    dnm_df = dnm_df.loc[dnm_df.gene_id.isin(shared_genes)].copy()
+    rates_df = rates_df.loc[rates_df.gene_id.isin(shared_genes)].copy()
 
     return dnm_df, rates_df
 
@@ -116,7 +116,7 @@ def filter_on_consequences(df: pd.DataFrame, mode: str):
     else:
         filt = df.consequence.isin(["missense", "start_lost", "stop_lost"])
 
-    kept_df = df.loc[filt]
+    kept_df = df.loc[filt].copy()
 
     logger.info(f"{mode.upper()} - Before consequence filtering : {df.shape[0]} records")
 
@@ -248,6 +248,12 @@ def run_simulations(dnm_df: pd.DataFrame, rates_df: pd.DataFrame, nsim: int, pva
 
     logger = logging.getLogger("logger")
 
+    set_plain_log()
+    logger.info("=" * 50)
+    logger.info("[SIMULATION]")
+    logger.info("=" * 50)
+    set_regular_log()
+
     genes = dnm_df.gene_id.unique()
     results = []
     cpt = 0
@@ -277,12 +283,6 @@ def run_simulation(rates_df, dnm_df, gene_id, nsim, pvalcap, score_column):
     """
 
     logger = logging.getLogger("logger")
-
-    set_plain_log()
-    logger.info("=" * 50)
-    logger.info("[SIMULATION]")
-    logger.info("=" * 50)
-    set_regular_log()
 
     if gene_id not in rates_df.gene_id.unique():
         logger.debug("could not find " + str(gene_id))

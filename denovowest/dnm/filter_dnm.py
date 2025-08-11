@@ -3,6 +3,7 @@ import click
 import pandas as pd
 import logging
 import re
+import gffutils
 
 from denovowest.utils.log import init_log
 from denovowest.utils.params import CDS_OFFSET
@@ -74,33 +75,49 @@ def filter_on_gff(dnm_df, gff):
         gff (str): path to GFF file or gffutils database
     """
 
+    logger = logging.getLogger("logger")
+
     gff_db = load_gff(gff)
 
-    idx_not_in_cds = []
+    idx_discarded = list()
+    reason_discarded = list()
     for idx, dnm in dnm_df.iterrows():
-        if not is_in_cds(gff_db, dnm):
-            idx_not_in_cds.append(idx)
 
-    dnm_discarded_df = dnm_df.loc[idx_not_in_cds].copy()
-    dnm_discarded_df["reason"] = "not_in_cds"
-    dnm_kept_df = dnm_df.drop(idx_not_in_cds)
+        pos = dnm["pos"]
+        gene_id = dnm["gene_id"]
+
+        try:
+            gene = gff_db[gene_id]
+        except gffutils.exceptions.FeatureNotFoundError:
+
+            # Rare case where a user provide a GFF that differs
+            # from the gene used to annotate the DNM
+            logger.warning(f"{gene_id} not in GFF")
+            idx_discarded.append(idx)
+            reason_discarded.append("gene_not_in_gff")
+            continue
+
+        if not is_in_cds(gff_db, gene, pos):
+            idx_discarded.append(idx)
+            reason_discarded.append("gene_not_in_cds")
+
+    dnm_discarded_df = dnm_df.loc[idx_discarded].copy()
+    dnm_discarded_df["reason"] = reason_discarded
+    dnm_kept_df = dnm_df.drop(idx_discarded)
 
     return dnm_kept_df, dnm_discarded_df
 
 
-def is_in_cds(gff_db, dnm):
+def is_in_cds(gff_db, gene, pos):
     """
     Check if a given DNM is in a CDS region defined in the GFF file
 
     Args:
         gff_db (gffutils.FeatureDB): gffutils database
-        dnm (pd.Series): DNM row
+        gene (gffutils.Feature): gene in GFFDB
+        pos (int) : genomic loci of the variant
     """
 
-    pos = dnm["pos"]
-    gene_id = dnm["gene_id"]
-
-    gene = gff_db[gene_id]
     for transcript in gff_db.children(gene, level=1):
         for cds in gff_db.children(transcript, featuretype="CDS", order_by="start"):
             if (pos >= cds.start - CDS_OFFSET) and (pos <= cds.end + CDS_OFFSET):
