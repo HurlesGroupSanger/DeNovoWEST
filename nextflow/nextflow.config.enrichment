@@ -1,7 +1,6 @@
 includeConfig 'conf/lsf.conf'
 includeConfig 'conf/default.conf'
 
-
 ///////////////////////
 // CONDA - CONTAINER //
 ///////////////////////
@@ -9,18 +8,17 @@ includeConfig 'conf/default.conf'
 conda.enabled = true
 
 // If using singularity, uncomment the following lines and set conda.enabled to false
-//process.container = '../../denovowest_3.sif'
+//process.container = '../../denovowest_4.sif'
 //singularity.enabled = true
 //process.container = 'delagee/denovowest:4'
 //docker.enabled = true
-
 
 //////////////////////
 // NEXTFLOW BASEDIR //
 //////////////////////
 
 params.basedir = "test"
-params.run_name = "annotation"
+params.run_name = "simulation"
 
 workDir = "${params.basedir}/work/${params.run_name}"
 params.outdir = "${params.basedir}/out/${params.run_name}"
@@ -31,46 +29,31 @@ params {
   // MODES //
   ///////////
 
-  create_rates = true
-  annotate_dnm = true
-  annotate_rates = true
+  run_enrichment = true
 
-
-
+  
   ////////////
   // COMMON //
   ////////////
 
-  
-  gff = "../examples/annotation/CADD/input/OR4F5.gff"
-  genome_fasta = "../examples/annotation/CADD/input/OR4F5.fa"
-  mutation_rate_model = "../resources/rates_model_dnn.tsv"
-  dnm = "../examples/annotation/CADD/input/OR4F5_dnms.tsv"
-
+  dnm = "../examples/simulation/CADD/input/OR4F5_dnms_annotated.tsv"
+  rates = "../examples/simulation/CADD/input/OR4F5_rates_annotated.tsv.gz"
 
   ////////////////
-  // ANNOTATION //
+  // ENRICHMENT //
   ////////////////
 
+  enrichment {
 
-  annotation {
-    cadd_file="../examples/annotation/CADD/input/OR4F5.cadd.tsv.gz"
+    nmales = 17422
+    nfemales = 13636
+
+    score = "score"
+    runtype = "both"
+
   }
-
-
-  //////////////
-  // BCFTOOLS //
-  //////////////
-
-  // If bcftools and tabix are not in your PATH but can be accessed via modules
-  // add the module names here (not needed when using containers)
-
-  useModules = true 
-  bcftoolsModule = 'HGI/softpack/groups/hgi/bcftools1.20/1'
-  tabixModule = 'badger/samtools/1.20'
-
-
 }
+
 
 ///////////
 // TRACE //
@@ -88,6 +71,7 @@ report {
     enabled = true
     file = "${params.tracedir}/${params.timestamp}_report.html"
 }
+
 
 
 

@@ -41,91 +41,83 @@ include { DENOVONEAR_LINEAR; DENOVONEAR_3D; PREPARE_DNM_DENOVONEAR; SPLIT_DNM; S
 
 
 
+
 workflow{ 
 
-    /////////////////////////// 
-    // DEFAULT_CONFIGURATION //
-    ///////////////////////////
+
+    ///////////////////////// 
+    // CHECK CONFIGURATION //
+    /////////////////////////
     
 
-    if (!params.containsKey("create_rates")) {
-      params.create_rates = true
+    params.create_rates = params.create_rates ?: false
+    params.annotate_rates = params.annotate_rates ?: false
+    params.annotate_dnm = params.annotate_dnm ?: false
+    params.run_enrichment = params.run_enrichment ?: false
+    params.run_clustering = params.run_clustering ?: false
+
+    if (!params.create_rates && !params.annotate_rates && !params.annotate_dnm && !params.run_enrichment && !params.run_clustering) {
+          log.error "❌ You have to select a pipeline execution mode (e.g. rates file creation)."
+          System.exit(1)
     }
 
-    if (!params.containsKey("annotate_rates")) {
-      params.annotate_rates = true
-    }
+    params.split_step = params.split_step ?: 100
 
-    if (!params.containsKey("annotate_dnm")) {
-      params.annotate_dnm = true
-    }
 
+    // Annotation
     if (params.annotate_dnm || params.annotate_rates) {
 
-      if (!params.annotation.containsKey("annotate_bcftoolscsq")) {
-        params.annotation.annotate_bcftoolscsq = true
+      params.annotation = params.annotation ?: [:]
+      params.annotation.annotate_bcftoolscsq =  params.annotation.annotate_bcftoolscsq ?: true
+
+      if (params.annotation.containsKey("dbnsfp")) {
+          
+          params.annotation.dbnsfp.columns =  params.annotation.dbnsfp.columns ?: ""
+          params.annotation.dbnsfp.columns_file =  params.annotation.dbnsfp.columns_file ?: ""
       }
     }
 
-    if (!params.containsKey("run_simulation")) {
-      params.run_simulation = true
-      
-    }
+    // Enrichment
+    if (params.run_enrichment) {
 
-    if (!params.containsKey("run_clustering")) {
-      params.run_clustering = true
-    }
+      if (!params.containsKey("enrichment")) {
 
-    // Defines the number of genes to process in one batch
-    if (!params.containsKey("split_step")) {
-      params.split_step = 100
-    }
-
-    // Export or not the weights annotated DNM and rates file
-    if (!params.containsKey("export_weighted_dnmrates")) {
-      params.export_weighted_dnmrates = false
-    }
-
-
-    // By default we run the non-synonymous test
-    if (params.run_simulation) {
-      if (!params.containsKey("runtype")) {
-        params.runtype = "ns"
+          log.error "❌ Missing required section: 'enrichment' in config file or command line."
+          System.exit(1)
       }
 
-      if (!params.containsKey("nsim")) {
-        params.nsim = 10000000
+      if (!params.enrichment.containsKey("nmales") || !params.enrichment.containsKey("nfemales")) {
+
+          log.error "❌ The number of males and females individuals in the cohort is required to run the enrichment test."
+          System.exit(1)
       }
 
-      if (!params.containsKey("impute_missing_scores")) {
-        params.impute_missing_scores = false
+
+      if (!params.enrichment.containsKey("score")) {
+
+          log.error "❌ A score column is required to run the enrichment test."
+          System.exit(1)
       }
+
+      params.enrichment.runtype = params.enrichment.runtype ?: 'ns'
+      params.enrichment.nsim = params.enrichment.nsim ?: 10000000
+      params.enrichment.impute_missing_scores = params.enrichment.impute_missing_scores ?: false
+
     }
 
-    // By default we run the 3D clustering test
+    // Clustering
     if (params.run_clustering) {
-      if (!params.containsKey("clustering_runtype")) {
-        params.clustering_runtype = "3D"
+      
+        params.clustering = params.clustering ?: [:]
+        params.clustering.runtype = params.clustering.runtype ?: '3D'
+
+        if ((params.clustering.runtype in ['3D', 'both']) && !params.clustering.containsKey("protein_structures")) {
+
+          log.error "❌ A protein structure file is needed to run the 3D clustering test."
+          System.exit(1)
       }
     }
 
-    if (params.containsKey("annotation")) {
-        if (params.annotation.containsKey("dbnsfp_file")) {
-          if (!params.annotation.containsKey("dbnsfp_columns")){
-            params.annotation.dbnsfp_columns = ""
-          }
-          if (!params.annotation.containsKey("dbnsfp_columns_file")){
-            params.annotation.dbnsfp_columns_file = ""
-          }
-        }
-    }
-
-
-
-
-    ///////////////////////////////////////
-    // TODO : Check config file validity //
-    ///////////////////////////////////////
 
 
     ///////////////////////////////// 
@@ -180,9 +172,7 @@ workflow{
     {
 
       // Default mutation rate model is kmer trinucleotide model
-      if (!params.containsKey("mutation_rate_model_type")) {
-        params.mutation_rate_model_type = "kmer"
-      }
+      params.mutation_rate_model_type = params.mutation_rate_model_type ?: 'kmer'
 
       // Create rates files (one per split gene list)
       rates_ch = RATE_CREATION(split_gene_list_ch.toSortedList().flatten(), gffutils_db_ch.first(), file(params.genome_fasta), file(params.mutation_rate_model),  params.mutation_rate_model_type)
@@ -199,17 +189,18 @@ workflow{
     ///////////////////////////
     
     // Annotate rates file
-    if (params.containsKey("annotation") and params.containsKey("annotate_rates") and (params.annotate_rates))
+    if (params.annotate_rates)
     {
       rates_annotated_ch = rates_ch
       
-      if (params.annotation.containsKey("annotate_bcftoolscsq") and (params.annotation.annotate_bcftoolscsq)) {
+      if (params.annotation.annotate_bcftoolscsq) {
         rates_annotated_ch = BCFTOOLS_CSQ_FULL(rates_annotated_ch, file(params.genome_fasta), file(params.genome_fasta + ".fai"),  file(params.gff), gffutils_db_ch.first(), "rates" )
       }
       
       if (params.annotation.containsKey("cadd_file")){
         rates_annotated_ch = CADD(rates_annotated_ch,  file(params.annotation.cadd_file),  file(params.annotation.cadd_file + ".tbi"), "rates")
       }
+
       if (params.annotation.containsKey("gene_full_constraints")){
         rates_annotated_ch = CONSTRAINTS(rates_annotated_ch,  file(params.annotation.gene_full_constraints),  file(params.annotation.gene_region_constraints), "rates")
       }
@@ -222,8 +213,8 @@ workflow{
         rates_annotated_ch = GNOMAD(rates_annotated_ch,  file(params.annotation.gnomad_file),  file(params.annotation.gnomad_file + ".tbi"), "rates")
       }
 
-      if (params.annotation.containsKey("dbnsfp_file")){
-        rates_annotated_ch = DBNSFP(rates_annotated_ch,  file(params.annotation.dbnsfp_file),  file(params.annotation.dbnsfp_file + ".tbi"), params.annotation.dbnsfp_columns, params.annotation.dbnsfp_columns_file,  gffutils_db_ch.first(), "rates")
+      if (params.annotation.containsKey("dbnsfp")){
+        rates_annotated_ch = DBNSFP(rates_annotated_ch,  file(params.annotation.dbnsfp.database),  file(params.annotation.dbnsfp.database + ".tbi"), params.annotation.dbnsfp.columns, params.annotation.dbnsfp.columns_file,  gffutils_db_ch.first(), "rates")
       }
 
       if (params.annotation.containsKey("custom")){
@@ -364,11 +355,11 @@ workflow{
       }
 
       // Annotate DNM file
-      if (params.containsKey("annotation") and params.containsKey("annotate_dnm") and (params.annotate_dnm))
+      if (params.annotate_dnm)
       {
         dnm_annotated_ch = dnm_ch
 
-        if (params.annotation.containsKey("annotate_bcftoolscsq") and (params.annotation.annotate_bcftoolscsq)) {
+        if (params.annotation.annotate_bcftoolscsq) {
           dnm_annotated_ch = DNM_BCFTOOLS_CSQ_FULL(dnm_annotated_ch, file(params.genome_fasta), file(params.genome_fasta + ".fai"), file(params.gff),  gffutils_db_ch.first(), "dnm" )
         }
         
@@ -388,8 +379,8 @@ workflow{
           dnm_annotated_ch = DNM_GNOMAD(dnm_annotated_ch,  file(params.annotation.gnomad_file),  file(params.annotation.gnomad_file + ".tbi"), "dnm")
         }
 
-        if (params.annotation.containsKey("dbnsfp_file")){
-          dnm_annotated_ch = DNM_DBNSFP(dnm_annotated_ch,  file(params.annotation.dbnsfp_file),  file(params.annotation.dbnsfp_file + ".tbi"), params.annotation.dbnsfp_columns,  params.annotation.dbnsfp_columns_file,  gffutils_db_ch.first(),"dnm")
+        if (params.annotation.containsKey("dbnsfp")){
+          dnm_annotated_ch = DNM_DBNSFP(dnm_annotated_ch,  file(params.annotation.dbnsfp.database),  file(params.annotation.dbnsfp.database + ".tbi"), params.annotation.dbnsfp.columns,  params.annotation.dbnsfp.columns_file,  gffutils_db_ch.first(),"dnm")
         }
 
         if (params.annotation.containsKey("custom")){
@@ -507,26 +498,26 @@ workflow{
     }
 
     //////////////// 
-    // SIMULATION //
+    // ENRICHMENT //
     ////////////////
 
-    if (params.run_simulation)
+    if (params.run_enrichment)
     {
       simulation_ch = dnm_annotated_ch.combine(rates_annotated_ch)
 
-      if(params.runtype == "both") {
+      if(params.enrichment.runtype == "both") {
 
-        SIMULATION_NS(simulation_ch, params.score, params.nmales, params.nfemales, "ns", params.nsim, params.impute_missing_scores)
+        SIMULATION_NS(simulation_ch, params.enrichment.score, params.enrichment.nmales, params.enrichment.nfemales, "ns", params.enrichment.nsim, params.enrichment.impute_missing_scores)
         MERGE_SIMULATION_NS(SIMULATION_NS.out.results.collect(), "ns")
 
-        SIMULATION_MIS(simulation_ch, params.score, params.nmales, params.nfemales, "mis", params.nsim, params.impute_missing_scores)
+        SIMULATION_MIS(simulation_ch, params.enrichment.score, params.enrichment.nmales, params.enrichment.nfemales, "mis", params.enrichment.nsim, params.enrichment.impute_missing_scores)
         MERGE_SIMULATION_MIS(SIMULATION_MIS.out.results.collect(), "mis")
 
       }
       else {
 
-        SIMULATION(simulation_ch, params.score, params.nmales, params.nfemales, params.runtype, params.nsim, params.impute_missing_scores)
-        MERGE_SIMULATION(SIMULATION.out.results.collect(), params.runtype)
+        SIMULATION(simulation_ch, params.enrichment.score, params.enrichment.nmales, params.enrichment.nfemales, params.enrichment.runtype, params.enrichment.nsim, params.enrichment.impute_missing_scores)
+        MERGE_SIMULATION(SIMULATION.out.results.collect(), params.enrichment.runtype)
 
       }
 
@@ -546,51 +537,51 @@ workflow{
       dnm_split_ch = SPLIT_DNM(gene_list_clustering_ch.toSortedList().flatten(), dnm_annotated_ch.first())
       dnm_dnn_ch = PREPARE_DNM_DENOVONEAR(dnm_split_ch, gffutils_db_ch.first())
 
-      if(params.clustering_runtype == "both") {
+      if(params.clustering.runtype == "both") {
         DENOVONEAR_LINEAR(dnm_dnn_ch, file(params.gff), file(params.genome_fasta))
         MERGE_CLUSTERING_LINEAR(DENOVONEAR_LINEAR.out.results.collect(), "linear")
         ADD_GENE_ID_LINEAR(MERGE_CLUSTERING_LINEAR.out,  gffutils_db_ch.first(), "linear")
 
-        DENOVONEAR_3D(dnm_dnn_ch, file(params.gff), file(params.genome_fasta), file(params.protein_structures))
+        DENOVONEAR_3D(dnm_dnn_ch, file(params.gff), file(params.genome_fasta), file(params.clustering.protein_structures))
         MERGE_CLUSTERING_3D(DENOVONEAR_3D.out.results.collect(), "3D")
         ADD_GENE_ID_3D(MERGE_CLUSTERING_3D.out,  gffutils_db_ch.first(), "3D")
 
         COMBINE_CLUSTERING(ADD_GENE_ID_LINEAR.out, ADD_GENE_ID_3D.out)
 
         // Combine enrichment and clustering results
-        if (params.run_simulation) {
-          if(params.runtype == "both") {
+        if (params.run_enrichment) {
+          if(params.enrichment.runtype == "both") {
             COMBINE_DNE_DNN(MERGE_SIMULATION_NS.out, MERGE_SIMULATION_MIS.out,COMBINE_CLUSTERING.out)
           }
         }
 
       }
 
-      if(params.clustering_runtype == "linear") {
+      if(params.clustering.runtype == "linear") {
 
         DENOVONEAR_LINEAR(dnm_dnn_ch, file(params.gff), file(params.genome_fasta))
         MERGE_CLUSTERING_LINEAR(DENOVONEAR_LINEAR.out.results.collect(), "linear")
         ADD_GENE_ID_LINEAR(MERGE_CLUSTERING_LINEAR.out,  gffutils_db_ch.first(), "linear")
 
         // Combine enrichment and clustering results
-        if (params.run_simulation){
-          if(params.runtype == "both") {
+        if (params.run_enrichment){
+          if(params.enrichment.runtype == "both") {
             COMBINE_DNE_DNN(MERGE_SIMULATION_NS.out, MERGE_SIMULATION_MIS.out,ADD_GENE_ID_LINEAR.out)
           }
         }
 
       }
 
-      if(params.clustering_runtype == "3D") {
+      if(params.clustering.runtype == "3D") {
 
-        DENOVONEAR_3D(dnm_dnn_ch, file(params.gff), file(params.genome_fasta),  file(params.protein_structures))
+        DENOVONEAR_3D(dnm_dnn_ch, file(params.gff), file(params.genome_fasta),  file(params.clustering.protein_structures))
         MERGE_CLUSTERING_3D(DENOVONEAR_3D.out.results.collect(), "3D")
         ADD_GENE_ID_3D(MERGE_CLUSTERING_3D.out,  gffutils_db_ch.first(), "3D")
 
 
         // Combine enrichment and clustering results
-        if (params.run_simulation) {
-          if(params.runtype == "both") {
+        if (params.run_enrichment) {
+          if(params.enrichment.runtype == "both") {
             COMBINE_DNE_DNN(MERGE_SIMULATION_NS.out, MERGE_SIMULATION_MIS.out,ADD_GENE_ID_3D.out)
           }
         }

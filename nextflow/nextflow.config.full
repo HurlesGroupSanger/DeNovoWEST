@@ -1,7 +1,6 @@
 includeConfig 'conf/lsf.conf'
 includeConfig 'conf/default.conf'
 
-
 ///////////////////////
 // CONDA - CONTAINER //
 ///////////////////////
@@ -20,7 +19,7 @@ conda.enabled = true
 //////////////////////
 
 params.basedir = "test"
-params.run_name = "annotation"
+params.run_name = "full"
 
 workDir = "${params.basedir}/work/${params.run_name}"
 params.outdir = "${params.basedir}/out/${params.run_name}"
@@ -30,11 +29,12 @@ params {
   ///////////
   // MODES //
   ///////////
-
+  
   create_rates = true
   annotate_dnm = true
   annotate_rates = true
-
+  run_enrichment = true
+  run_clustering = true
 
 
   ////////////
@@ -55,6 +55,34 @@ params {
 
   annotation {
     cadd_file="../examples/annotation/CADD/input/OR4F5.cadd.tsv.gz"
+  }
+
+
+  ////////////////
+  // ENRICHMENT //
+  ////////////////
+
+  enrichment {
+
+    nmales = 17422
+    nfemales = 13636
+
+    score = "score"
+    runtype = "both"
+
+  }
+
+
+  ////////////////
+  // CLUSTERING //
+  ////////////////
+
+  clustering {
+
+    // Clustering runtype can be '3D', 'linear' or 'both'
+    runtype = "both"
+    protein_structures = "/lustre/scratch125/humgen/projects_v2/denovowest/scratch/resources/UP000005640_9606_HUMAN_v4.tar"
+
   }
 
 

@@ -43,6 +43,7 @@ def combine_dne_dnn(dne_file_all, dne_file_mis, dnn_file, out_file):
         "dne_all_p",
         "nb_sim_all",
         "nb_mutations_stop_all",
+        "sequential_simulation_all",
         "log_all",
         "walltime_all",
     ]
@@ -54,6 +55,7 @@ def combine_dne_dnn(dne_file_all, dne_file_mis, dnn_file, out_file):
         "dne_mis_p",
         "nb_sim_mis",
         "nb_mutations_stop_mis",
+        "sequential_simulation_mis",
         "log_mis",
         "walltime_mis",
     ]
