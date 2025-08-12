@@ -505,6 +505,16 @@ workflow{
     {
       simulation_ch = dnm_annotated_ch.combine(rates_annotated_ch)
 
+      // Extract the chunk identifier to use to name subsequent files
+      simulation_ch = simulation_ch.map { dnmPath, ratesPath  ->
+          def basename = ratesPath.toString().replaceAll('\\\\','/').tokenize('/')[-1]
+
+          def m = (basename =~ /(.+?)_mutation_rates\.tsv$/)   // captures text before "_mutation_rates.tsv"
+          def id = m ? m[0][1] : basename.replaceAll(/\..*$/,'') // fallback: strip extension
+
+          tuple(dnmPath, ratesPath, id)
+      }
+
       if(params.enrichment.runtype == "both") {
 
         SIMULATION_NS(simulation_ch, params.enrichment.score, params.enrichment.nmales, params.enrichment.nfemales, "ns", params.enrichment.nsim, params.enrichment.impute_missing_scores)
@@ -535,6 +545,17 @@ workflow{
 
       gene_list_clustering_ch = SPLIT_GENE_LIST_CLUSTERING(dnm_annotated_ch, gene_list_ch, params.split_step)
       dnm_split_ch = SPLIT_DNM(gene_list_clustering_ch.toSortedList().flatten(), dnm_annotated_ch.first())
+
+      // Extract the chunk identifier to use to name subsequent files
+      dnm_split_ch = dnm_split_ch.map { filePath ->
+          def basename = filePath.toString().replaceAll('\\\\','/').tokenize('/')[-1]
+
+          def m = (basename =~ /(.+?)_dnm\.tsv$/)   // captures text before "_dnm.tsv"
+          def id = m ? m[0][1] : basename.replaceAll(/\..*$/,'') // fallback: strip extension
+
+          tuple(filePath, id)
+      }
+
       dnm_dnn_ch = PREPARE_DNM_DENOVONEAR(dnm_split_ch, gffutils_db_ch.first())
 
       if(params.clustering.runtype == "both") {

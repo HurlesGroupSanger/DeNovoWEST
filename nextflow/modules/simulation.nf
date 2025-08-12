@@ -3,8 +3,11 @@ process SIMULATION {
     
 	label "process_long"
 
+    publishDir "${params.outdir}/simulation/$runtype/batches", mode: 'symlink', overwrite: true
+
+
 	input :
-    tuple path(dnm), path(rates)
+    tuple path(dnm), path(rates), val(id)
     val column
 	val nmales
 	val nfemales
@@ -13,18 +16,17 @@ process SIMULATION {
     val impute_missing_scores
 
     output :
-    path "enrichment_results.tsv", emit :results
-    path("weighted_DNM.tsv"), optional: true, emit : dnm
-    path("weighted_rates.tsv"), optional: true, emit : rates
+    path "${id}_enrichment_results.tsv", emit :results
+
 
     beforeScript "[ -v NF_TEST ] && export PYTHONPATH=$baseDir/../../../../../denovowest/simulation/;"
 
     script :
     """
     if [  "$impute_missing_scores" = "true"  ]; then
-        simulation.py $dnm $rates $column --nmales $nmales --nfemales $nfemales --runtype $runtype --nsim $nsim --impute-missing-scores
+        simulation.py $dnm $rates $column --nmales $nmales --nfemales $nfemales --runtype $runtype --nsim $nsim --impute-missing-scores --outfile ${id}_enrichment_results.tsv
     else
-        simulation.py $dnm $rates $column --nmales $nmales --nfemales $nfemales --runtype $runtype --nsim $nsim 
+        simulation.py $dnm $rates $column --nmales $nmales --nfemales $nfemales --runtype $runtype --nsim $nsim --outfile ${id}_enrichment_results.tsv
     fi
 
     """

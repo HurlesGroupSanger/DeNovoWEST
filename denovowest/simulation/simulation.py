@@ -312,13 +312,14 @@ def run_simulation(rates_df, dnm_df, gene_id, nsim, pvalcap, score_column):
     return (gene_id, exp_sum_scores, obs_sum_scores, pval, info)
 
 
-def export_results(results: list, outdir: str):
+def export_results(results: list, outdir: str, outfile: str):
     """
     Write enrichment results
 
     Args:
         results (list): list of per-gene enrichment simulation results
         outdir (str): output directory
+        outfile (str): enrichment results file
     """
 
     logger = logging.getLogger("logger")
@@ -340,9 +341,9 @@ def export_results(results: list, outdir: str):
 
     df.drop("info", axis=1, inplace=True)
 
-    df.to_csv(f"{outdir}/enrichment_results.tsv", sep="\t", index=False)
+    df.to_csv(f"{outdir}/{outfile}", sep="\t", index=False)
 
-    logger.info(f"Simulation results exported to {outdir}/enrichment_results.tsv")
+    logger.info(f"Simulation results exported to {outdir}/{outfile}")
 
 
 def log_configuration(conf):
@@ -382,6 +383,7 @@ def log_configuration(conf):
     show_default=True,
 )
 @click.option("--outdir", default="./")
+@click.option("--outfile", default="enrichment_results.tsv")
 @click.option(
     "--impute-missing-scores",
     is_flag=True,
@@ -392,7 +394,7 @@ def log_configuration(conf):
     default=1,
     help="Number of cores to use during simulation step",
 )
-def main(dnm, rates, column, nmales, nfemales, pvalcap, nsim, runtype, outdir, impute_missing_scores, jobs):
+def main(dnm, rates, column, nmales, nfemales, pvalcap, nsim, runtype, outdir, outfile, impute_missing_scores, jobs):
     """
     DeNovoWEST is a simulation-based method that tests for DNM enrichment in each gene separately.
     It uses computational effect predictors (CEP) scores to reflect the pathogenicity probability for each variant.
@@ -408,6 +410,7 @@ def main(dnm, rates, column, nmales, nfemales, pvalcap, nsim, runtype, outdir, i
         nsim (int): Minimum number of simulations for each gene
         runtype (str): Run type is either missense test (mis) or non-synonymous (ns)
         outdir (str): Output directory
+        outfile (str): Enrichment results file (default enrichment_results.tsv)
         impute_missing_scores (bool) : Impute missing scores by taking the median score for similar variants (i.e. same consequence) in the gene
     """
     init_log()
@@ -423,7 +426,7 @@ def main(dnm, rates, column, nmales, nfemales, pvalcap, nsim, runtype, outdir, i
     results = run_simulations(dnm_df, rates_df, nsim, pvalcap, column)
 
     # Export results
-    export_results(results, outdir)
+    export_results(results, outdir, outfile)
 
 
 if __name__ == "__main__":

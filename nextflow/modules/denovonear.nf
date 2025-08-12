@@ -45,17 +45,17 @@ process PREPARE_DNM_DENOVONEAR {
 
 
 	input :
-    path dnm
+    tuple path(dnm), val(id)
 	path gtf
 
     output :
-    path "dnn_denovonear.tsv"
+    tuple path("${id}_dnn_denovonear.tsv"), val(id)
 
     script :
     """
     prepare_dnms.py $dnm \
 		$gtf \
-		dnn_denovonear.tsv
+		${id}_dnn_denovonear.tsv
     """
 }
 
@@ -66,17 +66,19 @@ process DENOVONEAR_LINEAR {
 
     label "process_long"
 
+    publishDir "${params.outdir}/clustering/linear/batches", mode: 'symlink', overwrite: true
+
 	input :
-    path dnm
+    tuple path(dnm), val(id)
 	path gtf
     path fasta
 
     output :
-    path "linear_clustering_results.tsv", emit :results
+    path "${id}_linear_clustering_results.tsv", emit :results
 
     script :
     """
-    denovonear cluster --in $dnm --gencode $gtf --fasta $fasta --out linear_clustering_results.tsv
+    denovonear cluster --in $dnm --gencode $gtf --fasta $fasta --out ${id}_linear_clustering_results.tsv
     """
 }
 
@@ -84,14 +86,17 @@ process DENOVONEAR_3D {
 
     label "process_long"
 
+    publishDir "${params.outdir}/clustering/3D/batches", mode: 'symlink', overwrite: true
+
+
 	input :
-    path dnm
+    tuple path(dnm), val(id)
 	path gtf
     path fasta
 	path protein_structures
 
     output :
-    path "3d_clustering_results.tsv", emit :results
+    path "${id}_3d_clustering_results.tsv", emit :results
 
     script :
     """
@@ -101,7 +106,7 @@ process DENOVONEAR_3D {
 		--gencode $gtf \
 		--fasta $fasta \
         --genome-build grch38 \
-		--out 3d_clustering_results.tsv
+		--out ${id}_3d_clustering_results.tsv
     """
 }
 
@@ -109,7 +114,7 @@ process DENOVONEAR_3D {
 process MERGE_CLUSTERING {
     
 	input :
-    path clustering_results, stageAs : "clustering_results_*.tsv"
+    path clustering_results
     val runtype
 
     output :
