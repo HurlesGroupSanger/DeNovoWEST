@@ -9,22 +9,26 @@ nextflow_process {
         when {
 
             params {
-                dnm = "$baseDir/nf_tests/test_data/simulation/CADD/input/OR4F5.dnms.annotated.tsv"
-                rates = "$baseDir/nf_tests/test_data/simulation/CADD/input/OR4F5.rates.annotated.tsv.gz"
+                dnm = "$baseDir/nf_tests/test_data/simulation/CADD/input/OR4F5_dnms_annotated.tsv"
+                rates = "$baseDir/nf_tests/test_data/simulation/CADD/input/OR4F5_rates_annotated.tsv.gz"
+                id = "OR4F5"
                 score="score"
                 runtype = "ns"
+                nsim = 10000000
+                impute_missing_scores = true
 
                 nmales = 17422
                 nfemales = 13636
             }
             process {
                 """
-                input[0] = Channel.fromPath(params.dnm).combine(Channel.fromPath(params.rates))
+                input[0] = Channel.fromPath(params.dnm).combine(Channel.fromPath(params.rates)).map { dnm, rates -> [dnm, rates, params.id] }
                 input[1] = params.score
                 input[2] = params.nmales
                 input[3] = params.nfemales
                 input[4] = params.runtype
-
+                input[5] = params.nsim
+                input[6] = params.impute_missing_scores
                 """
             }
         }
