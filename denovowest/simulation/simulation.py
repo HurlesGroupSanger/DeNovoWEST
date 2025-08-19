@@ -7,6 +7,8 @@ import time
 import click
 import pandas as pd
 import numpy as np
+import json
+import math
 
 from denovowest.utils.log import init_log, set_plain_log, set_regular_log
 from denovowest.utils.params import CONSEQUENCES_MAPPING, CONSEQUENCES_SEVERITIES
@@ -14,7 +16,7 @@ from denovowest.simulation.scores import prepare_scores
 from denovowest.simulation.probabilities import get_pvalue
 
 
-def load_dnm_rates(dnm, rates, column):
+def load_dnm_rates(dnm, rates, column, gene_list):
     """
     Load DNM and rates files and limit the analysis to genes shared by both files.
     When parallelising DNW on HPC, the rates file is split per gene.
@@ -23,12 +25,20 @@ def load_dnm_rates(dnm, rates, column):
         dnm (str): path to observed DNM
         rates (str): path to rates file
         column (str): column that stores variant scores
+        gene_list (str) : list of genes to consider
     """
 
     logger = logging.getLogger("logger")
 
     dnm_df = pd.read_csv(dnm, sep="\t", dtype={"chrom": str, "pos": int, column: float}, na_values=[".", "NA"])
     rates_df = pd.read_csv(rates, sep="\t", dtype={"chrom": str, "pos": int, column: float}, na_values=[".", "NA"])
+
+    if gene_list:
+        with open(gene_list, "r") as f:
+            genes = [x.strip() for x in f.readlines()]
+
+        dnm_df = dnm_df.loc[dnm_df.gene_id.isin(genes)]
+        rates_df = rates_df.loc[rates_df.gene_id.isin(genes)]
 
     shared_genes = set(dnm_df.gene_id.unique()) & set(rates_df.gene_id.unique())
 
@@ -256,17 +266,19 @@ def run_simulations(dnm_df: pd.DataFrame, rates_df: pd.DataFrame, nsim: int, pva
 
     genes = dnm_df.gene_id.unique()
     results = []
+    logs = dict()
     cpt = 0
     for gene in genes:
-        simulation_results = run_simulation(rates_df, dnm_df, gene, nsim, pvalcap, score_column)
+        simulation_results, simulation_logs = run_simulation(rates_df, dnm_df, gene, nsim, pvalcap, score_column)
         if simulation_results:
             results.append(simulation_results)
+            logs[gene] = simulation_logs
 
         cpt += 1
         if cpt % 10 == 0:
             logger.info(f"Processed {cpt}/{len(genes)} genes")
 
-    return results
+    return results, logs
 
 
 def run_simulation(rates_df, dnm_df, gene_id, nsim, pvalcap, score_column):
@@ -284,6 +296,8 @@ def run_simulation(rates_df, dnm_df, gene_id, nsim, pvalcap, score_column):
 
     logger = logging.getLogger("logger")
 
+    simulation_logs = dict()
+
     if gene_id not in rates_df.gene_id.unique():
         logger.debug("could not find " + str(gene_id))
         return
@@ -298,18 +312,22 @@ def run_simulation(rates_df, dnm_df, gene_id, nsim, pvalcap, score_column):
     nb_observed_mutations = dnm_df[dnm_df.gene_id == gene_id].shape[0]
     obs_sum_scores = dnm_df[dnm_df.gene_id == gene_id][score_column].sum()
 
+    simulation_logs["nb_observed_mutations"] = nb_observed_mutations
+    simulation_logs["obs_sum_scores"] = obs_sum_scores
+
     # Run nsim simulations
-    pval, info, exp_sum_scores = get_pvalue(
-        generates, obs_sum_scores, nsim, pvalcap, nb_observed_mutations, score_column
+    results, simulation_logs = get_pvalue(
+        generates, obs_sum_scores, nsim, pvalcap, nb_observed_mutations, score_column, simulation_logs
     )
 
     # Store how long the simulation took for each gene
     end_time = time.time()
     wall_time = end_time - start_time
-    info = f"{info}|{wall_time:.6f}"
+    info = f"{results[1]}|{wall_time:.6f}"
 
     # Return the gene id, its expected and observed sum of scores, the p-value from the enrichment simulation test and some informations about the simulation
-    return (gene_id, exp_sum_scores, obs_sum_scores, pval, info)
+    simulation_results = (gene_id, results[2], obs_sum_scores, results[0], info)
+    return simulation_results, simulation_logs
 
 
 def export_results(results: list, outdir: str, outfile: str):
@@ -344,6 +362,31 @@ def export_results(results: list, outdir: str, outfile: str):
     df.to_csv(f"{outdir}/{outfile}", sep="\t", index=False)
 
     logger.info(f"Simulation results exported to {outdir}/{outfile}")
+
+
+def export_logs(logs, outdir):
+
+    class NpEncoder(json.JSONEncoder):
+        def default(self, obj):
+            # Handle numpy integer
+            if isinstance(obj, np.integer):
+                return int(obj)
+            # Handle numpy floating
+            elif isinstance(obj, np.floating):
+                if math.isnan(obj):  # NaN → null
+                    return None
+                return float(obj)
+            # Handle numpy arrays
+            elif isinstance(obj, np.ndarray):
+                return obj.tolist()
+            return super().default(obj)
+
+    logger = logging.getLogger("logger")
+
+    with open(f"{outdir}/simulation_logs.json", "w") as f:
+        json.dump(logs, f, indent=4, cls=NpEncoder)
+
+    logger.info(f"Simulation logs exported to {outdir}/simulation_logs.json")
 
 
 def log_configuration(conf):
@@ -394,7 +437,29 @@ def log_configuration(conf):
     default=1,
     help="Number of cores to use during simulation step",
 )
-def main(dnm, rates, column, nmales, nfemales, pvalcap, nsim, runtype, outdir, outfile, impute_missing_scores, jobs):
+@click.option(
+    "--debug",
+    is_flag=True,
+    default=False,
+    help="Log simulation information for each gene",
+)
+@click.option("--gene-list", default="")
+def main(
+    dnm,
+    rates,
+    column,
+    nmales,
+    nfemales,
+    pvalcap,
+    nsim,
+    runtype,
+    outdir,
+    outfile,
+    impute_missing_scores,
+    jobs,
+    debug,
+    gene_list,
+):
     """
     DeNovoWEST is a simulation-based method that tests for DNM enrichment in each gene separately.
     It uses computational effect predictors (CEP) scores to reflect the pathogenicity probability for each variant.
@@ -417,16 +482,19 @@ def main(dnm, rates, column, nmales, nfemales, pvalcap, nsim, runtype, outdir, o
     log_configuration(click.get_current_context().params)
 
     # Load DNM and rates files
-    dnm_df, rates_df = load_dnm_rates(dnm, rates, column)
+    dnm_df, rates_df = load_dnm_rates(dnm, rates, column, gene_list)
 
     # Prepare DNM and rates file for simulation
     dnm_df, rates_df = prepare_dnm_rates(dnm_df, rates_df, column, nmales, nfemales, impute_missing_scores)
 
     # Run simulations
-    results = run_simulations(dnm_df, rates_df, nsim, pvalcap, column)
+    results, logs = run_simulations(dnm_df, rates_df, nsim, pvalcap, column)
 
     # Export results
     export_results(results, outdir, outfile)
+
+    if debug:
+        export_logs(logs, outdir)
 
 
 if __name__ == "__main__":

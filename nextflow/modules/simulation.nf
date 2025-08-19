@@ -17,6 +17,8 @@ process SIMULATION {
 
     output :
     path "${id}_enrichment_results.tsv", emit :results
+    path "${id}_simulation_logs.json", emit :logs
+
 
 
     beforeScript "[ -v NF_TEST ] && export PYTHONPATH=$baseDir/../../../../../denovowest/simulation/;"
@@ -24,10 +26,12 @@ process SIMULATION {
     script :
     """
     if [  "$impute_missing_scores" = "true"  ]; then
-        simulation.py $dnm $rates $column --nmales $nmales --nfemales $nfemales --runtype $runtype --nsim $nsim --impute-missing-scores --outfile ${id}_enrichment_results.tsv
+        simulation.py $dnm $rates $column --nmales $nmales --nfemales $nfemales --runtype $runtype --nsim $nsim --impute-missing-scores --outfile ${id}_enrichment_results.tsv --debug
     else
-        simulation.py $dnm $rates $column --nmales $nmales --nfemales $nfemales --runtype $runtype --nsim $nsim --outfile ${id}_enrichment_results.tsv
+        simulation.py $dnm $rates $column --nmales $nmales --nfemales $nfemales --runtype $runtype --nsim $nsim --outfile ${id}_enrichment_results.tsv --debug
     fi
+
+    mv simulation_logs.json ${id}_simulation_logs.json
 
     """
 }
@@ -37,16 +41,20 @@ process MERGE_SIMULATION {
 	publishDir "${params.outdir}/simulation/$runtype", mode: 'copy', overwrite: true
     
 	input :
-    path enrichment_results, stageAs : "enrichment_results_*.tsv"
+    path enrichment_results
+    path simulation_logs
     val runtype
 
     output :
     path "enrichment_results.tsv"
+    path "simulation_logs.json"
 
     script :
     """
     # Concatenates the tsv files and keep only the first header
     awk 'FNR==1 && NR!=1{next;}{print}' $enrichment_results > enrichment_results.tsv
+
+    jq -s 'add' *.json > simulation_logs.json
 
     """
 }

@@ -69,6 +69,7 @@ def calc_pn(mu, obs_sum_scores, rates, nb_mutation_poisson, nsim, scores_sorted,
     # TODO : see if there is a room for improvement here too
     nsim = max([int(round(nsim * pndnm)), DEFAULT_MIN_NB_SIM])
 
+    s = np.nan
     # If pndm (see above) is really low there is no point in calculating a combined p-value as it will be epsilon
     if pndnm < 10 ** (-12):
         pscore = 0
@@ -94,7 +95,7 @@ def calc_pn(mu, obs_sum_scores, rates, nb_mutation_poisson, nsim, scores_sorted,
     # This probability is adjusted by the probability of actually observing nb_mutation_poisson mutations given the poisson rate (expected number of mutations)
     pn = pndnm * pscore
 
-    return (pn, nsim)
+    return (pn, nsim, s)
 
 
 def sim_score(mu, obs_sum_scores, rates, nb_mutation_poisson, nsim, score_column):
@@ -140,7 +141,7 @@ def sim_score(mu, obs_sum_scores, rates, nb_mutation_poisson, nsim, score_column
     return nb_more_extreme_scores
 
 
-def get_pvalue(rates, obs_sum_scores, nsim, pvalcap, nb_observed_mutations, score_column):
+def get_pvalue(rates, obs_sum_scores, nsim, pvalcap, nb_observed_mutations, score_column, simulation_logs):
     """
     Calculate the p-value from the enrichment simulation test
 
@@ -159,28 +160,41 @@ def get_pvalue(rates, obs_sum_scores, nsim, pvalcap, nb_observed_mutations, scor
 
     # The poisson rate is the sum of the adjusted mutation rates of all possible mutations in the gene
     mu = rates["prob"].sum()
+    simulation_logs["rates_sum_prob"] = mu
 
     # The expected score is the sum of all possible mutations scores weighted by their mutation rates (already adjusted for cohort size)
     exp_sum_scores = np.sum(rates["prob"] * rates[score_column])
+    simulation_logs["exp_sum_scores"] = exp_sum_scores
 
     # If the observed score is already lower than the expected one, no need to run the simulation
     if obs_sum_scores < exp_sum_scores:
         ptot = 1
         info = "0|0|True|observed < expected, pvalue set at 1"
-        return ptot, info, exp_sum_scores
+        infos = (ptot, info, exp_sum_scores)
+
+        return infos, simulation_logs
 
     # With some resources like dbNSFP we might have no scores at all for a gene
     if obs_sum_scores == 0:
         ptot = 1
         info = "0|0|True|observed = 0"
-        return ptot, info, exp_sum_scores
+        infos = (ptot, info, exp_sum_scores)
+
+        return infos, simulation_logs
 
     # We sort the scores in order to use stopping rules that improve the speed of the simulations
     scores_sorted = np.sort(rates[score_column])
 
     # Calculate the probability of seeing a similar or more extreme observed score when selecting 0 or 1 mutation
+    simulation_logs["simulation"] = dict()
+
     p0 = calc_p0(mu, obs_sum_scores)
+    simulation_logs["simulation"][0] = dict()
+    simulation_logs["simulation"][0]["p-val"] = p0
+
     p1 = calc_p1(mu, obs_sum_scores, rates, score_column)
+    simulation_logs["simulation"][1] = dict()
+    simulation_logs["simulation"][1]["p-val"] = p1
 
     # If the gene has a really high number of observed mutations, we increase the default threshold to two times the number of observed mutations
     nb_putative_mutations_sim = max(2 * nb_observed_mutations, DEFAULT_MAX_NB_MUTATIONS_SIM)
@@ -201,8 +215,15 @@ def get_pvalue(rates, obs_sum_scores, nsim, pvalcap, nb_observed_mutations, scor
     info = ""
     for nb_mutation_poisson in range_mutation:
 
+        simulation_logs["simulation"][nb_mutation_poisson] = dict()
+
         # Calculate the probability of seeing a similar or more extreme observed gene score | nb_mutation_poisson mutations
-        pi, nb_sim = calc_pn(mu, obs_sum_scores, rates, nb_mutation_poisson, nsim, scores_sorted, score_column)
+        pi, nb_sim, nb_more_extreme = calc_pn(
+            mu, obs_sum_scores, rates, nb_mutation_poisson, nsim, scores_sorted, score_column
+        )
+        simulation_logs["simulation"][nb_mutation_poisson]["p-val"] = pi
+        simulation_logs["simulation"][nb_mutation_poisson]["nb_more_extreme"] = nb_more_extreme
+
         ptot = ptot + pi
         nbsim_tot = nbsim_tot + nb_sim
 
@@ -229,8 +250,9 @@ def get_pvalue(rates, obs_sum_scores, nsim, pvalcap, nb_observed_mutations, scor
 
     # Add the number of simulations performed to the simulation information
     info = f"{nbsim_tot}|{nb_mutation_poisson}|{sequential}|{info}"
+    infos = (ptot, info, exp_sum_scores)
 
-    return (ptot, info, exp_sum_scores)
+    return infos, simulation_logs
 
 
 def diverging_range(median, min_val, max_val):

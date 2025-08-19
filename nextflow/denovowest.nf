@@ -518,16 +518,16 @@ workflow{
       if(params.enrichment.runtype == "both") {
 
         SIMULATION_NS(simulation_ch, params.enrichment.score, params.enrichment.nmales, params.enrichment.nfemales, "ns", params.enrichment.nsim, params.enrichment.impute_missing_scores)
-        MERGE_SIMULATION_NS(SIMULATION_NS.out.results.collect(), "ns")
+        MERGE_SIMULATION_NS(SIMULATION_NS.out.results.collect(), SIMULATION_NS.out.logs.collect(), "ns")
 
         SIMULATION_MIS(simulation_ch, params.enrichment.score, params.enrichment.nmales, params.enrichment.nfemales, "mis", params.enrichment.nsim, params.enrichment.impute_missing_scores)
-        MERGE_SIMULATION_MIS(SIMULATION_MIS.out.results.collect(), "mis")
+        MERGE_SIMULATION_MIS(SIMULATION_MIS.out.results.collect(), SIMULATION_MIS.out.logs.collect(),  "mis")
 
       }
       else {
 
         SIMULATION(simulation_ch, params.enrichment.score, params.enrichment.nmales, params.enrichment.nfemales, params.enrichment.runtype, params.enrichment.nsim, params.enrichment.impute_missing_scores)
-        MERGE_SIMULATION(SIMULATION.out.results.collect(), params.enrichment.runtype)
+        MERGE_SIMULATION(SIMULATION.out.results.collect(), SIMULATION.out.logs.collect(), params.enrichment.runtype)
 
       }
 
