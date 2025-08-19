@@ -414,36 +414,35 @@ def log_configuration(conf):
 @click.argument("dnm")
 @click.argument("rates")
 @click.argument("column")
-@click.option("--nmales", required=True, type=int, help="Number of males individual in your cohort")
-@click.option("--nfemales", required=True, type=int, help="Number of females individual in your cohort")
-@click.option("--pvalcap", default=0.01, type=float, help="Stop simulations if cumulative p-value > pvalcap")
-@click.option("--nsim", type=int, help="Minimum number of simulations for each gene", default=10**7)
+@click.option("--nmales", required=True, type=int, help="Number of male individuals in the cohort")
+@click.option("--nfemales", required=True, type=int, help="Number of female individuals in the cohort")
+@click.option(
+    "--pvalcap",
+    default=0.01,
+    type=float,
+    help="Stop simulations when cumulative p-value exceeds this threshold",
+    show_default=True,
+)
+@click.option("--nsim", type=int, help="Minimum number of simulations per gene", default=10**7, show_default=True)
 @click.option(
     "--runtype",
-    help="Run type is either missense test (mis) or non-synonymous (ns)",
+    help="Run type: 'mis' for missense test, 'ns' for non-synonymous",
     type=click.Choice(["ns", "mis"]),
     default="ns",
     show_default=True,
 )
-@click.option("--outdir", default="./")
-@click.option("--outfile", default="enrichment_results.tsv")
+@click.option("--outdir", default="./", show_default=True, help="Output directory")
+@click.option(
+    "--outfile", default="enrichment_results.tsv", show_default=True, help="Name of the enrichment results file"
+)
 @click.option(
     "--impute-missing-scores",
     is_flag=True,
-    help="Impute missing scores by taking the median score for similar variants (i.e. same consequence) in the gene",
+    help="Impute missing variant scores by taking the median of similar variants in the same gene",
 )
-@click.option(
-    "--jobs",
-    default=1,
-    help="Number of cores to use during simulation step",
-)
-@click.option(
-    "--debug",
-    is_flag=True,
-    default=False,
-    help="Log simulation information for each gene",
-)
-@click.option("--gene-list", default="")
+@click.option("--jobs", default=1, help="Number of cores to use during simulations", show_default=True)
+@click.option("--debug", is_flag=True, help="Log detailed simulation information for each gene")
+@click.option("--gene-list", default="", help="Restrict analysis to genes in the provided list")
 def main(
     dnm,
     rates,
@@ -461,23 +460,10 @@ def main(
     gene_list,
 ):
     """
-    DeNovoWEST is a simulation-based method that tests for DNM enrichment in each gene separately.
-    It uses computational effect predictors (CEP) scores to reflect the pathogenicity probability for each variant.
-
-
-    Args:
-        dnm (str): DNM file
-        rates (str): Per-generation mutation rates file
-        column (str): Column to use for the simulation
-        nmales (int): Number of males individual in your cohort
-        nfemales (int): Number of females individual in your cohort
-        pvalcap (float): Stop simulations if cumulative p-value > pvalcap
-        nsim (int): Minimum number of simulations for each gene
-        runtype (str): Run type is either missense test (mis) or non-synonymous (ns)
-        outdir (str): Output directory
-        outfile (str): Enrichment results file (default enrichment_results.tsv)
-        impute_missing_scores (bool) : Impute missing scores by taking the median score for similar variants (i.e. same consequence) in the gene
+    DeNovoWEST performs gene-level simulations to test for de novo mutation (DNM) enrichment, incorporating
+    computational effect predictor (CEP) scores to account for predicted variant pathogenicity.
     """
+
     init_log()
     log_configuration(click.get_current_context().params)
 
