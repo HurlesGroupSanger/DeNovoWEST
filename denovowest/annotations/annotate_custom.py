@@ -8,6 +8,7 @@ import logging
 import gzip
 
 from denovowest.utils.log import init_log
+from denovowest.utils.io_helpers import read_columns_from_file
 
 
 is_chr_prefixed_variants = False
@@ -233,7 +234,7 @@ def extract_columns_indices(annotation_df, columns, columns_file):
 
     # If the user provided the columns to extract in a separate file we read it
     if columns_file:
-        columns_to_extract = utils.read_columns_from_file(columns_file)
+        columns_to_extract = read_columns_from_file(columns_file)
     # If he provided them as a string we split it
     elif columns:
         columns_to_extract = columns.split(",")
