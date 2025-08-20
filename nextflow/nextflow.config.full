@@ -44,9 +44,17 @@ params {
   
   gff = "../examples/annotation/CADD/input/OR4F5.gff"
   genome_fasta = "../examples/annotation/CADD/input/OR4F5.fa"
-  mutation_rate_model = "../resources/rates_model_dnn.tsv"
   dnm = "../examples/annotation/CADD/input/OR4F5_dnms.tsv"
 
+
+  ////////////
+  // RATES //
+  ////////////
+
+  rates_creation {
+    path = "../resources/rates_model_dnn.tsv"
+    model = "kmer"
+  }
 
   ////////////////
   // ANNOTATION //
