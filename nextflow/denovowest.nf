@@ -572,7 +572,7 @@ workflow{
         // Combine enrichment and clustering results
         if (params.run_enrichment) {
           if(params.enrichment.runtype == "both") {
-            COMBINE_DNE_DNN(MERGE_SIMULATION_NS.out, MERGE_SIMULATION_MIS.out,COMBINE_CLUSTERING.out)
+            COMBINE_DNE_DNN(MERGE_SIMULATION_NS.out.results, MERGE_SIMULATION_MIS.out.results,COMBINE_CLUSTERING.out)
           }
         }
 
@@ -587,7 +587,7 @@ workflow{
         // Combine enrichment and clustering results
         if (params.run_enrichment){
           if(params.enrichment.runtype == "both") {
-            COMBINE_DNE_DNN(MERGE_SIMULATION_NS.out, MERGE_SIMULATION_MIS.out,ADD_GENE_ID_LINEAR.out)
+            COMBINE_DNE_DNN(MERGE_SIMULATION_NS.out.results, MERGE_SIMULATION_MIS.out.results,ADD_GENE_ID_LINEAR.out)
           }
         }
 
@@ -603,7 +603,7 @@ workflow{
         // Combine enrichment and clustering results
         if (params.run_enrichment) {
           if(params.enrichment.runtype == "both") {
-            COMBINE_DNE_DNN(MERGE_SIMULATION_NS.out, MERGE_SIMULATION_MIS.out,ADD_GENE_ID_3D.out)
+            COMBINE_DNE_DNN(MERGE_SIMULATION_NS.out.results, MERGE_SIMULATION_MIS.out.results,ADD_GENE_ID_3D.out)
           }
         }
 

@@ -1,4 +1,4 @@
-includeConfig 'conf/lsf.conf'
+includeConfig 'conf/local.conf'
 includeConfig 'conf/default.conf'
 
 ///////////////////////

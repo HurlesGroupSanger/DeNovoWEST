@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "denovowest"
-version = "0.1.1"
+version = "0.1.2"
 description = "A de novo mutation simulation framework"
 readme = { file = "README.md", content-type = "text/markdown" }
 authors = [{ name = "Erwan Delage", email = "ed11@sanger.ac.uk" },

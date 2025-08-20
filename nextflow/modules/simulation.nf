@@ -46,8 +46,8 @@ process MERGE_SIMULATION {
     val runtype
 
     output :
-    path "enrichment_results.tsv"
-    path "simulation_logs.json"
+    path "enrichment_results.tsv", emit :results
+    path "simulation_logs.json", emit :logs
 
     script :
     """

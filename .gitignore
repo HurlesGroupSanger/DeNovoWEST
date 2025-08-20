@@ -2,7 +2,7 @@ DeNovoWEST.code-workspace
 *ipynb*
 .nextflow*
 *__pycache__*
-test/*
+tests/*
 notebooks/*
 input/*
 validation/*

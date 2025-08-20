@@ -1,4 +1,4 @@
-includeConfig 'conf/lsf.conf'
+includeConfig 'conf/local.conf'
 includeConfig 'conf/default.conf'
 
 ///////////////////////
@@ -49,8 +49,7 @@ params {
   clustering {
 
     // Clustering runtype can be '3D', 'linear' or 'both'
-    runtype = "both"
-    protein_structures = "/lustre/scratch125/humgen/projects_v2/denovowest/scratch/resources/UP000005640_9606_HUMAN_v4.tar"
+    runtype = "linear"
 
   }
 }
