@@ -2,22 +2,24 @@
 
 This directory contains the files needed to recreate some of the main text figures from the Kaplanis, Samocha, Wiel, Zhang et al Nature 2020 paper. Specifically, the following files are provided:
 1. *De novo* mutations from 31,058 individuals with a developmental disorder
-2. Extended `DeNovoWEST` results file
-3. Sex information for probands
-4. Positive predictive value weight files  
-5. Results of downsampling analysis
-6. Results from simulations of modelling the number of remaining HI DD-associated genes 
-7. Classifications for likelihood of structural malformation of ultrasound 
-8. Gene features used to generate Figure 2 (b) in manuscript
-9. Results file from DeNovoNear
-10. Results file from enrichment part of DeNovoWEST
-11. List of diagnostic developmental disorders according to DDG2P
+2. **UPDATED** *De novo* mutations from 31,058 individuals with a developmental disorder with fixed annotations (see below)
+3. Extended `DeNovoWEST` results file
+4. Sex information for probands
+5. Positive predictive value weight files  
+6. Results of downsampling analysis
+7. Results from simulations of modelling the number of remaining HI DD-associated genes 
+8. Classifications for likelihood of structural malformation of ultrasound 
+9. Gene features used to generate Figure 2 (b) in manuscript
+10. Results file from DeNovoNear
+11. Results file from enrichment part of DeNovoWEST
+12. List of diagnostic developmental disorders according to DDG2P
 
 ## *De novo* mutations
 
 `DDD_RUMC_GDX_denovos_cadd_shet_wweights_2020_01_17.txt.gz`
+**UPDATED VERSION:** `DDD_RUMC_GDX_denovos_cadd_shet_wweights_minrep_indelfix_2025_09_17.txt`
 
-45,221 *de novo* mutations (DNMs) from 31,058 developmental disorder patients.
+45,221 *de novo* mutations (DNMs) from 31,058 developmental disorder patients. The file was updated on 17 September 2025 to (1) fix the indels where either reference or alternative were missing (e.g., `A` > ` ` is now `TA` > `T`) and (2) display all variants in their minimal representation (e.g., `ACA` > `AC` is now `CA` > `C`).
 
 | Column | Description |
 | --- | --- |
