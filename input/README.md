@@ -16,10 +16,10 @@ This directory contains the files needed to recreate some of the main text figur
 
 ## *De novo* mutations
 
-`DDD_RUMC_GDX_denovos_cadd_shet_wweights_2020_01_17.txt.gz`
-**UPDATED VERSION:** `DDD_RUMC_GDX_denovos_cadd_shet_wweights_minrep_indelfix_2025_09_17.txt`
+`DDD_RUMC_GDX_denovos_cadd_shet_wweights_2020_01_17.txt.gz`   
+**UPDATED VERSION:** `DDD_RUMC_GDX_denovos_cadd_shet_wweights_minrep_indelfix_2025_09_17.txt`   
 
-45,221 *de novo* mutations (DNMs) from 31,058 developmental disorder patients. The file was updated on 17 September 2025 to (1) fix the indels where either reference or alternative were missing (e.g., `A` > ` ` is now `TA` > `T`) and (2) display all variants in their minimal representation (e.g., `ACA` > `AC` is now `CA` > `C`).
+45,221 *de novo* mutations (DNMs) from 31,058 developmental disorder patients. The file was updated on 17 September 2025 to (1) fix the indels where either reference or alternative were missing (e.g., `A` > ` ` is now `TA` > `T`) and (2) display all variants in their minimal representation (e.g., `ACA` > `AC` is now `CA` > `C`).   
 
 | Column | Description |
 | --- | --- |
