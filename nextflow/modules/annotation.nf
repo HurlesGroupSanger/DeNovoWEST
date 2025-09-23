@@ -5,7 +5,7 @@ process BCFTOOLS_CSQ_FULL {
         : ""
 
     input :
-    path rates_or_dnm 
+    tuple path(rates_or_dnm), val(id) 
     path fasta
     path fasta_index
     path gff
@@ -13,7 +13,7 @@ process BCFTOOLS_CSQ_FULL {
     val type
 
     output :
-    path "${type}_bcftoolscsq.tsv"
+    tuple path("${type}_bcftoolscsq.tsv"), val(id)
 
     script:
     """
@@ -37,13 +37,13 @@ process BCFTOOLS_CSQ_FULL {
 process CADD {
 
     input :
-    path rates_or_dnm 
+    tuple  path(rates_or_dnm), val(id) 
     path cadd_file
     path cadd_file_index
     val type
 
     output :
-    path "${type}_cadd.tsv"
+    tuple path("${type}_cadd.tsv"), val(id)
 
     script:
     """
@@ -55,13 +55,13 @@ process CADD {
 process GNOMAD {
 
     input :
-    path rates_or_dnm 
+    tuple  path(rates_or_dnm), val(id) 
     path gnomad_file
     path gnomad_file_index
     val type
 
     output :
-    path "${type}_gnomad.tsv"
+    tuple path("${type}_gnomad.tsv"), val(id)
 
     script:
     """
@@ -73,14 +73,14 @@ process GNOMAD {
 process CONSTRAINTS {
 
     input :
-    path rates_or_dnm 
+    tuple  path(rates_or_dnm), val(id) 
     path gene_full_constraints
     path gene_region_constraints
     val type
 
 
     output :
-    path "${type}_constrained.tsv"
+    tuple path("${type}_constrained.tsv"), val(id)
 
     script:
     """
@@ -92,12 +92,12 @@ process CONSTRAINTS {
 process SHET {
 
     input :
-    path rates_or_dnm 
+    tuple  path(rates_or_dnm), val(id) 
     path shet
     val type
 
     output :
-    path "${type}_shet.tsv"
+    tuple path("${type}_shet.tsv"), val(id)
 
     script:
     """
@@ -109,7 +109,7 @@ process SHET {
 process DBNSFP {
 
     input :
-    path rates_or_dnm 
+    tuple  path(rates_or_dnm), val(id) 
     path dbnsfp
     path dbnsfp_index
     val dbnsfp_columns_to_extract
@@ -118,7 +118,7 @@ process DBNSFP {
     val type
 
     output :
-    path "${type}_dbnsfp.tsv"
+    tuple path("${type}_dbnsfp.tsv"), val(id)
 
     script:
     """
@@ -138,7 +138,7 @@ process DBNSFP {
 process CUSTOM {
 
     input :
-    path rates_or_dnm , stageAs : "custom_input.tsv"
+    tuple  path(rates_or_dnm), val(id) 
     path custom_file
     path custom_file_index
     val columns_to_extract
@@ -147,7 +147,7 @@ process CUSTOM {
     val type
 
     output :
-    path "${type}_custom.tsv"
+   tuple path("${type}_custom.tsv"), val(id)
 
     script:
     """
@@ -165,7 +165,7 @@ process CUSTOM {
 process VCF {
 
     input :
-    path rates_or_dnm , stageAs : "vcf_input.tsv"
+    tuple  path(rates_or_dnm), val(id) 
     path vcf
     path vcf_index
     val columns_to_extract
@@ -174,7 +174,7 @@ process VCF {
     val type
 
     output :
-    path "${type}_vcf.tsv"
+    tuple path("${type}_vcf.tsv"), val(id)
 
     script:
     """

@@ -100,7 +100,7 @@ process RATE_CREATION {
     val mutation_rate_model_type
 
     output :
-    path "${gene_list}_mutation/mutation_rates.tsv"
+    tuple (path "${gene_list}_mutation/mutation_rates.tsv"),  val(gene_list)
 
     script :
     """
@@ -160,7 +160,7 @@ process SPLIT_RATES {
 
   
   output : 
-  path "${gene_list}_mutation_rates.tsv"
+  tuple path ("${gene_list}_mutation_rates.tsv"), val(gene_list)
 
   script : 
   """

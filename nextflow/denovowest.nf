@@ -191,7 +191,7 @@ workflow{
     // Annotate rates file
     if (params.annotate_rates)
     {
-      rates_annotated_ch = rates_ch
+      rates_annotated_ch = rates_ch.map { f, id -> tuple(f, id.toString()) }
       
       if (params.annotation.annotate_bcftoolscsq) {
         rates_annotated_ch = BCFTOOLS_CSQ_FULL(rates_annotated_ch, file(params.genome_fasta), file(params.genome_fasta + ".fai"),  file(params.gff), gffutils_db_ch.first(), "rates" )
@@ -324,7 +324,7 @@ workflow{
       }
 
       // Merge results
-      rates_merged_ch = MERGE_RATES(rates_annotated_ch.collect())
+      rates_merged_ch = MERGE_RATES(rates_annotated_ch.map { tuple -> tuple[0] }.collect())
 
       // Create rates stats
       // rates_stats_ch = RATES_STATS(rates_annotated_ch)
@@ -357,7 +357,7 @@ workflow{
       // Annotate DNM file
       if (params.annotate_dnm)
       {
-        dnm_annotated_ch = dnm_ch
+        dnm_annotated_ch = dnm_ch.map { dnm_file -> tuple(dnm_file, "dnm") }
 
         if (params.annotation.annotate_bcftoolscsq) {
           dnm_annotated_ch = DNM_BCFTOOLS_CSQ_FULL(dnm_annotated_ch, file(params.genome_fasta), file(params.genome_fasta + ".fai"), file(params.gff),  gffutils_db_ch.first(), "dnm" )
@@ -488,6 +488,8 @@ workflow{
           }
         }
 
+        dnm_annotated_ch = dnm_annotated_ch.map { tuple -> tuple[0] }
+
         PUBLISH_DNM(dnm_annotated_ch)
       }
       // If the DNM file is already annotated, nothing to do
@@ -504,16 +506,6 @@ workflow{
     if (params.run_enrichment)
     {
       simulation_ch = dnm_annotated_ch.combine(rates_annotated_ch)
-
-      // Extract the chunk identifier to use to name subsequent files
-      simulation_ch = simulation_ch.map { dnmPath, ratesPath  ->
-          def basename = ratesPath.toString().replaceAll('\\\\','/').tokenize('/')[-1]
-
-          def m = (basename =~ /(.+?)_mutation_rates\.tsv$/)   // captures text before "_mutation_rates.tsv"
-          def id = m ? m[0][1] : basename.replaceAll(/\..*$/,'') // fallback: strip extension
-
-          tuple(dnmPath, ratesPath, id)
-      }
 
       if(params.enrichment.runtype == "both") {
 
