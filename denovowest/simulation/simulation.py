@@ -464,6 +464,10 @@ def main(
     computational effect predictor (CEP) scores to account for predicted variant pathogenicity.
     """
 
+    # Set seed for reproducibility
+    if debug:
+        np.random.seed(42)
+
     init_log()
     log_configuration(click.get_current_context().params)
 
