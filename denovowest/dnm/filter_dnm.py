@@ -4,6 +4,7 @@ import pandas as pd
 import logging
 import re
 import gffutils
+import numpy as np
 
 from denovowest.utils.log import init_log
 from denovowest.utils.params import CDS_OFFSET
@@ -69,43 +70,88 @@ def filter_on_gene_list(dnm_df, gene_list):
 def filter_on_gff(dnm_df, gff):
     """
     Remove from DNM table the variants not found in CDS regions
-
     Args:
         dnm_df (pd.DataFrame): DNM table
         gff (str): path to GFF file or gffutils database
     """
 
     logger = logging.getLogger("logger")
-
     gff_db = load_gff(gff)
 
-    idx_discarded = list()
-    reason_discarded = list()
-    for idx, dnm in dnm_df.iterrows():
+    # Build gene CDS intervals
+    genes_cds = build_gene_cds_intervals(gff_db, dnm_df["gene_id"].unique().tolist(), cds_offset=CDS_OFFSET)
 
-        pos = dnm["pos"]
-        gene_id = dnm["gene_id"]
+    # Loop over genes
+    list_new_dnm_df = []
+    for gene_id, gene_dnm_df in dnm_df.groupby("gene_id"):
 
-        try:
-            gene = gff_db[gene_id]
-        except gffutils.exceptions.FeatureNotFoundError:
-
-            # Rare case where a user provide a GFF that differs
-            # from the gene used to annotate the DNM
+        # If gene not in GFF, all its DNM are filtered out
+        gene_cds = genes_cds[gene_id]
+        if gene_cds is None:
             logger.warning(f"{gene_id} not in GFF")
-            idx_discarded.append(idx)
-            reason_discarded.append("gene_not_in_gff")
+            gene_dnm_df["in_cds"] = False
+            gene_dnm_df["reason"] = "gene_not_in_gff"
+            list_new_dnm_df.append(gene_dnm_df)
             continue
 
-        if not is_in_cds(gff_db, gene, pos):
-            idx_discarded.append(idx)
-            reason_discarded.append("gene_not_in_cds")
+        # Loop over DNM in the gene to check if they are in CDS regions
+        hit = np.zeros(gene_dnm_df.shape[0], dtype=bool)
+        for cds_start, cds_end in gene_cds:
+            hit |= (gene_dnm_df.pos >= cds_start) & (gene_dnm_df.pos <= cds_end)
 
-    dnm_discarded_df = dnm_df.loc[idx_discarded].copy()
-    dnm_discarded_df["reason"] = reason_discarded
-    dnm_kept_df = dnm_df.drop(idx_discarded)
+        gene_dnm_df["in_cds"] = hit
+        gene_dnm_df["reason"] = gene_dnm_df["in_cds"].apply(lambda x: "not_in_cds" if not x else "")
+        list_new_dnm_df.append(gene_dnm_df)
 
-    return dnm_kept_df, dnm_discarded_df
+    # Combine all DNM
+    new_dnm_df = pd.concat(list_new_dnm_df)
+    kept_df = new_dnm_df.loc[new_dnm_df["in_cds"]].copy()
+    discarded_df = new_dnm_df.loc[~new_dnm_df["in_cds"]].copy()
+
+    return kept_df.drop(["in_cds", "reason"], axis=1), discarded_df.drop(["in_cds"], axis=1)
+
+
+def build_gene_cds_intervals(gff_db, gene_ids, cds_offset):
+    """
+    Build merged CDS intervals for each gene in gene_ids.
+
+    Returns mapping: gene_id -> list of (start, end) sorted, non-overlapping.
+    If a gene is missing in the GFF, maps to None.
+    """
+    intervals = {}
+
+    for gid in gene_ids:
+        try:
+            gene = gff_db[gid]
+        except gffutils.exceptions.FeatureNotFoundError:
+            intervals[gid] = None
+            continue
+
+        raw_intervals = []
+        for transcript in gff_db.children(gene, level=1):
+            for cds in gff_db.children(transcript, featuretype="CDS", order_by="start"):
+                start = max(1, cds.start - cds_offset)
+                end = cds.end + cds_offset
+                raw_intervals.append((start, end))
+
+        if not raw_intervals:
+            intervals[gid] = []
+            continue
+
+        # Merge overlapping intervals
+        raw_intervals.sort()
+        merged = []
+        cur_s, cur_e = raw_intervals[0]
+        for s, e in raw_intervals[1:]:
+            if s <= cur_e + 1:
+                cur_e = max(cur_e, e)
+            else:
+                merged.append((cur_s, cur_e))
+                cur_s, cur_e = s, e
+        merged.append((cur_s, cur_e))
+        intervals[gid] = merged
+
+    return intervals
 
 
 def is_in_cds(gff_db, gene, pos):
