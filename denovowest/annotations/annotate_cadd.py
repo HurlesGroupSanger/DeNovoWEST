@@ -68,8 +68,8 @@ def annotate_cadd(rates, cadd, output):
     rates_df = pd.read_table(rates, dtype={"chrom": str, "pos": int, "ref": str, "alt": str})
     if rates_df.empty:
         logger.warning("Rates file is empty")
-        rates_df["raw"] = None
-        rates_df["score"] = None
+        rates_df["raw"] = pd.NA
+        rates_df["score"] = pd.NA
         rates_df.to_csv(output, sep="\t", index=False)
         sys.exit(0)
 
@@ -107,6 +107,8 @@ def annotate_cadd(rates, cadd, output):
             merged_gene_df = gene_rates_df.merge(gene_cadd_df, how="left", on=["chrom", "pos", "ref", "alt"])
         else:
             merged_gene_df = gene_rates_df
+            merged_gene_df["raw"] = pd.NA
+            merged_gene_df["score"] = pd.NA
 
         list_merged_df.append(merged_gene_df)
 

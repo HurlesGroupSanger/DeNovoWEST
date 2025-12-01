@@ -68,7 +68,10 @@ workflow{
     if (params.annotate_dnm || params.annotate_rates) {
 
       params.annotation = params.annotation ?: [:]
-      params.annotation.annotate_bcftoolscsq =  params.annotation.annotate_bcftoolscsq ?: true
+
+      if (params.annotation.annotate_bcftoolscsq == null) {
+        params.annotation.annotate_bcftoolscsq = true
+      }
 
       if (params.annotation.containsKey("dbnsfp")) {
           

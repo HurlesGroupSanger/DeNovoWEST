@@ -58,14 +58,17 @@ def get_transcripts(gene_id, gff_db, ensembl_gene_id_map_version):
         list: list of transcripts identifiers
     """
 
-    if "." in gene_id:
-        gene = gff_db[gene_id]
-    else:
-        gene = gff_db[ensembl_gene_id_map_version[gene_id]]
+    try:
+        if "." in gene_id:
+            gene = gff_db[gene_id]
+        else:
+            gene = gff_db[ensembl_gene_id_map_version[gene_id]]
 
-    list_transcript_ids = list()
-    for transcript in gff_db.children(gene, featuretype="transcript", order_by="start"):
-        list_transcript_ids += [x.split(".")[0] for x in transcript["transcript_id"]]
+        list_transcript_ids = list()
+        for transcript in gff_db.children(gene, featuretype="transcript", order_by="start"):
+            list_transcript_ids += [x.split(".")[0] for x in transcript["transcript_id"]]
+    except KeyError:
+        list_transcript_ids = list()
 
     return list_transcript_ids
 

@@ -8,6 +8,8 @@ import logging
 from denovowest.utils.log import init_log
 from denovowest.utils.params import CONSEQUENCES_SEVERITIES
 
+# TODO: better handle versioned and non-versioned gene ids
+
 
 @click.group()
 def cli():
@@ -76,6 +78,10 @@ def extract_worst_consequence(vcf_df, gff_db, force_indel_annotation):
         pd.DataFrame: the VCF df with two new columns, one for the worst overall consequ
     """
 
+    both_use_version = do_both_sources_use_version(gff_db, vcf_df)
+    if not both_use_version:
+        ensembl_gene_id_map_version = extract_ensembl_gene_id_without_version(gff_db)
+
     list_worst_csq = list()
     list_csqs = list()
     for idx, record in vcf_df.iterrows():
@@ -85,9 +91,15 @@ def extract_worst_consequence(vcf_df, gff_db, force_indel_annotation):
 
         # TODO : Handle the case where this field is missing or has a different name, find a clever way to support all gff
         try:
-            gene_names = gff_db[gene_id].attributes["gene_name"]
+            if not both_use_version:
+                gene_names = gff_db[ensembl_gene_id_map_version[gene_id]].attributes["gene_name"]
+            else:
+                gene_names = gff_db[gene_id].attributes["gene_name"]
         except KeyError:
-            gene_names = gff_db[gene_id].attributes["Name"]
+            if not both_use_version:
+                gene_names = gff_db[ensembl_gene_id_map_version[gene_id]].attributes["Name"]
+            else:
+                gene_names = gff_db[gene_id].attributes["Name"]
 
         # Look at all the consequences returned by bcftoolscsq
         try:
@@ -140,6 +152,23 @@ def extract_worst_consequence(vcf_df, gff_db, force_indel_annotation):
     vcf_df["full_consequence_bcftoolscsq"] = list_csqs
 
     return vcf_df
+
+
+def do_both_sources_use_version(gff_db, vcf_df):
+
+    for gene in gff_db.features_of_type("gene", order_by="start"):
+        gff_gene_id = gene.id
+        break
+
+    for idx, record in vcf_df.iterrows():
+        vcf_gene_id = record.INFO.split(";")[0].replace("GENE=", "")
+        if vcf_gene_id != "":
+            break
+
+    if "." in gff_gene_id and "." in vcf_gene_id:
+        return True
+    else:
+        return False
 
 
 def is_indel(record):
@@ -197,6 +226,25 @@ def assign_indel_csq(csq, csqs):
     return "frameshift", csqs
 
 
+def extract_ensembl_gene_id_without_version(gff_db):
+    """
+    It might happen that the user input file contains ENSEMBL gene ids without version number
+    when the GFF file does contain them. In that case we need to map the two together.
+
+    Args:
+        gff_db (gffutils.FeatureDB): gffutils database
+
+    Returns:
+        dict: maps ENSG with version to ENSG without version (e.g. {ENSG00000010404 : ENSG00000010404.1})
+    """
+
+    ensembl_gene_id_map_version = dict()
+    for gene in gff_db.features_of_type("gene", order_by="start"):
+        ensembl_gene_id_map_version[gene.id.split(".")[0]] = gene.id
+
+    return ensembl_gene_id_map_version
+
+
 @cli.command()
 @click.argument("vcf")
 @click.argument("rates")
@@ -237,7 +285,8 @@ def vcf_to_rates(vcf, rates, gff_db, out_rates, force_indel_annotation):
     except pd.errors.EmptyDataError:
         if rates_df.empty:
             logger.warning("Rates file is empty")
-            rates_df["consequence"] = None
+            rates_df["consequence"] = pd.NA
+            rates_df["full_consequence_bcftoolscsq"] = pd.NA
             rates_df.to_csv(out_rates, sep="\t", index=False)
             sys.exit(0)
         else:
