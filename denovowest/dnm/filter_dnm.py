@@ -79,7 +79,9 @@ def filter_on_gff(dnm_df, gff):
     gff_db = load_gff(gff)
 
     # Build gene CDS intervals
-    genes_cds = build_gene_cds_intervals(gff_db, dnm_df["gene_id"].unique().tolist(), cds_offset=CDS_OFFSET)
+    gene_ids = list(dnm_df["gene_id"].unique())
+    genes_cds = build_gene_cds_intervals(gff_db, gene_ids, cds_offset=CDS_OFFSET)
+    logger.info("Built gene CDS intervals from GFF")
 
     # Loop over genes
     list_new_dnm_df = []
@@ -138,18 +140,7 @@ def build_gene_cds_intervals(gff_db, gene_ids, cds_offset):
             intervals[gid] = []
             continue
 
-        # Merge overlapping intervals
-        raw_intervals.sort()
-        merged = []
-        cur_s, cur_e = raw_intervals[0]
-        for s, e in raw_intervals[1:]:
-            if s <= cur_e + 1:
-                cur_e = max(cur_e, e)
-            else:
-                merged.append((cur_s, cur_e))
-                cur_s, cur_e = s, e
-        merged.append((cur_s, cur_e))
-        intervals[gid] = merged
+        intervals[gid] = raw_intervals
 
     return intervals
 
