@@ -337,7 +337,7 @@ workflow{
     }
     // If the rates file is already annotated, nothing to do
     else if (params.containsKey("rates")){
-        rates_annotated_ch = rates_ch
+        rates_annotated_ch = rates_ch.map { f, id -> tuple(f, id.toString()) }
     }
 
 
