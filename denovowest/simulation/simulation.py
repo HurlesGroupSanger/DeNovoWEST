@@ -1,19 +1,19 @@
 #!/usr/bin/env python
 # python enrichment.py ../../input/test/new_format/dnm_min.tsv ../../input/test/new_format/all_rates_min.tsv ../../input/weights_ppv_2020_01_17.tab --nmales 10000 --nfemales 10000
+import json
 import logging
+import math
 import os
 import time
 
 import click
-import pandas as pd
 import numpy as np
-import json
-import math
+import pandas as pd
 
+from denovowest.simulation.probabilities import get_pvalue
+from denovowest.simulation.scores import prepare_scores
 from denovowest.utils.log import init_log, set_plain_log, set_regular_log
 from denovowest.utils.params import CONSEQUENCES_MAPPING, CONSEQUENCES_SEVERITIES
-from denovowest.simulation.scores import prepare_scores
-from denovowest.simulation.probabilities import get_pvalue
 
 
 def load_dnm_rates(dnm, rates, column, gene_list):
@@ -119,12 +119,14 @@ def filter_on_consequences(df: pd.DataFrame, mode: str):
         df["original_consequence"] = df.consequence
     df.consequence = [extract_worst_consequence(csq) if isinstance(csq, str) else csq for csq in list(df.consequence)]
 
-    # Filter variants depending on run type : non-synonymous or missense test
+    # Filter variants depending on run type : non-synonymous, missense or synonymous test
     ctx = click.get_current_context()
     if ctx.params["runtype"] == "ns":
         filt = df.consequence.isin(CONSEQUENCES_MAPPING.keys())
-    else:
+    elif ctx.params["runtype"] == "mis":
         filt = df.consequence.isin(["missense", "start_lost", "stop_lost"])
+    else:  # syn
+        filt = df.consequence.isin(["synonymous"])
 
     kept_df = df.loc[filt].copy()
 
@@ -222,7 +224,8 @@ def compute_expected_number_of_mutations(rates_df: pd.DataFrame, nmales: int, nf
 def compute_x_factor_correction(nmales: int, nfemales: int):
     """
     Expected number of mutations on the X chromosome need to be adjusted to the number of male and female individuals.
-    Scaling factors are computed using the alpha from the most recent SFHS (Scottish Family Health Study) phased de novo data.
+    Scaling factors are computed using the alpha (the male-to-female germline mutation rate ratio)
+    from the most recent SFHS (Scottish Family Health Study) phased de novo data.
     Correct the non-PAR chrX genes for fewer transmissions and lower rate (depends on alpha)
 
     Args:
@@ -426,8 +429,8 @@ def log_configuration(conf):
 @click.option("--nsim", type=int, help="Minimum number of simulations per gene", default=10**7, show_default=True)
 @click.option(
     "--runtype",
-    help="Run type: 'mis' for missense test, 'ns' for non-synonymous",
-    type=click.Choice(["ns", "mis"]),
+    help="Run type: 'mis' for missense test, 'ns' for non-synonymous, 'syn' for synonymous",
+    type=click.Choice(["ns", "mis", "syn"]),
     default="ns",
     show_default=True,
 )
