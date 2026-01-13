@@ -82,7 +82,7 @@ def calc_pn(mu, obs_sum_scores, rates, nb_mutation_poisson, nsim, scores_sorted,
 
     # On the contrary, if the lowest nb_mutation_poisson scores are enough to reach the observed sum of scores, then there is no possible nb_mutation_poisson combination that
     # will achieve a lower score and the p-value is 1
-    elif np.sum(scores_sorted[0:nb_mutation_poisson] >= obs_sum_scores):
+    elif np.sum(scores_sorted[0:nb_mutation_poisson]) >= obs_sum_scores:
         pscore = 1.0
         nsim = 0
 
