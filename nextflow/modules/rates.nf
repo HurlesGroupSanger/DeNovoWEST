@@ -173,6 +173,63 @@ process SPLIT_RATES {
 }
 
 
+process FILTER_RATES_REGION {
+
+  beforeScript = params.useModules
+    ? "module load $params.tabixModule;module load $params.bedtoolsModule"
+    : ""
+  
+  publishDir "${params.outdir}/rates", mode: 'copy', overwrite: true
+
+  input :
+  path rates
+  path index
+  path excluded_regions
+  path fasta
+
+  output :
+  tuple (path "rates_kept.tsv.gz"), path ("rates_kept.tsv.gz.tbi")
+  tuple (path "rates_discarded.tsv.gz"), path ("rates_discarded.tsv.gz.tbi")
+
+
+  script :
+  """
+
+  # Resolve/create fasta index (.fai) if needed
+  if [[ -f "${fasta}.fai" ]]; then
+    fai="${fasta}.fai"
+  elif [[ -f "${fasta}" ]]; then
+    fai="${fasta}.fai"
+    samtools faidx "${fasta}"
+  else
+    echo "ERROR: fasta file not found: ${fasta}" >&2
+    exit 1
+  fi
+
+  # Create the regions to keep bed file (complement of excluded regions)
+  bedtools complement -i ${excluded_regions} -g \$fai > regions_to_keep.bed
+
+  # Add header
+  zcat  "$rates" | head -n 1 > rates_kept.tsv
+  zcat  "$rates" | head -n 1 > rates_discarded.tsv
+
+  # Build the list of DNMs to keep/discard based on regions
+  tabix -R regions_to_keep.bed "$rates" >> rates_kept.tsv
+  tabix -R ${excluded_regions} "$rates" >> rates_discarded.tsv
+
+  # Compress and index rates file
+  bgzip rates_kept.tsv
+  tabix -S 1 -s 2 -b 3 -e 3 rates_kept.tsv.gz
+
+  bgzip rates_discarded.tsv
+  tabix -S 1 -s 2 -b 3 -e 3 rates_discarded.tsv.gz
+
+  """
+}
+
+
+
+
 /*
  * Generate a JSON file containing statistics about the rates 
  */

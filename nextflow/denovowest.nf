@@ -13,10 +13,14 @@ include { SPLIT_RATES } from './modules/rates.nf'
 include { RATES_STATS } from './modules/rates.nf'
 include { MERGE_RATES_STATS } from './modules/rates.nf'
 include { SUMMARIZE_RATES_STATS } from './modules/rates.nf'
+include { FILTER_RATES_REGION } from './modules/rates.nf'
 
 include { FILTER_DNM } from './modules/dnm.nf'
 include { FILTER_DNM_GFF } from './modules/dnm.nf'
-include { PUBLISH_DNM } from './modules/dnm.nf'
+include { FILTER_DNM_REGION } from './modules/dnm.nf'
+include { PUBLISH_FILTERED_DNM } from './modules/dnm.nf'
+include { PUBLISH_ANNOTATED_DNM } from './modules/dnm.nf'
+
 
 include { BCFTOOLS_CSQ_FULL; BCFTOOLS_CSQ_FULL as DNM_BCFTOOLS_CSQ_FULL} from './modules/annotation.nf'
 include { CADD; CADD as DNM_CADD } from './modules/annotation.nf'
@@ -167,8 +171,18 @@ workflow{
 
     // If the user provide a rates file we split it in smaller rates files
     if (params.containsKey("rates")) {
+
+        // Filter rates in excluded regions (e.g. SSR, segmental duplications, ...)
+        if (params.containsKey("excluded_regions")) {
+              excluded_regions_ch = Channel.fromPath(params.excluded_regions)
+              rates_merged_ch = FILTER_RATES_REGION(file(params.rates), file(params.rates + ".tbi") , excluded_regions_ch, file(params.genome_fasta))[0]
+        }
+        else {
+          input_rates_ch = Channel.fromPath(params.rates)
+        }
+
       
-      rates_ch = SPLIT_RATES(split_gene_list_ch.toSortedList().flatten(), file(params.rates))
+      rates_ch = SPLIT_RATES(split_gene_list_ch.toSortedList().flatten(), input_rates_ch)
     }
     // Otherwise we generate rates files from the GFF file
     else if (params.create_rates)
@@ -182,8 +196,17 @@ workflow{
 
       // If the point was to generate a rates file with no annotation, we simply merge the unannotated individual rates file
       if (!(params.annotate_rates)) {
-            rates_merged_ch = MERGE_RATES(rates_ch.collect())
+            rates_merged_ch = MERGE_RATES(rates_ch.map { tuple -> tuple[0] }.collect())
+
+        // Filter rates in excluded regions (e.g. SSR, segmental duplications, ...)
+        if (params.containsKey("excluded_regions")) {
+            excluded_regions_ch = Channel.fromPath(params.excluded_regions)
+            rates_merged_ch = FILTER_RATES_REGION(rates_merged_ch[0], rates_merged_ch[1], excluded_regions_ch, file(params.genome_fasta))[0]
+        }
       }
+
+
+
     }
 
 
@@ -351,11 +374,20 @@ workflow{
       dnm_ch = Channel.fromPath(params.dnm)
 
       if ((params.containsKey("gff_db") || params.containsKey("gff"))) {
-          dnm_ch = FILTER_DNM_GFF(dnm_ch, gene_list_ch, gffutils_db_ch)[0]
+          dnm_ch = FILTER_DNM_GFF(dnm_ch, gene_list_ch, gffutils_db_ch)
       }
       else {
-           dnm_ch = FILTER_DNM(dnm_ch, gene_list_ch)[0]
+          dnm_ch = FILTER_DNM(dnm_ch, gene_list_ch)
       }
+
+      // Filter DNMs in excluded regions (e.g. SSR, segmental duplications, ...)
+      if (params.containsKey("excluded_regions")) {
+          excluded_regions_ch = Channel.fromPath(params.excluded_regions)
+          dnm_ch = FILTER_DNM_REGION(dnm_ch, excluded_regions_ch, file(params.genome_fasta))
+      }
+
+      // Publish filtered DNM file
+      dnm_ch = PUBLISH_FILTERED_DNM(dnm_ch)[0]
 
       // Annotate DNM file
       if (params.annotate_dnm)
@@ -493,7 +525,7 @@ workflow{
 
         dnm_annotated_ch = dnm_annotated_ch.map { tuple -> tuple[0] }
 
-        PUBLISH_DNM(dnm_annotated_ch)
+        PUBLISH_ANNOTATED_DNM(dnm_annotated_ch)
       }
       // If the DNM file is already annotated, nothing to do
       else

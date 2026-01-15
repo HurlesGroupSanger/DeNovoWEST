@@ -1,14 +1,15 @@
 #!/usr/bin/env python
-import click
-import pandas as pd
 import logging
 import re
+
+import click
 import gffutils
 import numpy as np
+import pandas as pd
 
+from denovowest.utils.io_helpers import load_gff
 from denovowest.utils.log import init_log
 from denovowest.utils.params import CDS_OFFSET
-from denovowest.utils.io_helpers import load_gff
 
 
 @click.command()
@@ -44,8 +45,7 @@ def filter_dnm(dnm, gene_list, output_kept_dnm, output_discarded_dnm, gff):
         dnm_discarded_df = pd.concat([dnm_discarded_df, dnm_discarded_gff_df])
 
     # Export DNM tables
-    dnm_df.to_csv(output_kept_dnm, sep="\t", index=False)
-    dnm_discarded_df.to_csv(output_discarded_dnm, sep="\t", index=False)
+    export_dnm(dnm_df, dnm_discarded_df, output_kept_dnm, output_discarded_dnm)
 
     # Log stats
     log_stats(dnm_df, dnm_discarded_df, output_discarded_dnm)
@@ -238,6 +238,24 @@ def log_stats(dnm_kept_df, dnm_discarded_df, output_discarded_dnm):
         for reason, count in dict(dnm_discarded_df.reason.value_counts()).items():
             logger.warning(f"- {reason} : {count} DNM")
         logger.warning(f"Check filtered DNM table : {output_discarded_dnm}")
+
+
+def export_dnm(dnm_df, dnm_discarded_df, output_kept_dnm, output_discarded_dnm):
+    """
+    Export DNM tables
+
+    Args:
+        dnm_df (pd.DataFrame): DNM kept
+        dnm_discarded_df (pd.DataFrame): DNM filtered out
+        output_kept_dnm (str): path to kept DNM table
+        output_discarded_dnm (str): path to filtered DNM table
+    """
+
+    dnm_df.sort_values(by=["chrom", "pos", "ref", "alt"], inplace=True)
+    dnm_df.to_csv(output_kept_dnm, sep="\t", index=False)
+
+    dnm_discarded_df.sort_values(by=["chrom", "pos", "ref", "alt"], inplace=True)
+    dnm_discarded_df.to_csv(output_discarded_dnm, sep="\t", index=False)
 
 
 if __name__ == "__main__":
