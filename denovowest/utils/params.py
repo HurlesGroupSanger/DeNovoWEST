@@ -96,7 +96,7 @@ DEFAULT_MAX_NB_MUTATIONS_SIM = 250
 # Minimum number of simulation per batch
 DEFAULT_MIN_NB_SIM = 10**7
 
-# These inframe/missense and frameshift/nonsense ratios were observed on several databases
-# such ad EXAC, gnomAD, TOPMED or DDD, and are used as proxys to estimate inframe/frameshift mutation rates
-INFRAME_MISSENSE_RATIO = 0.03
-FRAMESHIFT_NONSENSE_RATIO = 1.3
+# Simulation run type
+RUNTYPE_ALL_CODING = "all-coding"
+RUNTYPE_MISSENSE = "mis"
+RUNTYPE_SYNONYMOUS = "syn"

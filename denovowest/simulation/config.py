@@ -1,6 +1,8 @@
 # config.py
 from dataclasses import dataclass
 
+from denovowest.utils.params import RUNTYPE_ALL_CODING
+
 
 @dataclass
 class Config:
@@ -11,7 +13,7 @@ class Config:
 
     # Variant processing
     impute_missing_scores: bool = False
-    runtype: str = "ns"  # "ns", "mis", "syn"
+    runtype: str = RUNTYPE_ALL_CODING
 
     # Inframe variant scoring
     inframe_missense_ratio: float = 0.03
