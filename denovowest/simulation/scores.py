@@ -1,13 +1,12 @@
-import pandas as pd
-import numpy as np
 import logging
 
+import numpy as np
+import pandas as pd
 
-from denovowest.utils.params import INFRAME_MISSENSE_RATIO, FRAMESHIFT_NONSENSE_RATIO
 from denovowest.utils.log import set_plain_log, set_regular_log
 
 
-def prepare_scores(dnm_df, rates_df, score_column, runtype, impute_missing=False):
+def prepare_scores(dnm_df, rates_df, score_column, cfg):
     """
     Assign scores to variants in the DNM and rates file.
     The score used for the scores is first min-max transformed (accounts for CEP with negative scores)
@@ -16,27 +15,28 @@ def prepare_scores(dnm_df, rates_df, score_column, runtype, impute_missing=False
         dnm_df (pd.DataFrame): DNM dataframe
         rates_df (pd.DataFrame): rates dataframe that contains all possible SNV
         score_column (str) : CEP scores
+        cfg (Config): configuration object that stores script parameters
     """
 
     # Infer indel scores and mutation rates
-    if runtype == "ns":
-        indel_rates_df = infer_indel_scores_and_rates(rates_df, score_column)
+    if cfg.runtype == "ns":
+        indel_rates_df = infer_indel_scores_and_rates(rates_df, score_column, cfg)
         dnm_df = assign_dnm_indel_scores(dnm_df, indel_rates_df, rates_df, score_column)
 
     # Impute scores for variants with missing scores
-    if impute_missing:
+    if cfg.impute_missing_scores:
         dnm_df, rates_df = impute_missing_scores(dnm_df, rates_df, score_column)
     else:
         dnm_df, rates_df = remove_missing_scores(dnm_df, rates_df, score_column)
 
     # Consolidate the rates df by adding the indel rates
-    if runtype == "ns":
+    if cfg.runtype == "ns":
         rates_df = pd.concat([rates_df, indel_rates_df])
 
     return dnm_df, rates_df
 
 
-def infer_indel_scores_and_rates(rates_df, score_column):
+def infer_indel_scores_and_rates(rates_df, score_column, cfg):
     """
     Infer expected inframe and frameshift scores and mutation rates per gene based
     on the missense and nonsense mutations respectively.
@@ -44,6 +44,7 @@ def infer_indel_scores_and_rates(rates_df, score_column):
     Args:
         rates_df (pd.DataFrame): rates dataframe
         score_column (str) : CEP scores
+        cfg (Config): configuration object that stores script parameters
 
 
     Returns:
@@ -54,12 +55,18 @@ def infer_indel_scores_and_rates(rates_df, score_column):
     for gene_id, gene_df in rates_df.groupby("gene_id"):
 
         # Get the inframe mutation rate based on the cumulative missense mutation rates, and assign a score from gene-based median missense score
-        gene_inframe_rate = gene_df.loc[gene_df.consequence == "missense", "prob"].sum() * INFRAME_MISSENSE_RATIO
-        gene_inframe_scores = gene_df.loc[gene_df.consequence == "missense", score_column].median()
+        gene_inframe_rate = gene_df.loc[gene_df.consequence == "missense", "prob"].sum() * cfg.inframe_missense_ratio
+        gene_inframe_scores = gene_df.loc[gene_df.consequence == "missense", score_column].quantile(
+            cfg.inframe_score_quantile
+        )
 
         # Get the frameshift mutation rate based on the cumulative nonsense mutation rates, and assign a score from gene-based median nonsense score
-        gene_frameshift_rate = gene_df.loc[gene_df.consequence == "nonsense", "prob"].sum() * FRAMESHIFT_NONSENSE_RATIO
-        gene_frameshift_scores = gene_df.loc[gene_df.consequence == "nonsense", score_column].median()
+        gene_frameshift_rate = (
+            gene_df.loc[gene_df.consequence == "nonsense", "prob"].sum() * cfg.frameshift_nonsense_ratio
+        )
+        gene_frameshift_scores = gene_df.loc[gene_df.consequence == "nonsense", score_column].quantile(
+            cfg.frameshift_score_quantile
+        )
 
         inframe_row = {
             "gene_id": gene_id,
@@ -106,22 +113,23 @@ def assign_dnm_indel_scores(dnm_df, indel_rates_df, rates_df, score_column):
             list_scores.append(dnm[score_column])
             continue
 
-        # If it is an indel but not annotated as inframe or frameshift, we get the
-        # gene median corresponding score
-        if not (dnm.consequence in ["inframe", "frameshift"]):
+        # Some indels might have another annotation, but still we want to assign them inframe/frameshift scores
+        if dnm.consequence not in ["inframe", "frameshift"]:
 
-            generates_df = rates_df.loc[rates_df.gene_id == dnm.gene_id]
-            score = generates_df.loc[generates_df.consequence == dnm.consequence, score_column].median()
-            list_scores.append(score)
+            if (len(dnm.alt) - len(dnm.ref)) % 3 == 0:
+                dnm_consequence = "inframe"
+            else:
+                dnm_consequence = "frameshift"
 
-        # Otherwise we get the gene inframe/frameshift score
         else:
-            list_scores.append(
-                indel_rates_df.loc[
-                    (indel_rates_df.gene_id == dnm.gene_id) & (indel_rates_df.consequence == dnm.consequence),
-                    score_column,
-                ].iloc[0]
-            )
+            dnm_consequence = dnm.consequence
+
+        list_scores.append(
+            indel_rates_df.loc[
+                (indel_rates_df.gene_id == dnm.gene_id) & (indel_rates_df.consequence == dnm_consequence),
+                score_column,
+            ].iloc[0]
+        )
 
     dnm_df.loc[:, score_column] = list_scores
     return dnm_df
@@ -171,7 +179,7 @@ def impute_missing_scores(dnm_df, rates_df, score_column):
     rates_df.loc[:, "score_before_imputation"] = rates_df[score_column]
     rates_df.loc[:, score_column] = imputed_rates_scores
 
-    # Log inmputing results on rates
+    # Log imputing results on rates
     for consequence, consequence_rates_df in rates_df.groupby("consequence"):
         nb_imputed = sum(
             (~consequence_rates_df[score_column].isna()) & (consequence_rates_df["score_before_imputation"].isna())

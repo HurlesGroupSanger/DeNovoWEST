@@ -5,10 +5,12 @@ import logging
 import math
 import os
 import time
+from dataclasses import asdict
 
 import click
 import numpy as np
 import pandas as pd
+from config import Config
 
 from denovowest.simulation.probabilities import get_pvalue
 from denovowest.simulation.scores import prepare_scores
@@ -58,7 +60,7 @@ def load_dnm_rates(dnm, rates, column, gene_list):
 
 
 def prepare_dnm_rates(
-    dnm_df: pd.DataFrame, rates_df: pd.DataFrame, column: str, nmales: int, nfemales: int, impute_missing: bool
+    dnm_df: pd.DataFrame, rates_df: pd.DataFrame, score_column: str, nmales: int, nfemales: int, cfg: Config
 ):
     """
     Prepare DNM and rates file for the simulation
@@ -66,44 +68,45 @@ def prepare_dnm_rates(
     Args:
         dnm_df (pd.DataFrame): DNM dataframe
         rates_df (pd.DataFrame): mutation rates dataframe
-        column (str): column that stores variant scores
+        score_column (str): column that stores variant scores
         nmales (int): number of males in the cohort
         nfemales (int): number of females in the cohort
-        impute_missing (bool): whether to impute the variant with missing scores or not
+        cfg (Config): configuration object that stores script parameters
     """
     # Filter on variant consequence and calculate cohort based expected mutation rates
-    dnm_df = prepare_dnm(dnm_df)
-    rates_df = prepare_rates(rates_df, nmales, nfemales)
+    dnm_df = prepare_dnm(dnm_df, cfg)
+    rates_df = prepare_rates(rates_df, nmales, nfemales, cfg)
 
     # Prepare scores (indel scores, imputation missing scores...)
-    ctx = click.get_current_context()
-    dnm_df, rates_df = prepare_scores(dnm_df, rates_df, column, ctx.params["runtype"], impute_missing)
+    dnm_df, rates_df = prepare_scores(dnm_df, rates_df, score_column, cfg)
 
     return dnm_df, rates_df
 
 
-def prepare_dnm(dnm_df: pd.DataFrame):
+def prepare_dnm(dnm_df: pd.DataFrame, cfg: Config):
     """
     Filter DNM file to remove functional consequence not handled.
     Assign a higher level consequence to each DNM.
 
     Args:
-        dnmfile (str): DNM file
+        dnm_df (pd.DataFrame): DNM dataframe
+        cfg (Config): configuration object that stores script parameters
     """
 
-    dnm_df = filter_on_consequences(dnm_df, "dnm")
+    dnm_df = filter_on_consequences(dnm_df, "dnm", cfg)
     dnm_df = assign_meta_consequences(dnm_df)
 
     return dnm_df
 
 
-def filter_on_consequences(df: pd.DataFrame, mode: str):
+def filter_on_consequences(df: pd.DataFrame, mode: str, cfg: Config):
     """
     Filter all variants with a consequence not found in CONSEQUENCES_MAPPING
 
     Args:
         df (pd.DataFrame): variant table (rates or dnm) having a consequence column
         mode(str) : dnm or rates
+        cfg (Config): configuration object that stores script parameters
     """
 
     logger = logging.getLogger("logger")
@@ -120,10 +123,9 @@ def filter_on_consequences(df: pd.DataFrame, mode: str):
     df.consequence = [extract_worst_consequence(csq) if isinstance(csq, str) else csq for csq in list(df.consequence)]
 
     # Filter variants depending on run type : non-synonymous, missense or synonymous test
-    ctx = click.get_current_context()
-    if ctx.params["runtype"] == "ns":
+    if cfg.runtype == "ns":
         filt = df.consequence.isin(CONSEQUENCES_MAPPING.keys())
-    elif ctx.params["runtype"] == "mis":
+    elif cfg.runtype == "mis":
         filt = df.consequence.isin(["missense", "start_lost", "stop_lost"])
     else:  # syn
         filt = df.consequence.isin(["synonymous"])
@@ -182,15 +184,19 @@ def assign_meta_consequences(df: pd.DataFrame):
     return df
 
 
-def prepare_rates(rates_df: pd.DataFrame, nmales: int, nfemales: int):
+def prepare_rates(rates_df: pd.DataFrame, nmales: int, nfemales: int, cfg: Config):
     """
-    Load mutation rates file.
+    Prepare rates file for the simulation
 
     Args:
-        ratesfile (str): path to mutation rates file
+        rates_df (pd.DataFrame): mutation rates dataframe
+        nmales (int): number of males in the cohort
+        nfemales (int): number of females in the cohort
+        cfg (Config): configuration object that stores script parameters
+
     """
 
-    rates_df = filter_on_consequences(rates_df, "rates")
+    rates_df = filter_on_consequences(rates_df, "rates", cfg)
     rates_df = assign_meta_consequences(rates_df)
 
     rates_df = compute_expected_number_of_mutations(rates_df, nmales, nfemales)
@@ -247,16 +253,15 @@ def compute_x_factor_correction(nmales: int, nfemales: int):
     return x_factor
 
 
-def run_simulations(dnm_df: pd.DataFrame, rates_df: pd.DataFrame, nsim: int, pvalcap: float, score_column: str):
+def run_simulations(dnm_df: pd.DataFrame, rates_df: pd.DataFrame, score_column: str, cfg: Config):
     """
     For each gene in the DNM file, run nsim simulations and test whether or not this gene is significantly enriched in predictive DNM.
 
     Args:
         dnm_df (pd.DataFrame): DNM dataframe
         rates_df (pd.DataFrame): rates dataframe that contains all possible SNV
-        nsim (int): number of simulations to run
-        pvalcap (float): stop simulations if cumulative p-value > pvalcap
         score_column (str) : CEP scores
+        cfg (Config): configuration object that stores script parameters
     """
 
     logger = logging.getLogger("logger")
@@ -272,7 +277,7 @@ def run_simulations(dnm_df: pd.DataFrame, rates_df: pd.DataFrame, nsim: int, pva
     logs = dict()
     cpt = 0
     for gene in genes:
-        simulation_results, simulation_logs = run_simulation(rates_df, dnm_df, gene, nsim, pvalcap, score_column)
+        simulation_results, simulation_logs = run_simulation(rates_df, dnm_df, gene, score_column, cfg)
         if simulation_results:
             results.append(simulation_results)
             logs[gene] = simulation_logs
@@ -284,7 +289,7 @@ def run_simulations(dnm_df: pd.DataFrame, rates_df: pd.DataFrame, nsim: int, pva
     return results, logs
 
 
-def run_simulation(rates_df, dnm_df, gene_id, nsim, pvalcap, score_column):
+def run_simulation(rates_df, dnm_df, gene_id, score_column, cfg):
     """
     Run nsim simulations and test whether or not gene gene_id is significantly enriched in predictive DNM
 
@@ -292,9 +297,8 @@ def run_simulation(rates_df, dnm_df, gene_id, nsim, pvalcap, score_column):
         rates_df (pd.DataFrame): rates dataframe that contains all possible SNV for the given gene
         dnm_df (pd.DataFrame): DNM dataframe that contains all observed DNM for the given gene
         gene_id (str) : gene identifier
-        nsim (int): number of simulations to run
-        pvalcap (float): stop simulations if cumulative p-value > pvalcap
         score_column (str) : CEP scores
+        cfg (Config): configuration object that stores script parameters
     """
 
     logger = logging.getLogger("logger")
@@ -320,7 +324,7 @@ def run_simulation(rates_df, dnm_df, gene_id, nsim, pvalcap, score_column):
 
     # Run nsim simulations
     results, simulation_logs = get_pvalue(
-        generates, obs_sum_scores, nsim, pvalcap, nb_observed_mutations, score_column, simulation_logs
+        generates, obs_sum_scores, nb_observed_mutations, score_column, cfg, simulation_logs
     )
 
     # Store how long the simulation took for each gene
@@ -416,76 +420,153 @@ def log_configuration(conf):
 @click.command()
 @click.argument("dnm")
 @click.argument("rates")
-@click.argument("column")
+@click.argument("score_column")
+
+# Required cohort parameters
 @click.option("--nmales", required=True, type=int, help="Number of male individuals in the cohort")
 @click.option("--nfemales", required=True, type=int, help="Number of female individuals in the cohort")
 @click.option(
-    "--pvalcap",
-    default=0.01,
-    type=float,
-    help="Stop simulations when cumulative p-value exceeds this threshold",
-    show_default=True,
+    "--gene-list", default=Config().gene_list, show_default=True, help="Restrict analysis to genes in the provided list"
 )
-@click.option("--nsim", type=int, help="Minimum number of simulations per gene", default=10**7, show_default=True)
-@click.option(
-    "--runtype",
-    help="Run type: 'mis' for missense test, 'ns' for non-synonymous, 'syn' for synonymous",
-    type=click.Choice(["ns", "mis", "syn"]),
-    default="ns",
-    show_default=True,
-)
-@click.option("--outdir", default="./", show_default=True, help="Output directory")
-@click.option(
-    "--outfile", default="enrichment_results.tsv", show_default=True, help="Name of the enrichment results file"
-)
+
+# Variant processing
 @click.option(
     "--impute-missing-scores",
     is_flag=True,
-    help="Impute missing variant scores by taking the median of similar variants in the same gene",
+    default=Config().impute_missing_scores,
+    show_default=True,
+    help="Impute missing variant scores using the median of similar variants in the same gene",
 )
-@click.option("--jobs", default=1, help="Number of cores to use during simulations", show_default=True)
-@click.option("--debug", is_flag=True, help="Log detailed simulation information for each gene")
-@click.option("--gene-list", default="", help="Restrict analysis to genes in the provided list")
+@click.option(
+    "--runtype",
+    type=click.Choice(["ns", "mis", "syn"]),
+    default=Config().runtype,
+    show_default=True,
+    help="Run type: 'mis' for missense, 'ns' for non-synonymous, 'syn' for synonymous",
+)
+
+# Inframe scoring
+@click.option(
+    "--inframe-missense-ratio",
+    type=float,
+    default=Config().inframe_missense_ratio,
+    show_default=True,
+    help="Observed inframe to missense ratio",
+)
+@click.option(
+    "--inframe-score-quantile",
+    type=float,
+    default=Config().inframe_score_quantile,
+    show_default=True,
+    help="Inframes are assigned the score at this quantile of the missense score distribution in the gene (0.5 = median)",
+)
+
+# Frameshift scoring
+@click.option(
+    "--frameshift-nonsense-ratio",
+    type=float,
+    default=Config().frameshift_nonsense_ratio,
+    show_default=True,
+    help="Observed frameshift to nonsense ratio",
+)
+@click.option(
+    "--frameshift-score-quantile",
+    type=float,
+    default=Config().frameshift_score_quantile,
+    show_default=True,
+    help="Frameshifts are assigned the score at this quantile of the nonsense score distribution in the gene (0.6 = 60th percentile)",
+)
+
+# Simulation
+@click.option(
+    "--nsim", type=int, default=Config().nsim, show_default=True, help="Minimum number of simulations per gene"
+)
+@click.option(
+    "--pvalcap",
+    type=float,
+    default=Config().pvalcap,
+    show_default=True,
+    help="Stop simulations when cumulative p-value exceeds this threshold",
+)
+@click.option(
+    "--jobs", type=int, default=Config().jobs, show_default=True, help="Number of cores to use during simulations"
+)
+
+# Output / debug
+@click.option(
+    "--debug",
+    is_flag=True,
+    default=Config().debug,
+    show_default=True,
+    help="Log detailed simulation information for each gene. Set a seed for reproducibility.",
+)
+@click.option("--outdir", default=Config().outdir, show_default=True, help="Output directory")
+@click.option("--outfile", default=Config().outfile, show_default=True, help="Name of the enrichment results file")
 def main(
     dnm,
     rates,
-    column,
+    score_column,
     nmales,
     nfemales,
-    pvalcap,
-    nsim,
-    runtype,
-    outdir,
-    outfile,
+    gene_list,
     impute_missing_scores,
+    runtype,
+    inframe_missense_ratio,
+    inframe_score_quantile,
+    frameshift_nonsense_ratio,
+    frameshift_score_quantile,
+    nsim,
+    pvalcap,
     jobs,
     debug,
-    gene_list,
+    outdir,
+    outfile,
 ):
     """
     DeNovoWEST performs gene-level simulations to test for de novo mutation (DNM) enrichment, incorporating
     computational effect predictor (CEP) scores to account for predicted variant pathogenicity.
     """
 
+    # Build config object to pass around
+    cfg = Config(
+        nmales=nmales,
+        nfemales=nfemales,
+        gene_list=gene_list,
+        impute_missing_scores=impute_missing_scores,
+        runtype=runtype,
+        inframe_missense_ratio=inframe_missense_ratio,
+        inframe_score_quantile=inframe_score_quantile,
+        frameshift_nonsense_ratio=frameshift_nonsense_ratio,
+        frameshift_score_quantile=frameshift_score_quantile,
+        nsim=nsim,
+        pvalcap=pvalcap,
+        jobs=jobs,
+        debug=debug,
+        outdir=outdir,
+        outfile=outfile,
+    )
+
     # Set seed for reproducibility
     if debug:
         np.random.seed(42)
 
+    # Initialize logger and log configuration
     init_log()
-    log_configuration(click.get_current_context().params)
+    log_configuration(asdict(cfg))
 
     # Load DNM and rates files
-    dnm_df, rates_df = load_dnm_rates(dnm, rates, column, gene_list)
+    dnm_df, rates_df = load_dnm_rates(dnm, rates, score_column, gene_list)
 
     # Prepare DNM and rates file for simulation
-    dnm_df, rates_df = prepare_dnm_rates(dnm_df, rates_df, column, nmales, nfemales, impute_missing_scores)
+    dnm_df, rates_df = prepare_dnm_rates(dnm_df, rates_df, score_column, nmales, nfemales, cfg)
 
-    # Run simulations
-    results, logs = run_simulations(dnm_df, rates_df, nsim, pvalcap, column)
+    # Run enrichment simulations
+    results, logs = run_simulations(dnm_df, rates_df, score_column, cfg)
 
     # Export results
     export_results(results, outdir, outfile)
 
+    # Export logs
     if debug:
         export_logs(logs, outdir)
 

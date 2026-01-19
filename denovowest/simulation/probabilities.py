@@ -1,8 +1,8 @@
-import numpy as np
 import click
-
-from scipy import stats
+import numpy as np
 from joblib import Parallel, delayed
+from scipy import stats
+
 from denovowest.utils.params import DEFAULT_MAX_NB_MUTATIONS_SIM, DEFAULT_MIN_NB_SIM
 
 
@@ -43,7 +43,7 @@ def calc_p1(mu, obs_sum_scores, rates, score_column):
     return p1
 
 
-def calc_pn(mu, obs_sum_scores, rates, nb_mutation_poisson, nsim, scores_sorted, score_column):
+def calc_pn(mu, obs_sum_scores, rates, nb_mutation_poisson, scores_sorted, score_column, cfg):
     """
     Simulation to approximate  P(S >= s_obs | N = n)P(N = n)
 
@@ -52,9 +52,9 @@ def calc_pn(mu, obs_sum_scores, rates, nb_mutation_poisson, nsim, scores_sorted,
         obs_sum_scores (float): sum of observed DNM scores
         rates (pd.DataFrame): all possible mutations annotated
         nb_mutation_poisson (int): number of mutations to draw
-        nsim (int) : number of simulations to perform
         scores_sorted (list) : rates file variants sorted by score
         score_column (str) : CEP scores
+        cfg (Config): configuration object that stores script parameters
 
 
     Returns :
@@ -67,7 +67,7 @@ def calc_pn(mu, obs_sum_scores, rates, nb_mutation_poisson, nsim, scores_sorted,
 
     # Scaling the number of simulations to be performed based on the probability of observing nb_mutation_poisson DNMs
     # TODO : see if there is a room for improvement here too
-    nsim = max([int(round(nsim * pndnm)), DEFAULT_MIN_NB_SIM])
+    nsim = max([int(round(cfg.nsim * pndnm)), DEFAULT_MIN_NB_SIM])
 
     s = np.nan
     # If pndm (see above) is really low there is no point in calculating a combined p-value as it will be epsilon
@@ -89,7 +89,7 @@ def calc_pn(mu, obs_sum_scores, rates, nb_mutation_poisson, nsim, scores_sorted,
     # Otherwise, we simulate the cumulated scores for nb_mutation_poisson randomly picked mutations nsim times and calculate the proportion of simulations
     # for which we obtain a score greater than or equal to the observed score
     else:
-        s = sim_score(mu, obs_sum_scores, rates, nb_mutation_poisson, nsim, score_column)
+        s = sim_score(mu, obs_sum_scores, rates, nb_mutation_poisson, score_column, cfg)
         pscore = float(s) / nsim
 
     # This probability is adjusted by the probability of actually observing nb_mutation_poisson mutations given the poisson rate (expected number of mutations)
@@ -98,7 +98,7 @@ def calc_pn(mu, obs_sum_scores, rates, nb_mutation_poisson, nsim, scores_sorted,
     return (pn, nsim, s)
 
 
-def sim_score(mu, obs_sum_scores, rates, nb_mutation_poisson, nsim, score_column):
+def sim_score(mu, obs_sum_scores, rates, nb_mutation_poisson, score_column, cfg):
     """
     Draws nsim times nb_mutation_poisson mutations from set of all possible mutations according to their mutation rate.
     Count how many times their cumulated scores is greater than or equal to the observed sum of scores.
@@ -108,8 +108,8 @@ def sim_score(mu, obs_sum_scores, rates, nb_mutation_poisson, nsim, score_column
         obs_sum_scores (float): sum of observed DNM scores
         rates (pd.DataFrame): all possible mutations annotated
         nb_mutation_poisson (int): number of mutations to draw
-        nsim (int) : number of simulations to perform
         score_column(str) : column to extract the scores from
+        cfg (Config): configuration object that stores script parameters
     """
 
     # Precompute probabilities
@@ -123,14 +123,11 @@ def sim_score(mu, obs_sum_scores, rates, nb_mutation_poisson, nsim, score_column
 
     # Split simulations into chunks
     split_sim = 100
-    num_full_chunks = nsim // split_sim
-    remaining_simulations = nsim % split_sim
+    num_full_chunks = cfg.nsim // split_sim
+    remaining_simulations = cfg.nsim % split_sim
 
     # Run full chunks in parallel
-    ctx = click.get_current_context()
-    full_chunk_results = Parallel(n_jobs=ctx.params["jobs"])(
-        delayed(simulate_chunk)(split_sim) for _ in range(num_full_chunks)
-    )
+    full_chunk_results = Parallel(n_jobs=cfg.jobs)(delayed(simulate_chunk)(split_sim) for _ in range(num_full_chunks))
 
     # Run remaining simulations (if any)
     remaining_result = simulate_chunk(remaining_simulations) if remaining_simulations > 0 else 0
@@ -141,17 +138,17 @@ def sim_score(mu, obs_sum_scores, rates, nb_mutation_poisson, nsim, score_column
     return nb_more_extreme_scores
 
 
-def get_pvalue(rates, obs_sum_scores, nsim, pvalcap, nb_observed_mutations, score_column, simulation_logs):
+def get_pvalue(rates, obs_sum_scores, nb_observed_mutations, score_column, cfg, simulation_logs):
     """
     Calculate the p-value from the enrichment simulation test
 
     Args:
         rates (DataFrame): all possible SNVs annotated
         obs_sum_scores (float): sum of observed DNM scores
-        nsim (int): Number of simulations to perform.
-        pvalcap (float): P-value threshold to stop simulations.
         nb_observed_mutations (int) : Number of observed mutations in the current gene
         score_column (str) : CEP scores
+        cfg (Config): configuration object that stores script parameters
+        simulation_logs (dict): dictionary to store simulation logs
 
 
     Returns:
@@ -219,7 +216,7 @@ def get_pvalue(rates, obs_sum_scores, nsim, pvalcap, nb_observed_mutations, scor
 
         # Calculate the probability of seeing a similar or more extreme observed gene score | nb_mutation_poisson mutations
         pi, nb_sim, nb_more_extreme = calc_pn(
-            mu, obs_sum_scores, rates, nb_mutation_poisson, nsim, scores_sorted, score_column
+            mu, obs_sum_scores, rates, nb_mutation_poisson, scores_sorted, score_column, cfg
         )
         simulation_logs["simulation"][nb_mutation_poisson]["p-val"] = pi
         simulation_logs["simulation"][nb_mutation_poisson]["nb_more_extreme"] = nb_more_extreme
@@ -239,8 +236,8 @@ def get_pvalue(rates, obs_sum_scores, nsim, pvalcap, nb_observed_mutations, scor
                 break
 
         # if p value is over threshold then stop going further
-        if ptot > pvalcap:
-            info = "pvalue > " + str(pvalcap) + ", stop simulations"
+        if ptot > cfg.pvalcap:
+            info = f"pvalue > {cfg.pvalcap}, stop simulations"
             break
 
     # Set min p-value to 10^-14
