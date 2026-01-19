@@ -18,7 +18,7 @@ process FILTER_DNM {
 
   script :
   """
-  filter_dnm.py ${dnm} ${gene_list} --output_kept_dnm dnms_kept_after_gene_filtering.tsv  --output_discarded_dnm dnm_discarded_after_gene_filtering.tsv
+  filter_dnm.py ${dnm} ${gene_list} --output_kept_dnm dnms_kept_after_gene_filtering.tsv  --output_discarded_dnm dnms_discarded_after_gene_filtering.tsv
   """
 }
 

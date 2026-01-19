@@ -176,6 +176,8 @@ workflow{
         if (params.containsKey("excluded_regions")) {
               excluded_regions_ch = Channel.fromPath(params.excluded_regions)
               rates_merged_ch = FILTER_RATES_REGION(file(params.rates), file(params.rates + ".tbi") , excluded_regions_ch, file(params.genome_fasta))[0]
+
+              input_rates_ch = rates_merged_ch
         }
         else {
           input_rates_ch = Channel.fromPath(params.rates)
