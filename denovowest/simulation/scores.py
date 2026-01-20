@@ -114,23 +114,22 @@ def assign_dnm_indel_scores(dnm_df, indel_rates_df, rates_df, score_column):
             list_scores.append(dnm[score_column])
             continue
 
-        # Some indels might have another annotation, but still we want to assign them inframe/frameshift scores
-        if dnm.consequence not in ["inframe", "frameshift"]:
+        # If the DNM is an inframe or frameshift we get the corresponding score in the gene
+        if dnm.consequence in ["inframe", "frameshift"]:
 
-            if (len(dnm.alt) - len(dnm.ref)) % 3 == 0:
-                dnm_consequence = "inframe"
-            else:
-                dnm_consequence = "frameshift"
+            list_scores.append(
+                indel_rates_df.loc[
+                    (indel_rates_df.gene_id == dnm.gene_id) & (indel_rates_df.consequence == dnm.consequence),
+                    score_column,
+                ].iloc[0]
+            )
 
+        # If the DNM is an indel but not inframe or frameshift we get the median score for that consequence in the gene (e.g. splice_region)
         else:
-            dnm_consequence = dnm.consequence
 
-        list_scores.append(
-            indel_rates_df.loc[
-                (indel_rates_df.gene_id == dnm.gene_id) & (indel_rates_df.consequence == dnm_consequence),
-                score_column,
-            ].iloc[0]
-        )
+            generates_df = rates_df.loc[rates_df.gene_id == dnm.gene_id]
+            score = generates_df.loc[generates_df.consequence == dnm.consequence, score_column].median()
+            list_scores.append(score)
 
     dnm_df.loc[:, score_column] = list_scores
     return dnm_df
