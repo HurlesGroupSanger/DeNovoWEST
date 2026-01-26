@@ -72,8 +72,11 @@ process FILTER_DNM_REGION {
     exit 1
   fi
 
+  # Make sure excluded regions are sorted
+  bedtools sort -i $excluded_regions -g \$fai > excluded_regions_sorted.bed
+
   # Create the regions to keep bed file (complement of excluded regions)
-  bedtools complement -i ${excluded_regions} -g \$fai > regions_to_keep.bed
+  bedtools complement -i excluded_regions_sorted.bed -g \$fai > regions_to_keep.bed
 
   # Ensure DNM is bgzipped & indexed
   if [[ "${kept_dnm}" != *.gz ]]; then
@@ -89,14 +92,17 @@ process FILTER_DNM_REGION {
   zcat  "\${dnm_gz}" | head -n 1 > dnms_discarded_after_region_filtering.tsv
 
   # Build the list of DNMs to keep/discard based on regions
-  tabix -R regions_to_keep.bed "\$dnm_gz" >> dnms_kept_after_region_filtering.tsv
-  tabix -R ${excluded_regions} "\$dnm_gz" >> dnms_discarded_after_region_filtering.tsv
+  tabix -S 1 -R regions_to_keep.bed "\$dnm_gz" >> dnms_kept_after_region_filtering.tsv
+  tabix -S 1 -R excluded_regions_sorted.bed "\$dnm_gz" >> dnms_discarded_after_region_filtering.tsv
 
   # Add a reason column to discarded DNMs
   awk 'BEGIN {OFS="\t"} NR==1 {print \$0, "reason"} NR>1 {print \$0, "excluded_region"}' dnms_discarded_after_region_filtering.tsv > tmp && mv tmp dnms_discarded_after_region_filtering.tsv
 
   # Merge with previously discarded DNMs
   cat  "${discarded_dnm}" | tail -n +2 >> dnms_discarded_after_region_filtering.tsv
+
+  # Cleanup
+  rm regions_to_keep.bed excluded_regions_sorted.bed
 
   """
 }

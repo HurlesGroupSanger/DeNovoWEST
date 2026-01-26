@@ -206,16 +206,19 @@ process FILTER_RATES_REGION {
     exit 1
   fi
 
+  # Make sure excluded regions are sorted
+  bedtools sort -i $excluded_regions -g \$fai > excluded_regions_sorted.bed
+
   # Create the regions to keep bed file (complement of excluded regions)
-  bedtools complement -i ${excluded_regions} -g \$fai > regions_to_keep.bed
+  bedtools complement -i excluded_regions_sorted.bed -g \$fai > regions_to_keep.bed
 
   # Add header
   zcat  "$rates" | head -n 1 > rates_kept.tsv
   zcat  "$rates" | head -n 1 > rates_discarded.tsv
 
   # Build the list of DNMs to keep/discard based on regions
-  tabix -R regions_to_keep.bed "$rates" >> rates_kept.tsv
-  tabix -R ${excluded_regions} "$rates" >> rates_discarded.tsv
+  tabix -S 1 -R regions_to_keep.bed "$rates" >> rates_kept.tsv
+  tabix -S 1 -R excluded_regions_sorted.bed "$rates" >> rates_discarded.tsv
 
   # Compress and index rates file
   bgzip rates_kept.tsv
@@ -223,6 +226,9 @@ process FILTER_RATES_REGION {
 
   bgzip rates_discarded.tsv
   tabix -S 1 -s 2 -b 3 -e 3 rates_discarded.tsv.gz
+
+  # Cleanup
+  rm regions_to_keep.bed excluded_regions_sorted.bed
 
   """
 }

@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+import glob
 import logging
 import os
 import sys
@@ -9,11 +10,10 @@ import gffutils
 import pandas as pd
 import pyfaidx
 import pysam
-import glob
 
-from denovowest.utils.params import CDS_OFFSET, ROULETTE_SCALING_FACTOR, CARLSON_SCALING_FACTOR
-from denovowest.utils.log import init_log
 from denovowest.utils.io_helpers import load_conf, superseed_conf
+from denovowest.utils.log import init_log
+from denovowest.utils.params import CARLSON_SCALING_FACTOR, CDS_OFFSET, ROULETTE_SCALING_FACTOR
 
 
 def load_mutation_rate_model(mutation_rate_model_file):
@@ -339,7 +339,7 @@ def calculate_rates_roulette(roulette_dir, gff_db, gene_list, model):
     The roulette directory contains one VCF file per chromosome.
     Loci in each VCF are annotated with several mutation rates :
         - MR : roulette mutation rate
-        - MR : carlson mutation rate
+        - MC : carlson mutation rate
 
     Args:
         roulette_dir (string): path to directory containing roulette vcf files per chromosome
@@ -370,10 +370,14 @@ def calculate_rates_roulette(roulette_dir, gff_db, gene_list, model):
     cpt = 1
     # Loop through all CDS of interest to generate mutation rates
     for gene in gff_db.all_features(featuretype="gene"):
+
         # Skip gene if not in user provided gene list
         gene_id = gene.attributes["ID"][0]
         if gene_id not in gene_list:
             continue
+
+        # Check if chromosome in GFF file uses chr prefix
+        gff_uses_chr_prexix = gene.chrom.startswith("chr")
 
         # Load roulette vcf file corresponding to the current gene
         chrom = gene.chrom.replace("chr", "")
@@ -411,7 +415,7 @@ def calculate_rates_roulette(roulette_dir, gff_db, gene_list, model):
                         s = pd.Series(
                             {
                                 "gene_id": gene_id,
-                                "chrom": chrom,
+                                "chrom": f"chr{chrom}" if gff_uses_chr_prexix else chrom,
                                 "pos": rec.pos,
                                 "ref": rec.ref,
                                 "alt": rec.alts[0],

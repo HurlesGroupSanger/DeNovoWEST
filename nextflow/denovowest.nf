@@ -177,13 +177,12 @@ workflow{
               excluded_regions_ch = Channel.fromPath(params.excluded_regions)
               rates_merged_ch = FILTER_RATES_REGION(file(params.rates), file(params.rates + ".tbi") , excluded_regions_ch, file(params.genome_fasta))[0]
 
-              input_rates_ch = rates_merged_ch
+              input_rates_ch = rates_merged_ch.first().map { it[0] }
         }
         else {
           input_rates_ch = Channel.fromPath(params.rates)
         }
 
-      
       rates_ch = SPLIT_RATES(split_gene_list_ch.toSortedList().flatten(), input_rates_ch)
     }
     // Otherwise we generate rates files from the GFF file
@@ -204,6 +203,7 @@ workflow{
         if (params.containsKey("excluded_regions")) {
             excluded_regions_ch = Channel.fromPath(params.excluded_regions)
             rates_merged_ch = FILTER_RATES_REGION(rates_merged_ch[0], rates_merged_ch[1], excluded_regions_ch, file(params.genome_fasta))[0]
+            rates_merged_ch = rates_merged_ch.first().map { it[0] }
         }
       }
 
