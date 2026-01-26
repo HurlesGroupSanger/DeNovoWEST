@@ -3,7 +3,7 @@ import numpy as np
 from joblib import Parallel, delayed
 from scipy import stats
 
-from denovowest.utils.params import DEFAULT_MAX_NB_MUTATIONS_SIM, DEFAULT_MIN_NB_SIM
+from denovowest.utils.params import DEFAULT_MAX_NB_MUTATIONS_SIM, DEFAULT_MIN_NB_SIM, STOP_SKIP_SIMULATION_THRESHOLD
 
 
 def calc_p0(mu, obs_sum_scores):
@@ -43,7 +43,7 @@ def calc_p1(mu, obs_sum_scores, rates, score_column):
     return p1
 
 
-def calc_pn(mu, obs_sum_scores, rates, nb_mutation_poisson, scores_sorted, score_column, cfg):
+def calc_pn(mu, obs_sum_scores, rates, nb_mutation_poisson, scores_sorted, score_column, ptot, cfg):
     """
     Simulation to approximate  P(S >= s_obs | N = n)P(N = n)
 
@@ -54,6 +54,7 @@ def calc_pn(mu, obs_sum_scores, rates, nb_mutation_poisson, scores_sorted, score
         nb_mutation_poisson (int): number of mutations to draw
         scores_sorted (list) : rates file variants sorted by score
         score_column (str) : CEP scores
+        ptot (float) : cumulative p-value
         cfg (Config): configuration object that stores script parameters
 
 
@@ -70,13 +71,10 @@ def calc_pn(mu, obs_sum_scores, rates, nb_mutation_poisson, scores_sorted, score
     nsim = max([int(round(cfg.nsim * pndnm)), DEFAULT_MIN_NB_SIM])
 
     s = np.nan
-    # If pndm (see above) is really low there is no point in calculating a combined p-value as it will be epsilon
-    if pndnm < 10 ** (-12):
-        pscore = 0
-        nsim = 0
+
     # If the top nb_mutation_poisson scores are not enough to reach the observed sum of scores, then there is no possible nb_mutation_poisson combination that
     # will achieve a higher score and the p-value is 0
-    elif np.sum(scores_sorted[-nb_mutation_poisson:]) < obs_sum_scores:
+    if np.sum(scores_sorted[-nb_mutation_poisson:]) < obs_sum_scores:
         pscore = 0.0
         nsim = 0
 
@@ -86,11 +84,17 @@ def calc_pn(mu, obs_sum_scores, rates, nb_mutation_poisson, scores_sorted, score
         pscore = 1.0
         nsim = 0
 
+    # If pndm (see above) is really low there is no point in calculating a combined p-value as it will be epsilon,
+    # unless we are dealing with a highly enriched gene for which the cumulative p-value is still 0 but we still need an estimate
+    elif (pndnm < STOP_SKIP_SIMULATION_THRESHOLD) and ((ptot != 0) or (nb_mutation_poisson < mu)):
+        pscore = 0
+        nsim = 0
+
     # Otherwise, we simulate the cumulated scores for nb_mutation_poisson randomly picked mutations nsim times and calculate the proportion of simulations
     # for which we obtain a score greater than or equal to the observed score
     else:
         s = sim_score(mu, obs_sum_scores, rates, nb_mutation_poisson, score_column, cfg)
-        pscore = float(s) / nsim
+        pscore = (float(s) + 1) / (nsim + 1)  # Using a pseudocount to avoid getting a p-value of 0
 
     # This probability is adjusted by the probability of actually observing nb_mutation_poisson mutations given the poisson rate (expected number of mutations)
     pn = pndnm * pscore
@@ -216,7 +220,7 @@ def get_pvalue(rates, obs_sum_scores, nb_observed_mutations, score_column, cfg, 
 
         # Calculate the probability of seeing a similar or more extreme observed gene score | nb_mutation_poisson mutations
         pi, nb_sim, nb_more_extreme = calc_pn(
-            mu, obs_sum_scores, rates, nb_mutation_poisson, scores_sorted, score_column, cfg
+            mu, obs_sum_scores, rates, nb_mutation_poisson, scores_sorted, score_column, ptot, cfg
         )
         simulation_logs["simulation"][nb_mutation_poisson]["p-val"] = pi
         simulation_logs["simulation"][nb_mutation_poisson]["nb_more_extreme"] = nb_more_extreme
@@ -227,23 +231,19 @@ def get_pvalue(rates, obs_sum_scores, nb_observed_mutations, score_column, cfg, 
         # If we are increasing the number of mutation in sequential order we can
         # stop if the poisson p-value becomes too low from a certain point
         if sequential:
+
             # Probability of observing more than nb_mutation_poisson event given mu
             picdf = 1 - stats.poisson.cdf(nb_mutation_poisson, mu)
 
-            # If this probability is too low, the resulting p-values will
-            if (picdf < 10 ** (-12)) and (nb_mutation_poisson > mu):
+            # Stop when the probability of observing nb_mutation_poisson mutations or more is too small
+            if (picdf < STOP_SKIP_SIMULATION_THRESHOLD) and (nb_mutation_poisson > mu) and (ptot > 0):
                 info = "probability of observing >= " + str(nb_mutation_poisson) + " mutations is too small"
                 break
 
-        # if p value is over threshold then stop going further
+        # If the cumulative p-value is already over the user defined threshold, stop the simulations
         if ptot > cfg.pvalcap:
             info = f"pvalue > {cfg.pvalcap}, stop simulations"
             break
-
-    # Set min p-value to 10^-14
-    if ptot == 0:
-        ptot = 10 ** (-14)
-        info = "p value was 0, set at 10^-14"
 
     # Add the number of simulations performed to the simulation information
     info = f"{nbsim_tot}|{nb_mutation_poisson}|{sequential}|{info}"

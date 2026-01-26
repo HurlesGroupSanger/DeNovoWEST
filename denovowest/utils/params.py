@@ -95,6 +95,9 @@ DEFAULT_MAX_NB_MUTATIONS_SIM = 250
 # Minimum number of simulation per batch
 DEFAULT_MIN_NB_SIM = 10**7
 
+# Threshold to stop/skip simulation when poisson probabilities are extremely low
+STOP_SKIP_SIMULATION_THRESHOLD = 10**-12
+
 # Simulation run type
 RUNTYPE_ALL_CODING = "all-coding"
 RUNTYPE_MISSENSE = "mis"
