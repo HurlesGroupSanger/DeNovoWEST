@@ -7,7 +7,7 @@ from denovowest.utils.log import set_plain_log, set_regular_log
 from denovowest.utils.params import RUNTYPE_ALL_CODING
 
 
-def prepare_scores(dnm_df, rates_df, score_column, cfg):
+def prepare_scores(dnm_df, rates_df, score_column, prep_logs, cfg):
     """
     Assign scores to variants in the DNM and rates file.
     The score used for the scores is first min-max transformed (accounts for CEP with negative scores)
@@ -16,6 +16,7 @@ def prepare_scores(dnm_df, rates_df, score_column, cfg):
         dnm_df (pd.DataFrame): DNM dataframe
         rates_df (pd.DataFrame): rates dataframe that contains all possible SNV
         score_column (str) : CEP scores
+        prep_logs (dict): preparation logs structure
         cfg (Config): configuration object that stores script parameters
     """
 
@@ -26,15 +27,15 @@ def prepare_scores(dnm_df, rates_df, score_column, cfg):
 
     # Impute scores for variants with missing scores
     if cfg.impute_missing_scores:
-        dnm_df, rates_df = impute_missing_scores(dnm_df, rates_df, score_column)
+        prep_logs, dnm_df, rates_df = impute_missing_scores(dnm_df, rates_df, score_column, prep_logs)
     else:
-        dnm_df, rates_df = remove_missing_scores(dnm_df, rates_df, score_column)
+        prep_logs, dnm_df, rates_df = remove_missing_scores(dnm_df, rates_df, score_column, prep_logs)
 
     # Consolidate the rates df by adding the indel rates
     if cfg.runtype == RUNTYPE_ALL_CODING:
         rates_df = pd.concat([rates_df, indel_rates_df])
 
-    return dnm_df, rates_df
+    return prep_logs, dnm_df, rates_df
 
 
 def infer_indel_scores_and_rates(rates_df, score_column, cfg):
@@ -125,6 +126,7 @@ def assign_dnm_indel_scores(dnm_df, indel_rates_df, rates_df, score_column):
             )
 
         # If the DNM is an indel but not inframe or frameshift we get the median score for that consequence in the gene (e.g. splice_region)
+        # TODO : this is a temporary solution, we should rather model these indels separately as we are not taking them into account in the expected rates
         else:
 
             generates_df = rates_df.loc[rates_df.gene_id == dnm.gene_id]
@@ -135,7 +137,7 @@ def assign_dnm_indel_scores(dnm_df, indel_rates_df, rates_df, score_column):
     return dnm_df
 
 
-def impute_missing_scores(dnm_df, rates_df, score_column):
+def impute_missing_scores(dnm_df, rates_df, score_column, prep_logs):
     """
     Some CEPs do not assign a score to each variant.
     Here we impute the missing scores looking at the median score for each type
@@ -145,6 +147,7 @@ def impute_missing_scores(dnm_df, rates_df, score_column):
         dnm_df (pd.DataFrame): observed DNM
         rates_df (pd.DataFrame): expected mutations
         score_column (str) : score to use for the simulation
+        prep_logs (dict): preparation logs structure
 
 
     Returns:
@@ -161,7 +164,7 @@ def impute_missing_scores(dnm_df, rates_df, score_column):
 
     logger.info("Imputing missing scores")
 
-    # Get the median values per gene and per consequence type
+    # Get the median scores per gene and per consequence type
     median_values_dict = dict()
     for gene_id, generates_df in rates_df.groupby("gene_id"):
         median_values_dict[gene_id] = dict()
@@ -169,11 +172,29 @@ def impute_missing_scores(dnm_df, rates_df, score_column):
             median_value = generates_cq_df[score_column].median()
             median_values_dict[gene_id][consequence] = median_value
 
-    # Impute missing scores on rates dataframe
+    # Identify genes with all missing scores
+    list_genes_all_scores_missing = list()
+    for gene_id, gene_dict in median_values_dict.items():
+        median_values = gene_dict.values()
+        if all(np.isnan(value) for value in median_values):
+            logger.warning(
+                f"All scores are missing for gene {gene_id}. Reverting to a classic burden test for this gene."
+            )
+            list_genes_all_scores_missing.append(gene_id)
+            dnm_df.loc[dnm_df.gene_id == gene_id, score_column] = np.nan
+            prep_logs[gene_id]["all_scores_missing"] = True
+
+    ##### RATES #####
+
+    # Impute missing scores for rates dataframe based on median values per gene and consequence type
     imputed_rates_scores = list()
     for _, variant in rates_df.iterrows():
         if np.isnan(variant[score_column]):
-            imputed_rates_scores.append(median_values_dict[variant.gene_id][variant.consequence])
+            # If all scores are missing for the gene, assign a score of 1 to all variants which revert to a classic burden test
+            if variant.gene_id in list_genes_all_scores_missing:
+                imputed_rates_scores.append(1)
+            else:
+                imputed_rates_scores.append(median_values_dict[variant.gene_id][variant.consequence])
         else:
             imputed_rates_scores.append(variant[score_column])
     rates_df.loc[:, "score_before_imputation"] = rates_df[score_column]
@@ -190,11 +211,25 @@ def impute_missing_scores(dnm_df, rates_df, score_column):
         if nb_still_no_score:
             logger.warning(f"RATES - {consequence} : {nb_still_no_score} were not imputed")
 
-    # Impute missing scores on DNM dataframe
+    for gene_id, generates_df in rates_df.groupby("gene_id"):
+        nb_imputed = sum((~generates_df[score_column].isna()) & (generates_df["score_before_imputation"].isna()))
+        prep_logs[gene_id]["nb_rates_variants_imputed"] = nb_imputed
+
+        nb_still_no_score = sum(generates_df[score_column].isna())
+        if nb_still_no_score:
+            prep_logs[gene_id]["nb_rates_variants_still_no_score"] = nb_still_no_score
+
+    ##### DNM #####
+
+    # Impute missing scores for DNM dataframe based on median values per gene and consequence type
     imputed_dnm_scores = list()
     for _, variant in dnm_df.iterrows():
         if np.isnan(variant[score_column]):
-            imputed_dnm_scores.append(median_values_dict[variant.gene_id][variant.consequence])
+            # If all scores are missing for the gene, assign a score of 1 to all variants which revert to a classic burden test
+            if variant.gene_id in list_genes_all_scores_missing:
+                imputed_dnm_scores.append(1)
+            else:
+                imputed_dnm_scores.append(median_values_dict[variant.gene_id][variant.consequence])
         else:
             imputed_dnm_scores.append(variant[score_column])
 
@@ -211,10 +246,18 @@ def impute_missing_scores(dnm_df, rates_df, score_column):
         if nb_still_no_score:
             logger.warning(f"DNM - {consequence} : {nb_still_no_score} were not imputed")
 
-    return dnm_df, rates_df
+    for gene_id, gene_dnm_df in dnm_df.groupby("gene_id"):
+        nb_imputed = sum((~gene_dnm_df[score_column].isna()) & (gene_dnm_df["score_before_imputation"].isna()))
+        prep_logs[gene_id]["nb_observed_variants_imputed"] = nb_imputed
+
+        nb_still_no_score = sum(gene_dnm_df[score_column].isna())
+        if nb_still_no_score:
+            prep_logs[gene_id]["nb_observed_variants_still_no_score"] = nb_still_no_score
+
+    return prep_logs, dnm_df, rates_df
 
 
-def remove_missing_scores(dnm_df, rates_df, score_column):
+def remove_missing_scores(dnm_df, rates_df, score_column, prep_logs):
     """
     Some CEPs do not assign a score to each variant. Or depending on the source (dbNSFP) some
     annotations can be missing.
@@ -224,6 +267,7 @@ def remove_missing_scores(dnm_df, rates_df, score_column):
         dnm_df (pd.DataFrame): observed DNM
         rates_df (pd.DataFrame): expected mutations
         score_column (str) : score to use for the simulation
+        prep_logs (dict): preparation logs structure
 
     Returns:
         tuple(pd.DataFrame, pd.DataFrame): DNM and rates dataframes with records with missing scores removed
@@ -237,23 +281,28 @@ def remove_missing_scores(dnm_df, rates_df, score_column):
     logger.info("=" * 50)
     set_regular_log()
 
-    nb_records_dnm_before = dnm_df.shape[0]
-    nb_records_rates_before = rates_df.shape[0]
+    # Remove locus without scores in both DNM and rates dataframes
+    dnm_kept_df = dnm_df.loc[~dnm_df[score_column].isna()].copy()
+    rates_kept_df = rates_df.loc[~rates_df[score_column].isna()].copy()
 
-    dnm_df = dnm_df.loc[~dnm_df[score_column].isna()]
-    rates_df = rates_df.loc[~rates_df[score_column].isna()]
-
-    nb_records_dnm_after = dnm_df.shape[0]
-    nb_records_rates_after = rates_df.shape[0]
-
-    if nb_records_dnm_after - nb_records_dnm_before:
+    if dnm_df.shape[0] != dnm_kept_df.shape[0]:
         logger.info(
-            f"{nb_records_dnm_before - nb_records_dnm_after } observed DNMs were removed as they do not have a {score_column} score"
+            f"{dnm_df.shape[0] - dnm_kept_df.shape[0] } observed DNMs were removed as they do not have a {score_column} score"
         )
 
-    if nb_records_rates_after - nb_records_rates_before:
+    if rates_df.shape[0] != rates_kept_df.shape[0]:
         logger.info(
-            f"{nb_records_rates_before - nb_records_rates_after} variants were removed from the rates file as they do not have a {score_column} score"
+            f"{rates_df.shape[0]  - rates_kept_df.shape[0]} variants were removed from the rates file as they do not have a {score_column} score"
         )
 
-    return dnm_df, rates_df
+    # Log number of removed variants per gene
+    dnm_discarded_df = dnm_df.loc[dnm_df[score_column].isna()].copy()
+    rates_discarded_df = rates_df.loc[rates_df[score_column].isna()].copy()
+
+    for gene_id, gene_dnm_df in dnm_discarded_df.groupby("gene_id"):
+        prep_logs[gene_id]["nb_observed_dnms_discarded"] = gene_dnm_df.shape[0]
+
+    for gene_id, gene_rates_df in rates_discarded_df.groupby("gene_id"):
+        prep_logs[gene_id]["nb_rates_variants_discarded"] = gene_rates_df.shape[0]
+
+    return prep_logs, dnm_kept_df, rates_kept_df

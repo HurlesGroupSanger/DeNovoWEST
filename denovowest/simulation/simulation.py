@@ -38,9 +38,11 @@ def load_dnm_rates(dnm, rates, column, gene_list):
 
     logger = logging.getLogger("logger")
 
+    # Load DNM and rates files
     dnm_df = pd.read_csv(dnm, sep="\t", dtype={"chrom": str, "pos": int, column: float}, na_values=[".", "NA"])
     rates_df = pd.read_csv(rates, sep="\t", dtype={"chrom": str, "pos": int, column: float}, na_values=[".", "NA"])
 
+    # Restrict analysis to genes in the provided gene list
     if gene_list:
         with open(gene_list, "r") as f:
             genes = [x.strip() for x in f.readlines()]
@@ -50,6 +52,7 @@ def load_dnm_rates(dnm, rates, column, gene_list):
 
     shared_genes = set(dnm_df.gene_id.unique()) & set(rates_df.gene_id.unique())
 
+    # Log gene overlap information
     set_plain_log()
     logger.info("=" * 50)
     logger.info("[DNM/RATES CONSISTENCY]")
@@ -59,6 +62,7 @@ def load_dnm_rates(dnm, rates, column, gene_list):
         f"{len(shared_genes)}/{rates_df.gene_id.nunique()} genes from the rates file have at least one observation in the DNM file"
     )
 
+    # Restrict both dataframes to shared genes only
     dnm_df = dnm_df.loc[dnm_df.gene_id.isin(shared_genes)].copy()
     rates_df = rates_df.loc[rates_df.gene_id.isin(shared_genes)].copy()
 
@@ -83,10 +87,17 @@ def prepare_dnm_rates(
     dnm_df = prepare_dnm(dnm_df, cfg)
     rates_df = prepare_rates(rates_df, nmales, nfemales, cfg)
 
-    # Prepare scores (indel scores, imputation missing scores...)
-    dnm_df, rates_df = prepare_scores(dnm_df, rates_df, score_column, cfg)
+    prep_logs = dict()
+    for gene_id in dnm_df.gene_id.unique():
+        prep_logs[gene_id] = dict()
 
-    return dnm_df, rates_df
+    # Mutation rate model like Roulette have missing rates for some variants
+    prep_logs = check_missing_mutation_rate(rates_df, prep_logs)
+
+    # Prepare scores (indel scores, imputation missing scores...)
+    prep_logs, dnm_df, rates_df = prepare_scores(dnm_df, rates_df, score_column, prep_logs, cfg)
+
+    return prep_logs, dnm_df, rates_df
 
 
 def prepare_dnm(dnm_df: pd.DataFrame, cfg: Config):
@@ -128,16 +139,17 @@ def filter_on_consequences(df: pd.DataFrame, mode: str, cfg: Config):
         df["original_consequence"] = df.consequence
     df.consequence = [extract_worst_consequence(csq) if isinstance(csq, str) else csq for csq in list(df.consequence)]
 
-    # Filter variants depending on run type : non-synonymous, missense or synonymous test
+    # Filter variants depending on run type : all-coding, missense or synonymous test
     if cfg.runtype == RUNTYPE_ALL_CODING:
         filt = df.consequence.isin(CONSEQUENCES_MAPPING.keys())
     elif cfg.runtype == RUNTYPE_MISSENSE:
-        filt = df.consequence.isin(["missense", "start_lost", "stop_lost"])
+        filt = df.consequence.isin(["missense"])
     else:  # syn
         filt = df.consequence.isin(["synonymous"])
 
     kept_df = df.loc[filt].copy()
 
+    # Log how many variants were discarded
     logger.info(f"{mode.upper()} - Before consequence filtering : {df.shape[0]} records")
 
     discarded_df = df.loc[~filt]
@@ -173,7 +185,7 @@ def extract_worst_consequence(csq):
 
 def assign_meta_consequences(df: pd.DataFrame):
     """
-    Assign a higher level consequence to each variant
+    Assign a higher level consequence to each variant (e.g. splice_donor and splice_acceptor -> splice_lof)
 
     Args:
         df (pd.DataFrame): variant table (rates or dnm) having a consequence column
@@ -259,7 +271,37 @@ def compute_x_factor_correction(nmales: int, nfemales: int):
     return x_factor
 
 
-def run_simulations(dnm_df: pd.DataFrame, rates_df: pd.DataFrame, score_column: str, cfg: Config):
+def check_missing_mutation_rate(rates_df: pd.DataFrame, prep_logs: dict):
+    """
+    Check for variants with missing mutation rates in the rates dataframe
+
+    Args:
+        rates_df (pd.DataFrame): mutation rates dataframe
+    """
+
+    logger = logging.getLogger("logger")
+
+    missing_rates_df = rates_df.loc[rates_df["prob"].isna()]
+    nb_missing_rates = missing_rates_df.shape[0]
+
+    set_plain_log()
+    logger.info("=" * 50)
+    logger.info("[MISSING MUTATION RATES]")
+    logger.info("=" * 50)
+    set_regular_log()
+
+    if nb_missing_rates > 0:
+        logger.warning(f"{nb_missing_rates} variants have missing mutation rates in the rates file.")
+        for gene_id, gene_missing_rates_df in missing_rates_df.groupby("gene_id"):
+            nb_missing_rates_gene = gene_missing_rates_df.shape[0]
+            prep_logs[gene_id]["nb_missing_mutation_rate"] = nb_missing_rates_gene
+    else:
+        logger.info("No missing mutation rates found in the rates file.")
+
+    return prep_logs
+
+
+def run_simulations(dnm_df: pd.DataFrame, rates_df: pd.DataFrame, score_column: str, prep_logs: dict, cfg: Config):
     """
     For each gene in the DNM file, run nsim simulations and test whether or not this gene is significantly enriched in predictive DNM.
 
@@ -267,6 +309,7 @@ def run_simulations(dnm_df: pd.DataFrame, rates_df: pd.DataFrame, score_column: 
         dnm_df (pd.DataFrame): DNM dataframe
         rates_df (pd.DataFrame): rates dataframe that contains all possible SNV
         score_column (str) : CEP scores
+        prep_logs (dict) : structure to store preparation logs
         cfg (Config): configuration object that stores script parameters
     """
 
@@ -286,7 +329,7 @@ def run_simulations(dnm_df: pd.DataFrame, rates_df: pd.DataFrame, score_column: 
         simulation_results, simulation_logs = run_simulation(rates_df, dnm_df, gene, score_column, cfg)
         if simulation_results:
             results.append(simulation_results)
-            logs[gene] = simulation_logs
+            logs[gene] = simulation_logs | prep_logs[gene]
 
         cpt += 1
         if cpt % 10 == 0:
@@ -309,10 +352,8 @@ def run_simulation(rates_df, dnm_df, gene_id, score_column, cfg):
 
     logger = logging.getLogger("logger")
 
-    simulation_logs = dict()
-
     if gene_id not in rates_df.gene_id.unique():
-        logger.debug("could not find " + str(gene_id))
+        logger.debug(f"Could not find {gene_id} in rates dataframe. Skipping simulation.")
         return
 
     logger.info(f"Testing {gene_id}")
@@ -322,25 +363,64 @@ def run_simulation(rates_df, dnm_df, gene_id, score_column, cfg):
     generates = rates_df.loc[rates_df.gene_id == gene_id]
 
     # Sum the scores of all observed DNM in the gene
-    nb_observed_mutations = dnm_df[dnm_df.gene_id == gene_id].shape[0]
-    obs_sum_scores = dnm_df[dnm_df.gene_id == gene_id][score_column].sum()
+    gene_dnm_df = dnm_df.loc[dnm_df.gene_id == gene_id]
+    nb_observed_mutations = gene_dnm_df.shape[0]
+    obs_sum_scores = gene_dnm_df[score_column].sum()
 
-    simulation_logs["nb_observed_mutations"] = nb_observed_mutations
-    simulation_logs["obs_sum_scores"] = obs_sum_scores
+    # Store gene-specific simulation logs
+    simulation_logs = initiate_simulation_logs(gene_dnm_df, generates, score_column)
 
     # Run nsim simulations
-    results, simulation_logs = get_pvalue(
+    pval, expected_score, simulation_logs = get_pvalue(
         generates, obs_sum_scores, nb_observed_mutations, score_column, cfg, simulation_logs
     )
 
     # Store how long the simulation took for each gene
     end_time = time.time()
     wall_time = end_time - start_time
-    info = f"{results[1]}|{wall_time:.6f}"
+    simulation_logs["wall_time"] = f"{wall_time:.6f}"
 
     # Return the gene id, its expected and observed sum of scores, the p-value from the enrichment simulation test and some informations about the simulation
-    simulation_results = (gene_id, results[2], obs_sum_scores, results[0], info)
+    simulation_results = (gene_id, expected_score, obs_sum_scores, pval)
     return simulation_results, simulation_logs
+
+
+def initiate_simulation_logs(gene_dnm_df: pd.DataFrame, generates_df: pd.DataFrame, score_column: str):
+    """
+    Feed the simulation logs structure
+
+    Args:
+        gene_dnm_df (pd.DataFrame): observed DNM for the given gene
+        generates_df (pd.DataFrame): expected mutations for the given gene
+        score_column (str) : score to use for the simulation
+    """
+
+    simulation_logs = dict()
+
+    simulation_logs["observed_dnms"] = gene_dnm_df[["chrom", "pos", "ref", "alt", "consequence", score_column]].to_dict(
+        orient="tight", index=False
+    )
+    simulation_logs["nb_observed_dnms"] = gene_dnm_df.shape[0]
+    simulation_logs["observed_score"] = gene_dnm_df[score_column].sum()
+
+    if gene_dnm_df[score_column].isna().sum() > 0:
+        simulation_logs["nb_missing_observed_scores"] = gene_dnm_df[gene_dnm_df[score_column].isna()].shape[0]
+
+    if generates_df[score_column].isna().sum() > 0:
+        simulation_logs["nb_missing_expected_scores"] = generates_df[generates_df[score_column].isna()].shape[0]
+
+    if generates_df["prob"].isna().sum() > 0:
+        simulation_logs["nb_missing_mutation_rate"] = generates_df[generates_df["prob"].isna()].shape[0]
+
+    simulation_logs["expected_prob_per_consequence"] = dict()
+    simulation_logs["expected_score_per_consequence"] = dict()
+    for consequence, generates_cq_df in generates_df.groupby("consequence"):
+        simulation_logs["expected_prob_per_consequence"][consequence] = generates_cq_df["prob"].sum()
+        simulation_logs["expected_score_per_consequence"][consequence] = (
+            generates_cq_df[score_column] * generates_cq_df["prob"]
+        ).sum()
+
+    return simulation_logs
 
 
 def export_results(results: list, outdir: str, outfile: str):
@@ -361,19 +441,12 @@ def export_results(results: list, outdir: str, outfile: str):
     logger.info("=" * 50)
     set_regular_log()
 
+    # Build results dataframe
+    df = pd.DataFrame.from_records(results, columns=["gene_id", "expected_score", "observed_score", "p-value"])
+
+    # Export results
     os.makedirs(outdir, exist_ok=True)
-
-    df = pd.DataFrame.from_records(results, columns=["symbol", "expected", "observed", "p-value", "info"])
-    df["nb_sim"] = [x.split("|")[0] for x in df["info"]]
-    df["nb_mutations_stop"] = [x.split("|")[1] for x in df["info"]]
-    df["sequential_simulation"] = [x.split("|")[2] for x in df["info"]]
-    df["log"] = [x.split("|")[3] for x in df["info"]]
-    df["wall_time"] = [x.split("|")[4] for x in df["info"]]
-
-    df.drop("info", axis=1, inplace=True)
-
     df.to_csv(f"{outdir}/{outfile}", sep="\t", index=False)
-
     logger.info(f"Simulation results exported to {outdir}/{outfile}")
 
 
@@ -564,10 +637,10 @@ def main(
     dnm_df, rates_df = load_dnm_rates(dnm, rates, score_column, gene_list)
 
     # Prepare DNM and rates file for simulation
-    dnm_df, rates_df = prepare_dnm_rates(dnm_df, rates_df, score_column, nmales, nfemales, cfg)
+    prep_logs, dnm_df, rates_df = prepare_dnm_rates(dnm_df, rates_df, score_column, nmales, nfemales, cfg)
 
     # Run enrichment simulations
-    results, logs = run_simulations(dnm_df, rates_df, score_column, cfg)
+    results, logs = run_simulations(dnm_df, rates_df, score_column, prep_logs, cfg)
 
     # Export results
     export_results(results, outdir, outfile)
