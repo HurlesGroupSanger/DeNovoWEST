@@ -170,18 +170,24 @@ def get_pvalue(generates, obs_sum_scores, nb_observed_mutations, score_column, c
     # If the observed score is lower than the expected one, no need to run the simulation
     if obs_sum_scores < exp_sum_scores:
         ptot = 1
-        info = "0|0|True|observed < expected, pvalue set at 1"
-        infos = (ptot, info, exp_sum_scores)
 
-        return infos, simulation_logs
+        simulation_logs["nb_simulations"] = 0
+        simulation_logs["last_iteration_n"] = 0
+        simulation_logs["sequential_simulation"] = True
+        simulation_logs["info"] = "observed < expected, pvalue set at 1"
+
+        return ptot, exp_sum_scores, simulation_logs
 
     # With some resources like dbNSFP we might have no scores at all for a gene
     if obs_sum_scores == 0:
         ptot = 1
-        info = "0|0|True|observed = 0"
-        infos = (ptot, info, exp_sum_scores)
 
-        return infos, simulation_logs
+        simulation_logs["nb_simulations"] = 0
+        simulation_logs["last_iteration_n"] = 0
+        simulation_logs["sequential_simulation"] = True
+        simulation_logs["info"] = "observed = 0, pvalue set at 1"
+
+        return ptot, exp_sum_scores, simulation_logs
 
     # We sort the scores in order to use stopping rules that improve the speed of the simulations
     scores_sorted = np.sort(generates[score_column])

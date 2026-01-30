@@ -11,7 +11,6 @@ import click
 import numpy as np
 import pandas as pd
 from config import Config
-
 from denovowest.simulation.probabilities import get_pvalue
 from denovowest.simulation.scores import prepare_scores
 from denovowest.utils.log import init_log, set_plain_log, set_regular_log
@@ -83,13 +82,14 @@ def prepare_dnm_rates(
         nfemales (int): number of females in the cohort
         cfg (Config): configuration object that stores script parameters
     """
-    # Filter on variant consequence and calculate cohort based expected mutation rates
-    dnm_df = prepare_dnm(dnm_df, cfg)
-    rates_df = prepare_rates(rates_df, nmales, nfemales, cfg)
 
     prep_logs = dict()
     for gene_id in dnm_df.gene_id.unique():
         prep_logs[gene_id] = dict()
+
+    # Filter on variant consequence and calculate cohort based expected mutation rates
+    dnm_df = prepare_dnm(dnm_df, cfg)
+    rates_df = prepare_rates(rates_df, nmales, nfemales, cfg)
 
     # Mutation rate model like Roulette have missing rates for some variants
     prep_logs = check_missing_mutation_rate(rates_df, prep_logs)
