@@ -244,8 +244,20 @@ def get_pvalue(generates, obs_sum_scores, nb_observed_mutations, score_column, c
             picdf = 1 - stats.poisson.cdf(nb_mutation_poisson, mu)
 
             # Stop when the probability of observing nb_mutation_poisson mutations or more is too small
-            if (picdf < STOP_SKIP_SIMULATION_THRESHOLD) and (nb_mutation_poisson > mu) and (ptot > 0):
+            if (picdf < STOP_SKIP_SIMULATION_THRESHOLD) and (nb_mutation_poisson > mu):
                 info = "probability of observing >= " + str(nb_mutation_poisson) + " mutations is too small"
+
+                # When genes are extremely enriched, we reach the stopping criterion before running into the simulation
+                if ptot == 0:
+                    ptot = estimate_pval_extremely_enriched_gene(
+                        nb_mutation_poisson, obs_sum_scores, scores_sorted, mu, cfg
+                    )
+                    info = (
+                        "extremely enriched gene, "
+                        + "probability of observing >= "
+                        + str(nb_mutation_poisson)
+                        + " mutations is too small"
+                    )
                 break
 
         # If the cumulative p-value is already over the user defined threshold, stop the simulations
@@ -297,3 +309,44 @@ def diverging_range(median, min_val, max_val):
 
         # Increase the distance from the median for the next iteration
         offset += 1
+
+
+def estimate_pval_extremely_enriched_gene(nb_mutation_poisson, obs_sum_scores, scores_sorted, mu, cfg):
+    """
+    Extremely enriched genes would have very small p-values. Howver in some cases (e.g. DDX3X), if using
+    a strategy that enforce running at least one simulation round to compute a p-value, we end up
+    with a simulation that can run several days for a given gene, which is useless as we know it is significantly enriched.
+    Rather than doing that, we compute a p-value based on the poisson probability for k such that step k + 1 would have led
+    to running the simulation.
+
+    Args:
+        nb_mutation_poisson (int): current number of mutation being tested
+        obs_sum_scores (float): gene observed score
+        scores_sorted (list): variant scores sorted
+        mu (float): gene expected number of mutation
+        cfg (Config): configuration object that stores script parameters
+
+    """
+
+    # We find the minimum k that would take us into the simulation
+    for k in range(nb_mutation_poisson, len(scores_sorted)):
+        max_sum_expected_scores = np.sum(scores_sorted[-k:])
+        if max_sum_expected_scores > obs_sum_scores:
+            break
+
+    # We compute the poisson probability of observing (k-1) mutations
+    pndnm = stats.poisson.pmf(k - 1, mu)
+
+    # If the probability is so low that it can't be represented, we do assign a hardcoded p-value
+    if pndnm < 1e-300:
+        ptot = 1e-300
+    else:
+        # Otherwise we just take an upper bound on
+        # the number of exceedance in the simulation round for k-1.
+        # This is done to avoid running unneeded simulations
+        nsim = max([int(round(cfg.nsim * pndnm)), DEFAULT_MIN_NB_SIM])
+        psim = 1 / (nsim + 1)
+
+        ptot = pndnm * psim
+
+    return ptot
