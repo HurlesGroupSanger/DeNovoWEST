@@ -125,13 +125,14 @@ def assign_dnm_indel_scores(dnm_df, indel_rates_df, rates_df, score_column):
                 ].iloc[0]
             )
 
-        # If the DNM is an indel but not inframe or frameshift we get the median score for that consequence in the gene (e.g. splice_region)
-        # TODO : this is a temporary solution, we should rather model these indels separately as we are not taking them into account in the expected rates
+        # TODO If the DNM is an indel but not inframe or frameshift we could get the median score for that consequence in the gene (e.g. splice_region)
+        # However we are not taking into account indels other than inframe and frameshift for now
         else:
 
-            generates_df = rates_df.loc[rates_df.gene_id == dnm.gene_id]
-            score = generates_df.loc[generates_df.consequence == dnm.consequence, score_column].median()
-            list_scores.append(score)
+            list_scores.append(np.nan)
+            # generates_df = rates_df.loc[rates_df.gene_id == dnm.gene_id]
+            # score = generates_df.loc[generates_df.consequence == dnm.consequence, score_column].median()
+            # list_scores.append(score)
 
     dnm_df.loc[:, score_column] = list_scores
     return dnm_df
