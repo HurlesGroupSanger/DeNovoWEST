@@ -106,6 +106,16 @@ workflow{
           System.exit(1)
       }
 
+      if (params.enrichment.score instanceof List) {
+        params.enrichment.score_all_coding = params.enrichment.score[0]
+        params.enrichment.score_mis = params.enrichment.score[1]
+
+      }
+      else {
+        params.enrichment.score_all_coding = params.enrichment.score
+        params.enrichment.score_mis = params.enrichment.score
+      }
+
       params.enrichment.runtype = params.enrichment.runtype ?: 'all-coding'
       params.enrichment.nsim = params.enrichment.nsim ?: 10000000
       params.enrichment.impute_missing_scores = params.enrichment.impute_missing_scores ?: false
@@ -558,10 +568,10 @@ workflow{
 
       if(params.enrichment.runtype == "both") {
 
-        SIMULATION_NS(simulation_ch, params.enrichment.score, params.enrichment.nmales, params.enrichment.nfemales, "all-coding", params.enrichment.nsim, params.enrichment.impute_missing_scores, params.enrichment.debug)
+        SIMULATION_NS(simulation_ch, params.enrichment.score_all_coding, params.enrichment.nmales, params.enrichment.nfemales, "all-coding", params.enrichment.nsim, params.enrichment.impute_missing_scores, params.enrichment.debug)
         MERGE_SIMULATION_NS(SIMULATION_NS.out.results.collect(), SIMULATION_NS.out.logs.collect(), "all-coding")
 
-        SIMULATION_MIS(simulation_ch, params.enrichment.score, params.enrichment.nmales, params.enrichment.nfemales, "mis", params.enrichment.nsim, params.enrichment.impute_missing_scores, params.enrichment.debug)
+        SIMULATION_MIS(simulation_ch, params.enrichment.score_mis, params.enrichment.nmales, params.enrichment.nfemales, "mis", params.enrichment.nsim, params.enrichment.impute_missing_scores, params.enrichment.debug)
         MERGE_SIMULATION_MIS(SIMULATION_MIS.out.results.collect(), SIMULATION_MIS.out.logs.collect(),  "mis")
 
       }
