@@ -51,6 +51,8 @@ params {
     score = "score"
     runtype = "both"
 
+    debug = false
+
   }
 }
 

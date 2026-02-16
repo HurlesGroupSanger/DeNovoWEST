@@ -110,6 +110,18 @@ workflow{
       params.enrichment.nsim = params.enrichment.nsim ?: 10000000
       params.enrichment.impute_missing_scores = params.enrichment.impute_missing_scores ?: false
 
+      if (!params.enrichment.containsKey("debug")) {
+          params.enrichment.debug = false
+      }
+
+      if (params.enrichment.debug) {
+          log.info "⚠️  Debug mode is ON. The enrichment test will generate extra logs and use a random seed to make results reproducible."
+          params.enrichment.debug = "--debug"
+      }
+      else {
+          params.enrichment.debug = ""
+      }
+
     }
 
     // Clustering
@@ -180,7 +192,7 @@ workflow{
               input_rates_ch = rates_merged_ch.first().map { it[0] }
         }
         else {
-          input_rates_ch = Channel.fromPath(params.rates)
+          input_rates_ch = Channel.value(file(params.rates))
         }
 
       rates_ch = SPLIT_RATES(split_gene_list_ch.toSortedList().flatten(), input_rates_ch)
@@ -546,16 +558,16 @@ workflow{
 
       if(params.enrichment.runtype == "both") {
 
-        SIMULATION_NS(simulation_ch, params.enrichment.score, params.enrichment.nmales, params.enrichment.nfemales, "all-coding", params.enrichment.nsim, params.enrichment.impute_missing_scores)
+        SIMULATION_NS(simulation_ch, params.enrichment.score, params.enrichment.nmales, params.enrichment.nfemales, "all-coding", params.enrichment.nsim, params.enrichment.impute_missing_scores, params.enrichment.debug)
         MERGE_SIMULATION_NS(SIMULATION_NS.out.results.collect(), SIMULATION_NS.out.logs.collect(), "all-coding")
 
-        SIMULATION_MIS(simulation_ch, params.enrichment.score, params.enrichment.nmales, params.enrichment.nfemales, "mis", params.enrichment.nsim, params.enrichment.impute_missing_scores)
+        SIMULATION_MIS(simulation_ch, params.enrichment.score, params.enrichment.nmales, params.enrichment.nfemales, "mis", params.enrichment.nsim, params.enrichment.impute_missing_scores, params.enrichment.debug)
         MERGE_SIMULATION_MIS(SIMULATION_MIS.out.results.collect(), SIMULATION_MIS.out.logs.collect(),  "mis")
 
       }
       else {
 
-        SIMULATION(simulation_ch, params.enrichment.score, params.enrichment.nmales, params.enrichment.nfemales, params.enrichment.runtype, params.enrichment.nsim, params.enrichment.impute_missing_scores)
+        SIMULATION(simulation_ch, params.enrichment.score, params.enrichment.nmales, params.enrichment.nfemales, params.enrichment.runtype, params.enrichment.nsim, params.enrichment.impute_missing_scores, params.enrichment.debug)
         MERGE_SIMULATION(SIMULATION.out.results.collect(), SIMULATION.out.logs.collect(), params.enrichment.runtype)
 
       }

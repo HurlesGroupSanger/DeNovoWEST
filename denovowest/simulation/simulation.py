@@ -450,7 +450,7 @@ def export_results(results: list, outdir: str, outfile: str):
     logger.info(f"Simulation results exported to {outdir}/{outfile}")
 
 
-def export_logs(logs, outdir):
+def export_logs(logs, outdir, debug=False):
     """
     Write simulation logs
 
@@ -476,6 +476,12 @@ def export_logs(logs, outdir):
 
     logger = logging.getLogger("logger")
 
+    # If not in debug mode, we remove some detailed information from the logs to make them lighter and easier to read.
+    if not debug:
+        for gene_id in list(logs):
+            logs[gene_id] = {k: v for k, v in logs[gene_id].items() if k not in ["observed_dnms", "simulation"]}
+
+    # Export logs as a json file. We use a custom encoder to handle numpy data types that may be present in the logs.
     with open(f"{outdir}/simulation_logs.json", "w") as f:
         json.dump(logs, f, indent=4, cls=NpEncoder)
 
@@ -653,8 +659,7 @@ def main(
     export_results(results, outdir, outfile)
 
     # Export logs
-    if debug:
-        export_logs(logs, outdir)
+    export_logs(logs, outdir, cfg.debug)
 
 
 if __name__ == "__main__":

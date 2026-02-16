@@ -14,6 +14,7 @@ process SIMULATION {
     val runtype
     val nsim
     val impute_missing_scores
+    val debug
 
     output :
     path "${id}_enrichment_results.tsv", emit :results
@@ -26,9 +27,9 @@ process SIMULATION {
     script :
     """
     if [  "$impute_missing_scores" = "true"  ]; then
-        simulation.py $dnm $rates $column --nmales $nmales --nfemales $nfemales --runtype $runtype --nsim $nsim --impute-missing-scores --outfile ${id}_enrichment_results.tsv --debug
+        simulation.py $dnm $rates $column --nmales $nmales --nfemales $nfemales --runtype $runtype --nsim $nsim --impute-missing-scores --outfile ${id}_enrichment_results.tsv $debug
     else
-        simulation.py $dnm $rates $column --nmales $nmales --nfemales $nfemales --runtype $runtype --nsim $nsim --outfile ${id}_enrichment_results.tsv --debug
+        simulation.py $dnm $rates $column --nmales $nmales --nfemales $nfemales --runtype $runtype --nsim $nsim --outfile ${id}_enrichment_results.tsv $debug
     fi
 
     mv simulation_logs.json ${id}_simulation_logs.json
