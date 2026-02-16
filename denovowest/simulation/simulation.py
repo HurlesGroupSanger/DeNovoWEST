@@ -11,16 +11,11 @@ import click
 import numpy as np
 import pandas as pd
 from config import Config
+
 from denovowest.simulation.probabilities import get_pvalue
 from denovowest.simulation.scores import prepare_scores
 from denovowest.utils.log import init_log, set_plain_log, set_regular_log
-from denovowest.utils.params import (
-    CONSEQUENCES_MAPPING,
-    CONSEQUENCES_SEVERITIES,
-    RUNTYPE_ALL_CODING,
-    RUNTYPE_MISSENSE,
-    RUNTYPE_SYNONYMOUS,
-)
+from denovowest.utils.params import CONSEQUENCES_MAPPING, CONSEQUENCES_SEVERITIES, ConsequenceGroups, RunType
 
 
 def load_dnm_rates(dnm, rates, column, gene_list):
@@ -139,13 +134,18 @@ def filter_on_consequences(df: pd.DataFrame, mode: str, cfg: Config):
         df["original_consequence"] = df.consequence
     df.consequence = [extract_worst_consequence(csq) if isinstance(csq, str) else csq for csq in list(df.consequence)]
 
-    # Filter variants depending on run type : all-coding, missense or synonymous test
-    if cfg.runtype == RUNTYPE_ALL_CODING:
-        filt = df.consequence.isin(CONSEQUENCES_MAPPING.keys())
-    elif cfg.runtype == RUNTYPE_MISSENSE:
-        filt = df.consequence.isin(["missense"])
-    else:  # syn
-        filt = df.consequence.isin(["synonymous"])
+    # Filter variants depending on run type
+    match cfg.runtype:
+        case RunType.ALL_CODING:
+            filt = df.consequence.isin(CONSEQUENCES_MAPPING.keys())
+        case RunType.MISSENSE:
+            filt = df.consequence.isin(ConsequenceGroups.MISSENSE)
+        case RunType.SYNONYMOUS:
+            filt = df.consequence.isin(ConsequenceGroups.SYNONYMOUS)
+        case RunType.PROTEIN_ALTERING:
+            filt = df.consequence.isin(ConsequenceGroups.PROTEIN_ALTERING)
+        case RunType.PTV:
+            filt = df.consequence.isin(ConsequenceGroups.PTV)
 
     kept_df = df.loc[filt].copy()
 
@@ -451,6 +451,13 @@ def export_results(results: list, outdir: str, outfile: str):
 
 
 def export_logs(logs, outdir):
+    """
+    Write simulation logs
+
+    Args:
+        logs (dict): dictionary of per-gene simulation logs
+        outdir (str): output directory
+    """
 
     class NpEncoder(json.JSONEncoder):
         def default(self, obj):
@@ -518,7 +525,7 @@ def log_configuration(conf):
 )
 @click.option(
     "--runtype",
-    type=click.Choice([RUNTYPE_ALL_CODING, RUNTYPE_MISSENSE, RUNTYPE_SYNONYMOUS]),
+    type=click.Choice(RunType),
     default=Config().runtype,
     show_default=True,
     help="Run type: 'all-coding' for coding and splicing variants, 'mis' for missense, 'syn' for synonymous",

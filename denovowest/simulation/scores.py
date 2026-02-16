@@ -4,7 +4,7 @@ import numpy as np
 import pandas as pd
 
 from denovowest.utils.log import set_plain_log, set_regular_log
-from denovowest.utils.params import RUNTYPE_ALL_CODING
+from denovowest.utils.params import RunType
 
 
 def prepare_scores(dnm_df, rates_df, score_column, prep_logs, cfg):
@@ -21,7 +21,7 @@ def prepare_scores(dnm_df, rates_df, score_column, prep_logs, cfg):
     """
 
     # Infer indel scores and mutation rates
-    if cfg.runtype == RUNTYPE_ALL_CODING:
+    if cfg.runtype in [RunType.ALL_CODING, RunType.PROTEIN_ALTERING, RunType.PTV]:
         indel_rates_df = infer_indel_scores_and_rates(rates_df, score_column, cfg)
         dnm_df = assign_dnm_indel_scores(dnm_df, indel_rates_df, rates_df, score_column)
 
@@ -32,7 +32,7 @@ def prepare_scores(dnm_df, rates_df, score_column, prep_logs, cfg):
         prep_logs, dnm_df, rates_df = remove_missing_scores(dnm_df, rates_df, score_column, prep_logs)
 
     # Consolidate the rates df by adding the indel rates
-    if cfg.runtype == RUNTYPE_ALL_CODING:
+    if cfg.runtype in [RunType.ALL_CODING, RunType.PROTEIN_ALTERING, RunType.PTV]:
         rates_df = pd.concat([rates_df, indel_rates_df])
 
     return prep_logs, dnm_df, rates_df

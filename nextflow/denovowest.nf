@@ -106,7 +106,7 @@ workflow{
           System.exit(1)
       }
 
-      params.enrichment.runtype = params.enrichment.runtype ?: 'ns'
+      params.enrichment.runtype = params.enrichment.runtype ?: 'all-coding'
       params.enrichment.nsim = params.enrichment.nsim ?: 10000000
       params.enrichment.impute_missing_scores = params.enrichment.impute_missing_scores ?: false
 

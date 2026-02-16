@@ -1,3 +1,5 @@
+from enum import Enum
+
 #############################
 # SHARED BY SEVERAL MODULES #
 #############################
@@ -89,6 +91,7 @@ CONSEQUENCES_MAPPING = {
     "synonymous_variant": "synonymous",
 }
 
+
 # Default maximum number of expected mutation to test for using the simulation approach
 DEFAULT_MAX_NB_MUTATIONS_SIM = 250
 
@@ -98,7 +101,28 @@ DEFAULT_MIN_NB_SIM = 10**7
 # Threshold to stop/skip simulation when poisson probabilities are extremely low
 STOP_SKIP_SIMULATION_THRESHOLD = 10**-12
 
+
 # Simulation run type
-RUNTYPE_ALL_CODING = "all-coding"
-RUNTYPE_MISSENSE = "mis"
-RUNTYPE_SYNONYMOUS = "syn"
+class RunType(str, Enum):
+    ALL_CODING = "all-coding"
+    MISSENSE = "mis"
+    SYNONYMOUS = "syn"
+    PTV = "ptv"
+    PROTEIN_ALTERING = "protein-altering"
+
+
+class ConsequenceGroups(list, Enum):
+    SYNONYMOUS = ["synonymous"]
+    MISSENSE = ["missense"]
+    PTV = ["stop_gained", "frameshift", "splice_acceptor", "splice_donor"]
+    PROTEIN_ALTERING = [
+        "missense",
+        "inframe_insertion",
+        "inframe_deletion",
+        "stop_gained",
+        "frameshift",
+        "splice_acceptor",
+        "splice_donor",
+        "start_lost",
+        "stop_lost",
+    ]
