@@ -321,7 +321,7 @@ def roulette_per_chrom_files(roulette_dir):
         dict: a dictionnary with chromosome as key and path to roulette vcf file as value
     """
 
-    roulette_per_chrom_files_list = glob.glob(f"{roulette_dir}/*all.vcf.bgz")
+    roulette_per_chrom_files_list = glob.glob(f"{roulette_dir}/*all.vcf*gz")
     roulette_per_chrom_files = dict()
     for f in roulette_per_chrom_files_list:
         chrom = f.split("/")[-1].split("_")[0]
@@ -383,7 +383,15 @@ def calculate_rates_roulette(roulette_dir, gff_db, gene_list, model):
         chrom = gene.chrom.replace("chr", "")
 
         try:
-            roulette_file = pysam.VariantFile(roulette_vcfs[chrom], index_filename=f"{roulette_vcfs[chrom]}.csi")
+            roulette_index = None
+            for ext in [".csi", ".tbi"]:
+                candidate_index = f"{roulette_vcfs[chrom]}{ext}"
+                if os.path.exists(candidate_index):
+                    roulette_index = candidate_index
+                    break
+            if roulette_index is None:
+                raise FileNotFoundError(f"No index file found for {roulette_vcfs[chrom]}")
+            roulette_file = pysam.VariantFile(roulette_vcfs[chrom], index_filename=roulette_index)
         except KeyError as e:
             # Roulette does not provide mutation rates for allosomes
             if chrom in ["X", "Y"]:

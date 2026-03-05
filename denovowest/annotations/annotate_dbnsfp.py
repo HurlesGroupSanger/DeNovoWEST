@@ -312,11 +312,9 @@ def load_rates_file(rates, output):
 
     # Edge case where when splitting the processes we end up with an empty input file
     if rates_df.empty:
-        logger.info("Rates file is empty")
-        rates_df["raw"] = None
-        rates_df["score"] = None
-        rates_df.to_csv(output, sep="\t", index=False)
-        sys.exit(0)
+        logger.warning("Rates file is empty")
+        return rates_df, False
+
 
     # Depending on the gff, chromosome can be defined as "chrN" or just "N"
     if str(rates_df.iloc[0].chrom).startswith("chr"):
@@ -467,7 +465,11 @@ def annotate_dbnsfp(rates_dnm, dbnsfp, output, columns, columns_file, gff):
         list_merged_df.append(merged_gene_df)
 
     # Combine results for all genes
-    merged_df = pd.concat(list_merged_df)
+    if df.empty :
+        # When using Roulette we can end up with an empty input file, in that case we just return the empty data frame
+        merged_df = df
+    else:
+        merged_df = pd.concat(list_merged_df)
 
     # If there is no data in dbNSFP for any gene we fill the columns with NA
     if merged_df.shape[1] == len(rates_df_columns):
