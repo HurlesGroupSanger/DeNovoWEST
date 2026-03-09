@@ -40,3 +40,10 @@ include = ["denovowest*"]
 
 [project.scripts]
 denovowest = "denovowest.cli:main"
+
+[tool.pytest.ini_options]
+markers = [
+    "unit: unit tests for core package internals",
+    "misc: tests for standalone scripts under misc/",
+    "functional: broader workflow and integration tests",
+]

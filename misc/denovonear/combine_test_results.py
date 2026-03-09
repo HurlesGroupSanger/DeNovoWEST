@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 import click
-import pandas as pd
 import numpy as np
+import pandas as pd
 
 
 @click.command()
@@ -35,11 +35,13 @@ def combine_test_results(clustering_linear, clustering_3d, out):
             events_n = row.events_n_linear
             dist = row.dist_linear
             probability = row.probability_linear
+            mode = "linear"
         else:
             symbol = row.gene_symbol_3d
             events_n = row.events_n_3d
             dist = row.dist_3d
             probability = row.probability_3d
+            mode = "3D"
 
         s = pd.Series(
             {
@@ -48,6 +50,7 @@ def combine_test_results(clustering_linear, clustering_3d, out):
                 "events_n": events_n,
                 "dist": dist,
                 "probability": probability,
+                "mode": mode,
             }
         )
         s.name = gene_id
@@ -55,6 +58,10 @@ def combine_test_results(clustering_linear, clustering_3d, out):
 
     res_df = pd.DataFrame(list_series)
     res_df.index.name = "gene_id"
+
+    counts_mode = res_df["mode"].value_counts().to_dict()
+    print(f"Number of genes with 3D clustering results: {counts_mode.get('3D', 0)}")
+    print(f"Number of genes with linear clustering results: {counts_mode.get('linear', 0)}")
 
     res_df.to_csv(out, sep="\t")
 

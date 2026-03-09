@@ -4,15 +4,6 @@ import click
 import pandas as pd
 from scipy.stats import combine_pvalues
 
-# dne_file_all = (
-#     "../input/merged_all_dne_test_ppv_2020_03_09.tab"
-# )
-# dne_file_mis = (
-#     "../input/merged_mis_dne_test_ppv_2020_03_09.tab"
-# )
-# dnn_file = "../input/denovonear_out_missense_31058_ntrios_2019_05_15.txt"
-# out_file = "out.tsv"
-
 
 @click.command()
 @click.argument("dne_file_all", type=click.Path(exists=True))
@@ -54,6 +45,10 @@ def combine_dne_dnn(dne_file_all, dne_file_mis, dnn_file, out_file):
         inplace=True,
     )
 
+    # If the user combined 3D and linear clustering we want to keep track of the mode for each gene
+    if "mode" in dnn.columns:
+        dnn.rename({"mode": "clustering_mode"}, axis=1, inplace=True)
+
     # Merge dataframes
     merged_data = pd.merge(dne_all, dnn, on="gene_id", how="left")
     merged_data = pd.merge(merged_data, dne_mis, on="gene_id", how="outer")
@@ -69,22 +64,24 @@ def combine_dne_dnn(dne_file_all, dne_file_mis, dnn_file, out_file):
     )
 
     # Write to file
-    merged_data = merged_data[
-        [
-            "gene_id",
-            "min_pval",
-            "combined_mis_pval",
-            "enrichment_all_pval",
-            "enrichment_mis_pval",
-            "clustering_pval",
-            "observed_all",
-            "expected_all",
-            "observed_mis",
-            "expected_mis",
-            "nb_mis_variants",
-            "clustering_dist",
-        ]
+    columns_to_keep = [
+        "gene_id",
+        "min_pval",
+        "combined_mis_pval",
+        "enrichment_all_pval",
+        "enrichment_mis_pval",
+        "clustering_pval",
+        "observed_all",
+        "expected_all",
+        "observed_mis",
+        "expected_mis",
+        "nb_mis_variants",
+        "clustering_dist",
     ]
+    if "clustering_mode" in merged_data.columns:
+        columns_to_keep.append("clustering_mode")
+
+    merged_data = merged_data[columns_to_keep]
     merged_data.to_csv(out_file, sep="\t", index=False)
 
 
