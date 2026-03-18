@@ -57,7 +57,8 @@ CONSEQUENCES_SEVERITIES = {
 
 # Per generation mutation rate scaling factors taken from https://github.com/vseplyarskiy/Roulette/tree/main/adding_mutation_rate
 # Divided by 2 because the provided rate are per diploid genomes
-ROULETTE_SCALING_FACTOR = 1.015e-7 / 2
+ROULETTE_SCALING_FACTOR = 1.015e-7 / 2  # This is the scaling factor recommended on Roulette's github repo
+#ROULETTE_SCALING_FACTOR = 5.418997e-06 / 2 # This reflects the number of patients in our cohort ~1/185000 applied to the scaled roulette rates based on synonymous background
 CARLSON_SCALING_FACTOR = 2.086e-9 / 2
 
 

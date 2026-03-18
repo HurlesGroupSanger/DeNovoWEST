@@ -376,6 +376,13 @@ workflow{
       // Merge results
       rates_merged_ch = MERGE_RATES(rates_annotated_ch.map { tuple -> tuple[0] }.collect())
 
+      // Remove excluded regions
+      if (params.containsKey("excluded_regions")) {
+            excluded_regions_ch = Channel.fromPath(params.excluded_regions)
+            rates_merged_ch = FILTER_RATES_REGION(rates_merged_ch[0], rates_merged_ch[1], excluded_regions_ch, file(params.genome_fasta))[0]
+            rates_merged_ch = rates_merged_ch.first().map { it[0] }
+      }
+
       // Create rates stats
       // rates_stats_ch = RATES_STATS(rates_annotated_ch)
       // rates_stats_merged_ch = MERGE_RATES_STATS(rates_stats_ch.collect())
