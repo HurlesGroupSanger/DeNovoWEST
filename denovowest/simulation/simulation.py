@@ -10,7 +10,7 @@ from dataclasses import asdict
 import click
 import numpy as np
 import pandas as pd
-from config import Config
+from denovowest.simulation.config import Config
 
 from denovowest.simulation.probabilities import get_pvalue
 from denovowest.simulation.scores import prepare_scores
