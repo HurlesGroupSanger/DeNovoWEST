@@ -53,6 +53,8 @@ params {
 
     debug = false
 
+    cpus = 1
+
   }
 }
 
