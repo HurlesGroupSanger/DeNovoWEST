@@ -13,9 +13,12 @@ nextflow_process {
                 rates = "$baseDir/nf_tests/test_data/simulation/CADD/input/OR4F5_rates_annotated.tsv.gz"
                 id = "OR4F5"
                 score="score"
-                runtype = "ns"
+                runtype = "all-coding"
                 nsim = 10000000
                 impute_missing_scores = true
+                debug = ""
+                cpus = 1
+                enrichment = [cpus: 1]
 
                 nmales = 17422
                 nfemales = 13636
@@ -29,6 +32,8 @@ nextflow_process {
                 input[4] = params.runtype
                 input[5] = params.nsim
                 input[6] = params.impute_missing_scores
+                input[7] = params.debug
+                input[8] = params.cpus
                 """
             }
         }

@@ -3,10 +3,10 @@
         "content": [
             {
                 "0": [
-                    "dnm_kept.tsv:md5,aa09d3b0cbbcdbc148887caa6222ce9b"
+                    "dnms_kept_after_gene_filtering.tsv:md5,5a63331984b1658f73428fcc110182e3"
                 ],
                 "1": [
-                    "dnm_discarded.tsv:md5,cb3264d7c6216a8c2333f403b47c9952"
+                    "dnms_discarded_after_gene_filtering.tsv:md5,8d86ac075a96379170b2634ad802b69d"
                 ]
             }
         ],
