@@ -1,5 +1,13 @@
 #!/usr/bin/env python
-# python enrichment.py ../../input/test/new_format/dnm_min.tsv ../../input/test/new_format/all_rates_min.tsv ../../input/weights_ppv_2020_01_17.tab --nmales 10000 --nfemales 10000
+"""Core preparation and CLI entrypoint for the DeNovoWEST enrichment test.
+
+This module is responsible for loading observed DNMs and expected mutation-rate
+inputs, harmonising their consequences and score columns, and then dispatching
+the gene-level simulation implemented in ``denovowest.simulation.probabilities``.
+
+The functions in this file are intentionally split into small preparation steps
+so they can be tested independently from the full CLI command.
+"""
 import json
 import logging
 import math
@@ -19,15 +27,17 @@ from denovowest.utils.params import CONSEQUENCES_MAPPING, CONSEQUENCES_SEVERITIE
 
 
 def load_dnm_rates(dnm, rates, column, gene_list):
-    """
-    Load DNM and rates files and limit the analysis to genes shared by both files.
-    When parallelising DNW on HPC, the rates file is split per gene.
+    """Load the observed and expected inputs used by the simulation.
+
+    The simulation only operates on genes present in both the observed DNM file
+    and the rates file. If ``gene_list`` is provided, both tables are filtered
+    before the overlap is calculated.
 
     Args:
-        dnm (str): path to observed DNM
-        rates (str): path to rates file
-        column (str): column that stores variant scores
-        gene_list (str) : list of genes to consider
+        dnm (str): Path to the observed DNM table.
+        rates (str): Path to the rates table.
+        column (str): Name of the score column expected in both files.
+        gene_list (str): Optional newline-delimited gene list used to restrict the analysis.
     """
 
     logger = logging.getLogger("logger")
@@ -112,13 +122,16 @@ def prepare_dnm(dnm_df: pd.DataFrame, cfg: Config):
 
 
 def filter_on_consequences(df: pd.DataFrame, mode: str, cfg: Config):
-    """
-    Filter all variants with a consequence not found in CONSEQUENCES_MAPPING
+    """Restrict a variant table to the consequences relevant for the run type.
+
+    The input consequence column may contain multiple bcftools consequence terms
+    joined by ``&``. In that case the worst consequence is selected before the
+    run-type-specific filter is applied.
 
     Args:
-        df (pd.DataFrame): variant table (rates or dnm) having a consequence column
-        mode(str) : dnm or rates
-        cfg (Config): configuration object that stores script parameters
+        df (pd.DataFrame): Variant table containing a ``consequence`` column.
+        mode (str): Either ``dnm`` or ``rates``; used only for logging and DNM bookkeeping.
+        cfg (Config): Simulation configuration, including the selected ``RunType``.
     """
 
     logger = logging.getLogger("logger")

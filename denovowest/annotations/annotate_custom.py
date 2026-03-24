@@ -1,4 +1,11 @@
 #!/usr/bin/env python
+"""Annotate a variant table from a generic tabix-indexed annotation source.
+
+This command is the most flexible annotation entrypoint in the package. It
+retrieves one or more user-selected columns from a tabix-indexed TSV-like file
+and merges them back onto a variant table using chromosome, position, reference,
+and alternate allele.
+"""
 import pandas as pd
 import click
 import pysam
@@ -57,14 +64,17 @@ def load_variants_file(variants):
 
 
 def annotate(variants_df, annotation_df, columns_indices, columns_names):
-    """
-    Annotate variants file with the selected columns from the annotation file.
+    """Annotate a variant table with columns extracted from a custom resource.
+
+    The annotation source is expected to be tabix-indexed and to use the first
+    four columns as ``chrom``, ``pos``, ``ref``, and ``alt``. Matching is done on
+    those four fields after chromosome-prefix harmonisation.
 
     Args:
-        variants_df (pd.DataFrame): variants
-        annotation_df (pd.DataFrame): annotations
-        columns_indices (list):  index of annotations to extract
-        columns_names (list):  names of annotations to extract
+        variants_df (pd.DataFrame): Input variants to annotate.
+        annotation_df (pysam.TabixFile): Indexed annotation resource.
+        columns_indices (list): Zero-based column indices to extract from the resource.
+        columns_names (list): Output names for the extracted columns.
     """
 
     list_annotated_df = list()
@@ -112,15 +122,18 @@ def annotate_gene(gene_id, gene_df, annotation_df, columns):
 
 
 def retrieve_annotation(gene_df, annotation_df, columns, gene_id):
-    """
-    Retrieve annoations for the current gene
+    """Retrieve annotations overlapping the genomic span of one gene.
+
+    The function queries the tabix-indexed annotation in contiguous genomic
+    blocks built from the observed variant positions, concatenates the matching
+    records, normalises chromosome prefixes when needed, and removes duplicate
+    variant records before merging back onto the input table.
 
     Args:
-        gene_df (pd.DataFrame): _description_
-        annotation_df (pd.DataFrame): _description_
-        columns (list):  indices of annotation to retrieve
-        gene_id (str) : gene identifier
-
+        gene_df (pd.DataFrame): Input variants for one gene.
+        annotation_df (pysam.TabixFile): Indexed annotation resource.
+        columns (list): Column indices to extract from the annotation resource.
+        gene_id (str): Gene identifier used for logging only.
     """
 
     logger = logging.getLogger("logger")

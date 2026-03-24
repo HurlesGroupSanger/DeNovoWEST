@@ -1,4 +1,11 @@
 #!/usr/bin/env python
+"""Annotate a variant table from a VCF resource.
+
+The VCF annotation command is designed for resources whose annotations are stored
+in INFO fields rather than in a TSV-style lookup table. Records are matched by
+coordinate and allele, with optional filtering by gene identifier or symbol when
+that information is available both in the VCF and in the input data.
+"""
 import click
 import pysam
 import pandas as pd
@@ -49,14 +56,18 @@ def load_variants_file(variants):
 
 
 def annotate(variants_df, annotation_vcf, columns, match_gene, gene_mapping):
-    """
-    Annotate the variants file with the informations from VCF
+    """Annotate a variant table with selected INFO fields from a VCF.
+
+    The input table is processed gene by gene to limit the size of each genomic
+    query. After retrieval, only the requested INFO fields are appended to the
+    existing variant columns.
 
     Args:
-        variants_df (pd.DataFrame): variants file
-        annotation_vcf (VariantFile): VCF file containing the annotations
-        columns (list): info fields to retrieve from the VCF
-
+        variants_df (pd.DataFrame): Input variant table.
+        annotation_vcf (pysam.VariantFile): Indexed VCF resource.
+        columns (list): INFO field names to copy from the VCF.
+        match_gene (bool): Whether to filter coordinate matches by gene identity.
+        gene_mapping (dict): Mapping from input gene identifiers to symbols when needed.
     """
 
     logger = logging.getLogger("logger")
@@ -116,13 +127,19 @@ def annotate_gene(gene_id, gene_df, annotation_vcf, match_gene, gene_mapping, co
 
 
 def retrieve_annotation(gene_id, gene_df, annotation_vcf, match_gene, gene_mapping):
-    """
-    Retrieve annotation from the VCF file
+    """Retrieve all VCF records overlapping the current gene window.
+
+    The variant positions in ``gene_df`` are collapsed into contiguous genomic
+    blocks to reduce the number of random VCF queries. Retrieved records are then
+    normalised and filtered by ``format_gene_annotation`` before being merged back
+    onto the input variants.
 
     Args:
-        gene_df (pd.DataFrame): variant file subsetted to a given gene
-        annotation_vcf (VariantFile): VCF file containing the annotations
-
+        gene_id (str): Gene identifier used when gene-aware filtering is enabled.
+        gene_df (pd.DataFrame): Input variants for the current gene.
+        annotation_vcf (pysam.VariantFile): Indexed VCF resource.
+        match_gene (bool): Whether to filter coordinate matches by gene identity.
+        gene_mapping (dict): Mapping from input gene identifiers to symbols when needed.
     """
 
     gene_chrom = str(gene_df.chrom.values[0]).replace("chr", "")
