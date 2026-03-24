@@ -48,7 +48,7 @@ process CADD {
     script:
     """
     # Annotate CADD
-    annotate_cadd.py  $rates_or_dnm $cadd_file ${type}_cadd.tsv
+    denovowest annotate-cadd $rates_or_dnm $cadd_file ${type}_cadd.tsv
     """
 }
 
@@ -125,11 +125,11 @@ process DBNSFP {
     # Annotate dbnsfp
 
     if [ -n "$dbnsfp_columns_file" ]; then
-        annotate_dbnsfp.py $rates_or_dnm $dbnsfp ${type}_dbnsfp.tsv  -C $dbnsfp_columns_file --gff $gffutils_db 
+        denovowest annotate-dbnsfp $rates_or_dnm $dbnsfp ${type}_dbnsfp.tsv -C $dbnsfp_columns_file --gff $gffutils_db 
     elif [ -n "$dbnsfp_columns_to_extract" ]; then
-        annotate_dbnsfp.py $rates_or_dnm $dbnsfp ${type}_dbnsfp.tsv  -c $dbnsfp_columns_to_extract --gff $gffutils_db 
+        denovowest annotate-dbnsfp $rates_or_dnm $dbnsfp ${type}_dbnsfp.tsv -c $dbnsfp_columns_to_extract --gff $gffutils_db 
     else
-        annotate_dbnsfp.py $rates_or_dnm $dbnsfp ${type}_dbnsfp.tsv --gff $gffutils_db 
+        denovowest annotate-dbnsfp $rates_or_dnm $dbnsfp ${type}_dbnsfp.tsv --gff $gffutils_db 
     fi
     """
 }
@@ -153,11 +153,11 @@ process CUSTOM {
     """
     # Annotate from custom file
     if [ -n "$columns_file" ]; then
-        annotate_custom.py $rates_or_dnm $custom_file ${type}_custom.tsv -C $columns_file
+        denovowest annotate-custom $rates_or_dnm $custom_file ${type}_custom.tsv -C $columns_file
     elif [ -n "$columns_to_extract" ]; then
-        annotate_custom.py $rates_or_dnm $custom_file ${type}_custom.tsv -c $columns_to_extract
+        denovowest annotate-custom $rates_or_dnm $custom_file ${type}_custom.tsv -c $columns_to_extract
     else
-        annotate_custom.py $rates_or_dnm $custom_file ${type}_custom.tsv
+        denovowest annotate-custom $rates_or_dnm $custom_file ${type}_custom.tsv
     fi
     """
 }
@@ -181,11 +181,11 @@ process VCF {
 
     # Annotate from VCF file
     if [ -n "$columns_file" ]; then
-        annotate_vcf.py $rates_or_dnm $vcf ${type}_vcf.tsv -C $columns_file --gff $gffutils_db
+        denovowest annotate-vcf $rates_or_dnm $vcf ${type}_vcf.tsv -C $columns_file --gff $gffutils_db
     elif [ -n "$columns_to_extract" ]; then
-        annotate_vcf.py $rates_or_dnm $vcf ${type}_vcf.tsv -c $columns_to_extract --gff $gffutils_db
+        denovowest annotate-vcf $rates_or_dnm $vcf ${type}_vcf.tsv -c $columns_to_extract --gff $gffutils_db
     else
-        annotate_vcf.py $rates_or_dnm $vcf ${type}_vcf.tsv --gff $gffutils_db
+        denovowest annotate-vcf $rates_or_dnm $vcf ${type}_vcf.tsv --gff $gffutils_db
     fi
     """
 }

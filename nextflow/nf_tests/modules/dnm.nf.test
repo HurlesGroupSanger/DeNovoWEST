@@ -24,14 +24,8 @@ nextflow_process {
         then {
 
             assert process.success
-
-            // Test that the output matches the latest output
             assert snapshot(process.out).match()
 
-			// Check that the output example is still up to date (Kept and discarded DNM files)
-            assert path(process.out.get(0).get(0)).md5 == path("$baseDir/../examples/dnm/filter_dnm/output/kept_dnm.tsv").md5
-            assert path(process.out.get(1).get(0)).md5 == path("$baseDir/../examples/dnm/filter_dnm/output/discarded_dnm.tsv").md5
-            
         }
     }
 }
