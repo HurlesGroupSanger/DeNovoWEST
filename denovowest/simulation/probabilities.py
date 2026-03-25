@@ -3,7 +3,7 @@ import numpy as np
 from joblib import Parallel, delayed
 from scipy import stats
 
-from denovowest.utils.params import DEFAULT_MAX_NB_MUTATIONS_SIM, DEFAULT_MIN_NB_SIM, STOP_SKIP_SIMULATION_THRESHOLD
+from denovowest.utils.params import DEFAULT_MAX_NB_MUTATIONS_SIM, STOP_SKIP_SIMULATION_THRESHOLD
 
 
 def calc_p0(mu, obs_sum_scores):
@@ -68,7 +68,7 @@ def calc_pn(mu, obs_sum_scores, rates, nb_mutation_poisson, scores_sorted, score
 
     # Scaling the number of simulations to be performed based on the probability of observing nb_mutation_poisson DNMs
     # TODO : see if there is a room for improvement here too
-    nsim = max([int(round(cfg.nsim * pndnm)), DEFAULT_MIN_NB_SIM])
+    nsim = cfg.nsim
 
     s = np.nan
 
@@ -345,8 +345,7 @@ def estimate_pval_extremely_enriched_gene(nb_mutation_poisson, obs_sum_scores, s
         # Otherwise we just take an upper bound on
         # the number of exceedance in the simulation round for k-1.
         # This is done to avoid running unneeded simulations
-        nsim = max([int(round(cfg.nsim * pndnm)), DEFAULT_MIN_NB_SIM])
-        psim = 1 / (nsim + 1)
+        psim = 1 / (cfg.nsim + 1)
 
         ptot = pndnm * psim
 
