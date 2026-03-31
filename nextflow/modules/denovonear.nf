@@ -59,6 +59,21 @@ process PREPARE_DNM_DENOVONEAR {
     """
 }
 
+process MERGE_DENOVONEAR_PREPARED{
+    
+    input :
+    path(dnm_prepared)
+
+    output :
+    path "merged_dnn_denovonear_prepared.tsv"
+
+    script :
+    """
+    # Concatenates the tsv files and keep only the first header
+    awk 'FNR==1 && NR!=1{next;}{print}' $dnm_prepared > merged_dnn_denovonear_prepared.tsv
+    """
+}
+
 
 
 
@@ -82,6 +97,24 @@ process DENOVONEAR_LINEAR {
     """
 }
 
+process BUILD_ENSEMBL_CACHE {
+
+    label "process_long"
+
+    input :
+    path(dnm)
+    path gtf
+    path fasta
+
+    output :
+    path "ensembl_cache_gene_uniprot_ids.txt"
+
+    script :
+    """
+    dnn_3d_create_cache.py $dnm $gtf $fasta grch38
+    """
+}
+
 process DENOVONEAR_3D {
 
     label "process_long"
@@ -94,6 +127,7 @@ process DENOVONEAR_3D {
 	path gtf
     path fasta
 	path protein_structures
+    path uniprot_ids_ensembl_cache
 
     output :
     path "${id}_3d_clustering_results.tsv", emit :results

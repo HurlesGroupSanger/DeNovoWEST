@@ -39,7 +39,7 @@ include { VCF as VCF_3; VCF as DNM_VCF_3 } from './modules/annotation.nf'
 include { SIMULATION; SIMULATION as SIMULATION_NS; SIMULATION as SIMULATION_MIS } from './modules/simulation.nf'
 include { MERGE_SIMULATION; MERGE_SIMULATION as MERGE_SIMULATION_NS; MERGE_SIMULATION as MERGE_SIMULATION_MIS } from './modules/simulation.nf'
 
-include { DENOVONEAR_LINEAR; DENOVONEAR_3D; PREPARE_DNM_DENOVONEAR; SPLIT_DNM; SPLIT_GENE_LIST_CLUSTERING;
+include { DENOVONEAR_LINEAR; DENOVONEAR_3D; PREPARE_DNM_DENOVONEAR; MERGE_DENOVONEAR_PREPARED; BUILD_ENSEMBL_CACHE; SPLIT_DNM; SPLIT_GENE_LIST_CLUSTERING;
  MERGE_CLUSTERING; MERGE_CLUSTERING as MERGE_CLUSTERING_LINEAR; MERGE_CLUSTERING as MERGE_CLUSTERING_3D; COMBINE_CLUSTERING; COMBINE_DNE_DNN;
  ADD_GENE_ID; ADD_GENE_ID as ADD_GENE_ID_3D; ADD_GENE_ID as ADD_GENE_ID_LINEAR} from './modules/denovonear.nf'
 
@@ -622,7 +622,10 @@ workflow{
         MERGE_CLUSTERING_LINEAR(DENOVONEAR_LINEAR.out.results.collect(), "linear")
         ADD_GENE_ID_LINEAR(MERGE_CLUSTERING_LINEAR.out,  gffutils_db_ch.first(), "linear")
 
-        DENOVONEAR_3D(dnm_dnn_ch, file(params.gff), file(params.genome_fasta), file(params.clustering.protein_structures))
+
+        merged_prepared_dnn_ch = MERGE_DENOVONEAR_PREPARED(dnm_dnn_ch.map { dnm, id -> dnm }.collect())
+        ensembl_cache_ch = BUILD_ENSEMBL_CACHE(merged_prepared_dnn_ch, file(params.gff), file(params.genome_fasta))
+        DENOVONEAR_3D(dnm_dnn_ch, file(params.gff), file(params.genome_fasta), file(params.clustering.protein_structures), ensembl_cache_ch)
         MERGE_CLUSTERING_3D(DENOVONEAR_3D.out.results.collect(), "3D")
         ADD_GENE_ID_3D(MERGE_CLUSTERING_3D.out,  gffutils_db_ch.first(), "3D")
 
@@ -654,7 +657,10 @@ workflow{
 
       if(params.clustering.runtype == "3D") {
 
-        DENOVONEAR_3D(dnm_dnn_ch, file(params.gff), file(params.genome_fasta),  file(params.clustering.protein_structures))
+        merged_prepared_dnn_ch = MERGE_DENOVONEAR_PREPARED(dnm_dnn_ch.map { dnm, id -> dnm }.collect())
+        ensembl_cache_ch = BUILD_ENSEMBL_CACHE(merged_prepared_dnn_ch, file(params.gff), file(params.genome_fasta))
+        
+        DENOVONEAR_3D(dnm_dnn_ch, file(params.gff), file(params.genome_fasta),  file(params.clustering.protein_structures), ensembl_cache_ch)
         MERGE_CLUSTERING_3D(DENOVONEAR_3D.out.results.collect(), "3D")
         ADD_GENE_ID_3D(MERGE_CLUSTERING_3D.out,  gffutils_db_ch.first(), "3D")
 
