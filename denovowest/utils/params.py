@@ -57,8 +57,11 @@ CONSEQUENCES_SEVERITIES = {
 
 # Per generation mutation rate scaling factors taken from https://github.com/vseplyarskiy/Roulette/tree/main/adding_mutation_rate
 # Divided by 2 because the provided rate are per diploid genomes
-ROULETTE_SCALING_FACTOR = 1.015e-7 / 2  # This is the scaling factor recommended on Roulette's github repo
-#ROULETTE_SCALING_FACTOR = 5.418997e-06 / 2 # This reflects the number of patients in our cohort ~1/185000 applied to the scaled roulette rates based on synonymous background
+# TODO : Because roulette scaling factor is cohort dependent, we should provide it as a parameter rather than hardcoded value
+# ROULETTE_SCALING_FACTOR = 1.015e-7 / 2  # This is the scaling factor recommended on Roulette's github repo
+ROULETTE_SCALING_FACTOR = (
+    5.418997e-06 / 2
+)  # This reflects the number of patients in our cohort ~1/185000 applied to the scaled roulette rates based on synonymous background
 CARLSON_SCALING_FACTOR = 2.086e-9 / 2
 
 
@@ -127,3 +130,9 @@ class ConsequenceGroups(list, Enum):
         "start_lost",
         "stop_lost",
     ]
+
+
+# Some indels are located in canonical splice site or splice region
+# We estimate their mutation rate based on the indel/snv ratio observed in the 180k cohort
+RATIO_SPLICE_SITE_INDEL_SNV = 0.16
+RATIO_SPLICE_REGION_INDEL_SNV = 0.1

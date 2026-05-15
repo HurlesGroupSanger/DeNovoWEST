@@ -4,7 +4,7 @@ import numpy as np
 import pandas as pd
 
 from denovowest.utils.log import set_plain_log, set_regular_log
-from denovowest.utils.params import RunType
+from denovowest.utils.params import RATIO_SPLICE_REGION_INDEL_SNV, RATIO_SPLICE_SITE_INDEL_SNV, RunType
 
 
 def prepare_scores(dnm_df, rates_df, score_column, prep_logs, cfg):
@@ -56,18 +56,12 @@ def infer_indel_scores_and_rates(rates_df, score_column, cfg):
     indel_rates_list = list()
     for gene_id, gene_df in rates_df.groupby("gene_id"):
 
+        ##### INFRAME #####
+
         # Get the inframe mutation rate based on the cumulative missense mutation rates, and assign a score from gene-based median missense score
         gene_inframe_rate = gene_df.loc[gene_df.consequence == "missense", "prob"].sum() * cfg.inframe_missense_ratio
         gene_inframe_scores = gene_df.loc[gene_df.consequence == "missense", score_column].quantile(
             cfg.inframe_score_quantile
-        )
-
-        # Get the frameshift mutation rate based on the cumulative nonsense mutation rates, and assign a score from gene-based median nonsense score
-        gene_frameshift_rate = (
-            gene_df.loc[gene_df.consequence == "nonsense", "prob"].sum() * cfg.frameshift_nonsense_ratio
-        )
-        gene_frameshift_scores = gene_df.loc[gene_df.consequence == "nonsense", score_column].quantile(
-            cfg.frameshift_score_quantile
         )
 
         inframe_row = {
@@ -77,6 +71,18 @@ def infer_indel_scores_and_rates(rates_df, score_column, cfg):
             score_column: gene_inframe_scores,
         }
 
+        indel_rates_list.append(inframe_row)
+
+        ##### FRAMESHIFT #####
+
+        # Get the frameshift mutation rate based on the cumulative nonsense mutation rates, and assign a score from gene-based median nonsense score
+        gene_frameshift_rate = (
+            gene_df.loc[gene_df.consequence == "nonsense", "prob"].sum() * cfg.frameshift_nonsense_ratio
+        )
+        gene_frameshift_scores = gene_df.loc[gene_df.consequence == "nonsense", score_column].quantile(
+            cfg.frameshift_score_quantile
+        )
+
         frameshift_row = {
             "gene_id": gene_id,
             "consequence": "frameshift",
@@ -84,8 +90,48 @@ def infer_indel_scores_and_rates(rates_df, score_column, cfg):
             score_column: gene_frameshift_scores,
         }
 
-        indel_rates_list.append(inframe_row)
         indel_rates_list.append(frameshift_row)
+
+        ##### SPLICE_LOF #####
+
+        # Get the indel splice_lof mutation rate based on the cumulative SNV splice_lof rates, and assign a ascore from gene-based median splice_lof score
+        gene_splicesite_indel_rate = (
+            gene_df.loc[gene_df.consequence == "splice_lof", "prob"].sum() * RATIO_SPLICE_SITE_INDEL_SNV
+        )
+        gene_splicesite_indel_scores = gene_df.loc[gene_df.consequence == "splice_lof", score_column].median()
+
+        # Some genes have a single exon, introducing NaN lead to calculation errors later
+        if gene_splicesite_indel_rate != 0:
+
+            splice_lof_row = {
+                "gene_id": gene_id,
+                "consequence": "splice_lof",
+                "prob": gene_splicesite_indel_rate,
+                score_column: gene_splicesite_indel_scores,
+            }
+
+            indel_rates_list.append(splice_lof_row)
+
+        ##### SPLICE_REGION #####
+
+        # Get the indel splice_region mutation rate based on the cumulative SNV splice_region rates, and assign a ascore from gene-based median splice_region score
+        if cfg.runtype == RunType.ALL_CODING:
+            gene_spliceregion_indel_rate = (
+                gene_df.loc[gene_df.consequence == "splice_region", "prob"].sum() * RATIO_SPLICE_REGION_INDEL_SNV
+            )
+            gene_spliceregion_indel_scores = gene_df.loc[gene_df.consequence == "splice_region", score_column].median()
+
+            # Some genes have a single exon, introducing NaN lead to calculation errors later
+            if gene_spliceregion_indel_rate != 0:
+
+                splice_region_row = {
+                    "gene_id": gene_id,
+                    "consequence": "splice_region",
+                    "prob": gene_spliceregion_indel_rate,
+                    score_column: gene_spliceregion_indel_scores,
+                }
+
+                indel_rates_list.append(splice_region_row)
 
     indel_rates_df = pd.DataFrame(indel_rates_list)
 
@@ -116,7 +162,7 @@ def assign_dnm_indel_scores(dnm_df, indel_rates_df, rates_df, score_column):
             continue
 
         # If the DNM is an inframe or frameshift we get the corresponding score in the gene
-        if dnm.consequence in ["inframe", "frameshift"]:
+        if dnm.consequence in ["inframe", "frameshift", "splice_lof", "splice_region"]:
 
             list_scores.append(
                 indel_rates_df.loc[
@@ -125,14 +171,13 @@ def assign_dnm_indel_scores(dnm_df, indel_rates_df, rates_df, score_column):
                 ].iloc[0]
             )
 
-        # TODO If the DNM is an indel but not inframe or frameshift we could get the median score for that consequence in the gene (e.g. splice_region)
-        # However we are not taking into account indels other than inframe and frameshift for now
+        # A handful of indels in CDS will be annotated as a category for which we do not directly compute an indel mutation rate (e.g. stop_gained, start_gained)
+        # In these rare cases we retrieve the median score for this category in the gene.
         else:
 
-            list_scores.append(np.nan)
-            # generates_df = rates_df.loc[rates_df.gene_id == dnm.gene_id]
-            # score = generates_df.loc[generates_df.consequence == dnm.consequence, score_column].median()
-            # list_scores.append(score)
+            mask = (rates_df.gene_id == dnm.gene_id) & (rates_df.consequence == dnm.consequence)
+            score = rates_df.loc[mask, score_column].median()
+            list_scores.append(score)
 
     dnm_df.loc[:, score_column] = list_scores
     return dnm_df
