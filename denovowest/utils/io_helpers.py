@@ -5,10 +5,10 @@ patterns so command modules can share consistent handling of configuration files
 annotation column lists, and GFF databases.
 """
 
-import os
-import gffutils
 import logging
-import yaml
+from pathlib import Path
+
+import gffutils
 
 
 def read_columns_from_file(columns_file):
@@ -24,7 +24,7 @@ def read_columns_from_file(columns_file):
     return columns
 
 
-def load_gff(gff_file, gff_db_out=""):
+def load_gff(gff_file: Path, gff_db_out: Path = None):
     """Create or load a ``gffutils`` database.
 
     The helper accepts either an existing ``.db`` file or a source GFF file. For
@@ -32,68 +32,32 @@ def load_gff(gff_file, gff_db_out=""):
     output path, replacing any existing file at that location.
 
     Args:
-        gff_file (str): Path to a GFF file or an existing ``gffutils`` database.
-        gff_db_out (str): Optional output path for the created database when ``gff_file`` is a GFF.
+        gff_file (Path): Path to a GFF file or an existing ``gffutils`` database.
+        gff_db_out (Path): Optional output path for the created database when ``gff_file`` is a GFF.
 
     Returns:
         gffutils.FeatureDB: Loaded or newly created database.
     """
 
     logger = logging.getLogger("logger")
+    gff_file = Path(gff_file)
 
     # gffutils db input
-    if gff_file.endswith(".db"):
+    if gff_file.suffix == ".db":
         logger.info(f"Loading gffutils database {gff_file}")
         gff_db = gffutils.FeatureDB(gff_file)
     # GFF input
     else:
-        if gff_db_out:
-            gff_db_path = gff_db_out
-        else:
-            gff_db_path = gff_file + ".db"
+        gff_db_path = Path(gff_db_out) if gff_db_out else gff_file.with_suffix(".db")
         logger.info(f"Creating GFF db {gff_db_path}")
 
         try:
-            os.remove(gff_db_path)
+            gff_db_path.unlink()
             logger.info(f"Removed old gffutils database : {gff_db_path}")
         except OSError:
             pass
 
         logger.info(f"Creating gffutils database : {gff_db_path}")
-        gff_db = gffutils.create_db(gff_file, gff_db_path, merge_strategy="create_unique")
+        gff_db = gffutils.create_db(str(gff_file), str(gff_db_path), merge_strategy="create_unique")
 
     return gff_db
-
-
-def load_conf(filename):
-    """Load a YAML configuration file into a Python dictionary.
-
-    Args:
-        filename (str): Path to a YAML configuration file.
-
-    Returns:
-        dict: Parsed configuration dictionary.
-    """
-
-    with open(filename) as file:
-        conf = yaml.load(file, Loader=yaml.FullLoader)
-
-    return conf
-
-
-def superseed_conf(conf, command_params):
-    """Override config-file values with non-empty command-line parameters.
-
-    Args:
-        conf (dict): Configuration loaded from a file.
-        command_params (dict): Parsed command-line parameters.
-
-    Returns:
-        dict: Updated configuration dictionary with CLI values taking precedence.
-    """
-
-    for key, value in command_params.items():
-        if value and key != "config":
-            conf[key.upper()] = value
-
-    return conf

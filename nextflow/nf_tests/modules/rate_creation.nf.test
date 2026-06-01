@@ -1,0 +1,126 @@
+nextflow_process {
+
+    name "RATE_CREATION process"
+    script "modules/rates.nf"
+    process "RATE_CREATION"
+
+    /////////////////////////////////////////////////////////////
+    // kmer model                                               //
+    /////////////////////////////////////////////////////////////
+
+    test("kmer model – produces a non-empty mutation rates file for OR4F5") {
+
+        when {
+            process {
+                """
+                input[0] = file("$baseDir/../examples/rates/create_rates_kmer/input/gene_list.tsv")
+                input[1] = file("$baseDir/../examples/rates/create_rates_kmer/input/OR4F5.gff")
+                input[2] = file("$baseDir/../examples/rates/create_rates_kmer/input/OR4F5.fa")
+                input[3] = file("$baseDir/../resources/rates_model_dnn.tsv")
+                input[4] = "kmer"
+                input[5] = ""
+                """
+            }
+        }
+
+        then {
+            assert process.success
+            assert process.trace.tasks().size() == 1
+
+            with(process.out) {
+                def lines = path(get(0)[0][0]).readLines()
+                assert lines[0] == "gene_id\tchrom\tpos\tref\talt\tprob"
+                assert lines.size() > 1000
+                assert lines.tail().every { it.startsWith("ENSG00000186092.7\tchr1\t") }
+            }
+
+            assert snapshot(process.out).match()
+        }
+    }
+
+    test("kmer model – output matches the Python reference output") {
+
+        when {
+            process {
+                """
+                input[0] = file("$baseDir/../examples/rates/create_rates_kmer/input/gene_list.tsv")
+                input[1] = file("$baseDir/../examples/rates/create_rates_kmer/input/OR4F5.gff")
+                input[2] = file("$baseDir/../examples/rates/create_rates_kmer/input/OR4F5.fa")
+                input[3] = file("$baseDir/../resources/rates_model_dnn.tsv")
+                input[4] = "kmer"
+                input[5] = ""
+                """
+            }
+        }
+
+        then {
+            assert process.success
+
+            // Capture baseDir before entering the with() closure to avoid scoping loss
+            def ref = path("$baseDir/../examples/rates/create_rates_kmer/output/mutation_rates.tsv")
+            with(process.out) {
+                assert path(get(0)[0][0]).md5 == ref.md5
+            }
+        }
+    }
+
+    /////////////////////////////////////////////////////////////
+    // roulette model                                           //
+    /////////////////////////////////////////////////////////////
+
+    test("roulette model – produces a non-empty mutation rates file for OR4F5") {
+
+        when {
+            process {
+                """
+                input[0] = file("$baseDir/../examples/rates/create_rates_kmer/input/gene_list.tsv")
+                input[1] = file("$baseDir/../examples/rates/create_rates_kmer/input/OR4F5.gff")
+                input[2] = file("$baseDir/../examples/rates/create_rates_kmer/input/OR4F5.fa")
+                input[3] = file("$baseDir/../examples/rates/create_rates_roulette/input/roulette_OR4F5")
+                input[4] = "roulette"
+                input[5] = "5.075e-08"
+                """
+            }
+        }
+
+        then {
+            assert process.success
+            assert process.trace.tasks().size() == 1
+
+            with(process.out) {
+                def lines = path(get(0)[0][0]).readLines()
+                assert lines[0] == "gene_id\tchrom\tpos\tref\talt\tprob"
+                assert lines.size() > 1000
+                assert lines.tail().every { it.startsWith("ENSG00000186092.7\tchr1\t") }
+            }
+
+            assert snapshot(process.out).match()
+        }
+    }
+
+    test("roulette model – output matches the Python reference output") {
+
+        when {
+            process {
+                """
+                input[0] = file("$baseDir/../examples/rates/create_rates_kmer/input/gene_list.tsv")
+                input[1] = file("$baseDir/../examples/rates/create_rates_kmer/input/OR4F5.gff")
+                input[2] = file("$baseDir/../examples/rates/create_rates_kmer/input/OR4F5.fa")
+                input[3] = file("$baseDir/../examples/rates/create_rates_roulette/input/roulette_OR4F5")
+                input[4] = "roulette"
+                input[5] = "5.075e-08"
+                """
+            }
+        }
+
+        then {
+            assert process.success
+
+            def ref = path("$baseDir/../examples/rates/create_rates_roulette/output/mutation_rates.tsv")
+            with(process.out) {
+                assert path(get(0)[0][0]).md5 == ref.md5
+            }
+        }
+    }
+
+}

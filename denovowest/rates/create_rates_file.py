@@ -1,9 +1,7 @@
 #!/usr/bin/env python
 
-import glob
 import logging
-import os
-import sys
+from pathlib import Path
 
 import click
 import gffutils
@@ -11,172 +9,126 @@ import pandas as pd
 import pyfaidx
 import pysam
 
-from denovowest.utils.io_helpers import load_conf, superseed_conf
+from denovowest.utils.io_helpers import load_gff
 from denovowest.utils.log import init_log
-from denovowest.utils.params import CARLSON_SCALING_FACTOR, CDS_OFFSET, ROULETTE_SCALING_FACTOR
+from denovowest.utils.params import CDS_OFFSET
+
+#############################
+# Data loading              #
+#############################
 
 
-def load_mutation_rate_model(mutation_rate_model_file):
-    """Load mutation rate model
+def load_kmer_mutation_rate_model(mutation_rate_model_file: Path) -> pd.DataFrame:
+    """Load a kmer mutation rate model from a tab-separated file.
 
     Args:
-        mutation_rate_model_file (str): Path to a mutation rate model file.
+        mutation_rate_model_file: Path to the mutation rate model file.
 
     Returns:
-        pd.DataFrame : The mutation rate model as a pandas data frame.
+        The mutation rate model as a pandas DataFrame indexed by
+        ``<from>_<to>`` kmer transitions.
 
-    Examples:
-        The mutation rate model should follow the above format.
-        from	to	mu_snp
-        AAA	ACA	1.6681119889870802e-09
-        AAA	AGA	2.9280578256688802e-09
-        AAA	ATA	1.03370814817543e-09
+    Note:
+        Expected format (tab-separated)::
+
+            from    to      mu_snp
+            AAA     ACA     1.668e-09
     """
+
     mutation_rate_model = pd.read_csv(mutation_rate_model_file, sep="\t")
-
     mutation_rate_model.index = mutation_rate_model["from"] + "_" + mutation_rate_model["to"]
-
     return mutation_rate_model
 
 
-def load_gene_list(conf, gff_db, column=0):
-    """Load the optionally user provided gene of interest list.
+def load_gene_list(gene_list: Path | None, gff_db: gffutils.FeatureDB) -> list[str]:
+    """Load the gene-of-interest list.
 
     Args:
-        conf (str): configuration
-        gff_db (gffutils database) : GFF utils database
-        column (str) : column to use to extract the genes identifiers
+        gene_list: Path to a plain text file with one gene identifier per line.
+            When ``None``, all genes present in ``gff_db`` are returned.
+        gff_db: GFF utils database (used when ``gene_list`` is ``None``).
 
     Returns:
-         list: List of genes identifiers.
-
-    Examples:
-        The gene list can be a simple list or a TSV file like this :
-        symbol	ENSG	HGNC_ID
-        TARDBP	ENSG00000120948.19	HGNC:11571
+        List of gene identifiers.
     """
 
     logger = logging.getLogger("logger")
 
-    if "GENE_LIST" in conf.keys():
-        logger.info(f"Getting gene list from : {conf['GENE_LIST']}")
+    if gene_list is not None:
+        logger.info(f"Getting gene list from : {gene_list}")
+        return list(pd.read_csv(gene_list, sep="\t", header=None).iloc[:, 0].values)
 
-        gene_list_file = conf["GENE_LIST"]
-        # Simple list
-        if column == 0:
-            gene_list = list(pd.read_csv(gene_list_file, sep="\t", header=None).iloc[:, 0].values)
-        # TSV file
-        else:
-            gene_list = list(pd.read_csv(gene_list_file, sep="\t").loc[:, column].values)
-    else:
-        logger.info(f"Getting all genes in : {conf['GFF']}")
-        gene_list = list()
-        for gene in gff_db.all_features(featuretype="gene", order_by="start"):
-            gene_list.append(gene.attributes["ID"][0])
-
-    return gene_list
+    logger.info("Getting all genes from GFF database")
+    return [gene.attributes["ID"][0] for gene in gff_db.all_features(featuretype="gene", order_by="start")]
 
 
-def load_gff(gff_file, gff_db_path):
-    """Create the gff database used by gffutils.
+#############################
+# Rate calculation helpers  #
+#############################
+
+
+def get_alternates(seq: str, range_model: int) -> list[str]:
+    """Return all alternative kmers with a different central nucleotide.
 
     Args:
-        gff_file (str): Path to a GFF or a gffutils database file.
-        gff_db_path (str): Path to the newly created gff database.
+        seq: kmer string.
+        range_model: Number of flanking nucleotides on each side of the central base.
 
     Returns:
-        gffutils.db: GFF database.
-
+        List of alternate kmers (three per input kmer).
     """
 
-    logger = logging.getLogger("logger")
-
-    # gffutils db input
-    if gff_file.endswith(".db"):
-        logger.info(f"Loading gffutils database : {gff_file}")
-        gff_db = gffutils.FeatureDB(gff_file)
-    # GFF input
-    else:
-        try:
-            os.remove(gff_db_path)
-            logger.info(f"Removed old gffutil database : {gff_db_path}")
-        except OSError:
-            pass
-
-        logger.info(f"Creating gffutil database : {gff_db_path}")
-        gff_db = gffutils.create_db(gff_file, gff_db_path, merge_strategy="create_unique")
-
-    return gff_db
+    # Generate all single-nucleotide substitutions at the central position
+    alternates = {seq[:range_model] + nuc + seq[range_model + 1 :] for nuc in ("A", "C", "T", "G")}
+    # Remove the reference sequence
+    alternates.discard(seq)
+    return list(alternates)
 
 
-def get_alternates(seq, range_model):
-    """
-    For a given kmer, returns all alternative kmers with a different central nucleotide.
+def calculate_rates_cds(
+    gene: gffutils.Feature,
+    start: int,
+    mutation_rate_model: pd.DataFrame,
+    seq: str,
+    range_model: int,
+) -> list[pd.Series]:
+    """Calculate per-nucleotide mutation rates for a CDS region using a kmer model.
 
     Args:
-        seq (str): kmer string
-        range_model (int): length of sequence on each side of the central nucleotide
+        gene: Gene feature from the GFF database.
+        start: Genomic coordinate of the first base of ``seq``.
+        mutation_rate_model: Mutation rate model indexed by ``<ref>_<alt>`` kmer keys.
+        seq: Nucleotide sequence covering the CDS region (plus flanking context).
+        range_model: Number of flanking nucleotides on each side of the central base.
 
     Returns:
-        list: list of alternates codons
-    """
-    # We generate all possible SNPs
-    list_alternates = list()
-    for nucleotide in ["A", "C", "T", "G"]:
-        alternate_seq = seq[:range_model] + nucleotide + seq[range_model + 1 :]
-        list_alternates.append(alternate_seq)
-
-    # Remove the WT sequence from the list
-    list_alternates = list(set(list_alternates) - set([seq]))
-
-    return list_alternates
-
-
-def calculate_rates_cds(gene, start, mutation_rate_model, seq, range_model):
-    """Calculate the rate of each possiblle single nucleotide mutation in a given sequence according to a mutation rate model
-
-    Args:
-        gene (gffutils.feature.Feature): Gene object from gff db
-        start (int): Genomic coordinate of the start of the sequence
-        mutation_rate_model (pd.DataFrame): Mutation rate model
-        seq (str): Sequence of interest
-        range_model (int): Length of sequence on each side of the central nucleotide
-
-    Returns:
-        list: List of mutation rates
+        List of ``pd.Series`` objects, each representing one possible SNV.
     """
 
-    # Get reverse complement if gene on reverse strand
+    # Reverse-complement for genes on the minus strand
     if gene.strand == "-":
-        rev_seq = pyfaidx.complement(seq[::-1])
-        cur_seq = rev_seq
+        cur_seq = pyfaidx.complement(seq[::-1])
     else:
         cur_seq = seq
 
-    # Get the length of the current sequence
     len_seq = len(seq)
+    list_mutations: list[pd.Series] = []
 
-    list_mutations = list()
-    # For each nucleotide in the sequence
     for i in range(range_model, len(cur_seq) - range_model):
-        # We get the kmer centered on the current nucleotide
         ref = str(cur_seq[i - range_model : i + range_model + 1])
-
-        # We generate all three possible alternate kmers changing the central nucleotide
         list_alternates = get_alternates(ref, range_model)
 
-        # For the three alternate kmers we compute the mutation rate
         for alt in list_alternates:
             try:
                 mutation_rate = mutation_rate_model.loc[ref + "_" + alt, "mu_snp"]
-            except KeyError as e:
-                # Ambiguous nucleotides
+            except KeyError:
+                # Ambiguous nucleotides — skip
                 continue
 
             ref_nuc = ref[range_model]
             alt_nuc = alt[range_model]
 
-            # We update the genomic coordinates differently depending on the strand
+            # Coordinates differ by strand orientation
             if gene.strand == "-":
                 ref_nuc = pyfaidx.complement(ref_nuc)
                 alt_nuc = pyfaidx.complement(alt_nuc)
@@ -184,7 +136,6 @@ def calculate_rates_cds(gene, start, mutation_rate_model, seq, range_model):
             else:
                 pos = start + i
 
-            # We build a Serie for each possible mutation at each loci
             s = pd.Series(
                 {
                     "gene_id": gene.id,
@@ -195,373 +146,415 @@ def calculate_rates_cds(gene, start, mutation_rate_model, seq, range_model):
                     "prob": mutation_rate,
                 }
             )
-
-            # And append it to a list that we will use to build a data frame
             list_mutations.append(s)
 
     return list_mutations
 
 
-def get_sequence(fasta, chrom, start, end):
-    """Returns sequence from a fasta file according to genomic coordinates
+def get_sequence(fasta: pyfaidx.Fasta, chrom: str, start: int, end: int) -> str:
+    """Return sequence from a FASTA file for the given genomic coordinates.
 
     Args:
-        fasta (pyfaidx.Fasta): Genome sequence
-        chrom (string): chromosome id
-        start (int): sequence start position
-        end (int): sequence end position
+        fasta: Genome sequence opened with pyfaidx.
+        chrom: Chromosome identifier.
+        start: Sequence start position (0-based).
+        end: Sequence end position (exclusive).
 
     Returns:
-        str: DNA sequence
+        DNA sequence string.
     """
 
     return fasta[chrom][start:end]
 
 
-def calculate_rates_kmer(mutation_rate_model, fasta, gff_db, gene_list):
-    """Assign mutation rates to every considered loci using kmer mutation rate model.
-    https://www.nature.com/articles/ng.3050
+#############################
+# kmer model                #
+#############################
 
+
+def calculate_rates_kmer(
+    mutation_rate_model: pd.DataFrame,
+    fasta: pyfaidx.Fasta,
+    gff_db: gffutils.FeatureDB,
+    gene_list: list[str],
+) -> pd.DataFrame:
+    """Assign mutation rates using the kmer mutation rate model.
+
+    Reference: https://www.nature.com/articles/ng.3050
 
     Args:
-        mutation_rate_model (pd.DataFrame): Mutation rate for every possible kmer transition
-        fasta (pyfaidx.Fasta): Genome sequence
-        gff_db (gffutils.db): GFF database
-        gene_list (list) : list of genes to consider
+        mutation_rate_model: Mutation rate for every possible kmer transition.
+        fasta: Genome sequence.
+        gff_db: GFF database.
+        gene_list: List of gene identifiers to process.
 
     Returns:
-        pd.DataFrame: a mutation rate data frame
+        DataFrame with columns ``gene_id``, ``chrom``, ``pos``, ``ref``, ``alt``, ``prob``.
     """
 
     logger = logging.getLogger("logger")
 
-    # Default mutation model is 3-mer, but other models (5-mers, 7-mers...) can be used, hence we get the length here
+    # Default mutation model is 3-mer; other sizes (5-mer, 7-mer) derive the range automatically
     length_model = len(mutation_rate_model.iloc[0]["from"])
-
-    # Number of neighboring nucleotides to consider when computing rates
     range_model = length_model // 2
 
     nb_genes = len(gene_list)
     logger.info(f"Start computing rates for {nb_genes} genes")
 
-    list_mutation_rates = list()
+    list_mutation_rates: list[pd.DataFrame] = []
     cpt = 1
-    # Loop through all CDS of interest to generate mutation rates
+
+    # Process one gene at a time
     for gene in gff_db.all_features(featuretype="gene"):
-        # Skip gene if not in user provided gene list
+
+        # Skip genes not in the user-provided list (if given)
         gene_id = gene.attributes["ID"][0]
         if gene_id not in gene_list:
             continue
 
-        # Store mutation rates for the current gene
-        list_mutation_rates_gene = list()
-        # Store CDS boundaries to avoid calculating rates for same CDS in several transcripts
-        list_cds_boundaries = list()
+        list_mutation_rates_gene: list[pd.Series] = []
+        seen_cds_boundaries: set[tuple[int, int]] = set()
+
+        # Loop over all CDS regions
         for transcript in gff_db.children(gene, level=1):
             for cds in gff_db.children(transcript, featuretype="CDS", order_by="start"):
-                # We add an offset to CDS region to consider loci such as splicing sites (default is 50),
-                # the range model so that we get the neighboring nucleotides and we correct for python 0-index
+
+                # We also want to include possible mutations in the splice region, so we extend the CDS region by a fixed number of bases on each side (CDS_OFFSET)
                 start = cds.start - CDS_OFFSET - range_model - 1
                 end = cds.stop + CDS_OFFSET + range_model
 
-                # If the CDS has already been covered by another transcript we skip it
-                if (start, end) in list_cds_boundaries:
+                if (start, end) in seen_cds_boundaries:
                     continue
-                else:
-                    list_cds_boundaries.append((start, end))
+                seen_cds_boundaries.add((start, end))
 
-                # We extract the coding sequence
+                # Get the rates for all possible SNVs in the current CDS region
                 cds_seq = get_sequence(fasta, gene.chrom, start, end)
-                # cds_seq = fasta[gene.chrom][start:end]
-
-                # We calculate the rates for the current CDS region
-                list_mutation_rates_cds = calculate_rates_cds(
+                list_mutation_rates_gene += calculate_rates_cds(
                     gene, start + 1, mutation_rate_model, cds_seq, range_model
                 )
-                list_mutation_rates_gene += list_mutation_rates_cds
 
-        # For each gene we build a data frame and remove possible duplicated values
+        # Remove duplicates that may arise from overlapping CDS regions and sort by position and alternate allele
         if list_mutation_rates_gene:
-            mutation_rates_gene_df = pd.DataFrame(list_mutation_rates_gene)
-            mutation_rates_gene_df.drop_duplicates(inplace=True, keep="first")
-            mutation_rates_gene_df.sort_values(by=["pos", "alt"], inplace=True)
-            list_mutation_rates.append(mutation_rates_gene_df)
+            gene_df = pd.DataFrame(list_mutation_rates_gene)
+            gene_df.drop_duplicates(inplace=True, keep="first")
+            gene_df.sort_values(by=["pos", "alt"], inplace=True)
+            list_mutation_rates.append(gene_df)
         else:
             logger.warning(f"No mutations found for gene {gene_id}")
 
-        # Log progress
         if cpt % 100 == 0:
             logger.info(f"{cpt}/{nb_genes} done")
-
         cpt += 1
 
+    if not list_mutation_rates:
+        logger.error("Rates dataframe is empty")
+        return pd.DataFrame(columns=["gene_id", "chrom", "pos", "ref", "alt", "prob"])
+
+    rates_df = pd.concat(list_mutation_rates)
+
     if (cpt - 1) != nb_genes:
-        logger.warning(f"Rates computed for {cpt - 1} genes when number of genes in list is {nb_genes} ")
+        logger.warning(f"Rates computed for {cpt - 1} genes when number of genes in list is {nb_genes}")
+        logger.warning(
+            f"The following genes were not found in the GFF database : {set(gene_list) - set(rates_df['gene_id'])}"
+        )
     else:
         logger.info(f"Rates computed for {nb_genes} genes")
 
-    # We assemble all genes data frame together
-    if list_mutation_rates:
-        mutation_rates_df = pd.concat(list_mutation_rates)
-    else:
-        mutation_rates_df = pd.DataFrame(columns=["gene_id", "chrom", "pos", "ref", "alt", "prob"])
-        logger.warning(f"Rates dataframe is empty")
-
-    return mutation_rates_df
+    return rates_df
 
 
-def roulette_per_chrom_files(roulette_dir):
-    """
-    Build a dictionnary with chromosome as key and path to roulette vcf file as value
+#############################
+# Roulette model            #
+#############################
+
+
+def _roulette_per_chrom_files(roulette_dir: Path) -> dict[str, Path]:
+    """Build a mapping from chromosome name to the corresponding Roulette VCF path.
 
     Args:
-        roulette_dir (str): path to directory containing roulette vcf files per chromosome
+        roulette_dir: Directory containing per-chromosome Roulette VCF files.
 
     Returns:
-        dict: a dictionnary with chromosome as key and path to roulette vcf file as value
+        Dict keyed by chromosome name (without ``chr`` prefix) mapping to the file path.
     """
 
-    roulette_per_chrom_files_list = glob.glob(f"{roulette_dir}/*all.vcf*gz")
-    roulette_per_chrom_files = dict()
-    for f in roulette_per_chrom_files_list:
-        chrom = f.split("/")[-1].split("_")[0]
-        roulette_per_chrom_files[chrom] = f
-
-    return roulette_per_chrom_files
+    result: dict[str, Path] = {}
+    for f in roulette_dir.glob("*all.vcf*gz"):
+        chrom = f.name.split("_")[0]
+        result[chrom] = f
+    return result
 
 
-def calculate_rates_roulette(roulette_dir, gff_db, gene_list, model):
-    """
-    Use Roulette mutation rate model to generate a rates file
-    https://github.com/vseplyarskiy/Roulette
-    https://www.biorxiv.org/content/10.1101/2022.08.20.504670v1
+def calculate_rates_roulette(
+    roulette_dir: Path,
+    gff_db: gffutils.FeatureDB,
+    gene_list: list[str],
+    model: str,
+    scaling_factor: float,
+) -> pd.DataFrame:
+    """Assign mutation rates using the Roulette or Carlson mutation rate model.
 
-    The roulette directory contains one VCF file per chromosome.
-    Loci in each VCF are annotated with several mutation rates :
-        - MR : roulette mutation rate
-        - MC : carlson mutation rate
+    References:
+        - https://github.com/vseplyarskiy/Roulette
+        - https://www.biorxiv.org/content/10.1101/2022.08.20.504670v1
 
     Args:
-        roulette_dir (string): path to directory containing roulette vcf files per chromosome
-        gff_db (gffutils.db): GFF database
-        gene_list (list) : list of genes to consider
-        model (str) : carlson or roulette
+        roulette_dir: Directory containing per-chromosome Roulette VCF files.
+            Each VCF is annotated with ``MR`` (Roulette) and ``MC`` (Carlson) INFO fields.
+        gff_db: GFF database.
+        gene_list: List of gene identifiers to process.
+        model: Either ``"roulette"`` or ``"carlson"``.
+        scaling_factor: Per-generation mutation rate scaling factor applied to every
+            rate value extracted from the VCF INFO field (``MR`` for Roulette, ``MC`` for Carlson).
 
     Returns:
-        pd.DataFrame: a mutation rate data frame
+        DataFrame with columns ``gene_id``, ``chrom``, ``pos``, ``ref``, ``alt``, ``prob``.
     """
+
     logger = logging.getLogger("logger")
 
-    # Select the mutation rate info field and the per generation mutation rate scaling factor depending on the model
     if model == "roulette":
         info_field = "MR"
-        scaling_factor = ROULETTE_SCALING_FACTOR
     else:
         info_field = "MC"
-        scaling_factor = CARLSON_SCALING_FACTOR
 
     nb_genes = len(gene_list)
     logger.info(f"Start computing rates for {nb_genes} genes")
 
-    # Build a dictionnary with chromosome as key and path to roulette vcf file as value
-    roulette_vcfs = roulette_per_chrom_files(roulette_dir)
+    roulette_vcfs = _roulette_per_chrom_files(roulette_dir)
 
-    list_mutation_rates = list()
+    list_mutation_rates: list[pd.DataFrame] = []
     cpt = 1
-    # Loop through all CDS of interest to generate mutation rates
-    for gene in gff_db.all_features(featuretype="gene"):
 
-        # Skip gene if not in user provided gene list
+    for gene in gff_db.all_features(featuretype="gene"):
         gene_id = gene.attributes["ID"][0]
         if gene_id not in gene_list:
             continue
 
-        # Check if chromosome in GFF file uses chr prefix
-        gff_uses_chr_prexix = gene.chrom.startswith("chr")
-
-        # Load roulette vcf file corresponding to the current gene
+        gff_uses_chr_prefix = gene.chrom.startswith("chr")
         chrom = gene.chrom.replace("chr", "")
 
         try:
             roulette_index = None
-            for ext in [".csi", ".tbi"]:
-                candidate_index = f"{roulette_vcfs[chrom]}{ext}"
-                if os.path.exists(candidate_index):
-                    roulette_index = candidate_index
+            for ext in (".csi", ".tbi"):
+                candidate_index = Path(str(roulette_vcfs[chrom]) + ext)
+                if candidate_index.exists():
+                    roulette_index = str(candidate_index)
                     break
             if roulette_index is None:
                 raise FileNotFoundError(f"No index file found for {roulette_vcfs[chrom]}")
-            roulette_file = pysam.VariantFile(roulette_vcfs[chrom], index_filename=roulette_index)
-        except KeyError as e:
+            roulette_file = pysam.VariantFile(str(roulette_vcfs[chrom]), index_filename=roulette_index)
+        except KeyError:
             # Roulette does not provide mutation rates for allosomes
-            if chrom in ["X", "Y"]:
-                continue
-            else:
-                logger.warning(f"Can't find any roulette file corresponding to chromosome {chrom} for gene {gene_id}")
-                continue
+            if chrom not in ("X", "Y"):
+                logger.warning(f"Can't find any roulette file for chromosome {chrom} (gene {gene_id})")
+            continue
 
-        # Store mutation rates for the current gene
-        list_mutation_rates_gene = list()
-        # Store CDS boundaries to avoid calculating rates for same CDS in several transcripts
-        list_cds_boundaries = list()
+        list_mutation_rates_gene: list[pd.Series] = []
+        seen_cds_boundaries: set[tuple[int, int]] = set()
+
         for transcript in gff_db.children(gene, level=1):
             for cds in gff_db.children(transcript, featuretype="CDS", order_by="start"):
-                # We add an offset to CDS region to consider loci such as splicing sites (default is 50),
                 start = cds.start - CDS_OFFSET - 1
                 end = cds.stop + CDS_OFFSET
 
-                # If the CDS has already been covered by another transcript we skip it
-                if (start, end) in list_cds_boundaries:
+                if (start, end) in seen_cds_boundaries:
                     continue
-                else:
-                    list_cds_boundaries.append((start, end))
+                seen_cds_boundaries.add((start, end))
 
-                # Extract mutation rates for the current CDS region and multiply by the scaling factor
-                list_mutation_rates_cds = list()
                 for rec in roulette_file.fetch(start=start, stop=end, region=chrom):
                     try:
                         s = pd.Series(
                             {
                                 "gene_id": gene_id,
-                                "chrom": f"chr{chrom}" if gff_uses_chr_prexix else chrom,
+                                "chrom": f"chr{chrom}" if gff_uses_chr_prefix else chrom,
                                 "pos": rec.pos,
                                 "ref": rec.ref,
                                 "alt": rec.alts[0],
                                 "prob": float(rec.info[info_field]) * scaling_factor,
                             }
                         )
-                        list_mutation_rates_cds.append(s)
-                    except KeyError as e:
+                        list_mutation_rates_gene.append(s)
+                    except KeyError:
                         # No mutation rate info for this SNP
                         continue
 
-                list_mutation_rates_gene += list_mutation_rates_cds
-
-        # For each gene we build a data frame and remove possible duplicated values
         if list_mutation_rates_gene:
-            mutation_rates_gene_df = pd.DataFrame(list_mutation_rates_gene)
-            mutation_rates_gene_df.drop_duplicates(inplace=True, keep="first")
-            mutation_rates_gene_df.sort_values(by=["pos", "alt"], inplace=True)
-            list_mutation_rates.append(mutation_rates_gene_df)
+            gene_df = pd.DataFrame(list_mutation_rates_gene)
+            gene_df.drop_duplicates(inplace=True, keep="first")
+            gene_df.sort_values(by=["pos", "alt"], inplace=True)
+            list_mutation_rates.append(gene_df)
         else:
             logger.warning(f"No mutations found for gene {gene_id}")
 
-        # Log progress
         if cpt % 100 == 0:
             logger.info(f"{cpt}/{nb_genes} done")
-
         cpt += 1
 
+    if not list_mutation_rates:
+        logger.error("Rates dataframe is empty")
+        return pd.DataFrame(columns=["gene_id", "chrom", "pos", "ref", "alt", "prob"])
+
+    rates_df = pd.concat(list_mutation_rates)
+
     if (cpt - 1) != nb_genes:
-        logger.warning(f"Rates computed for {cpt - 1} genes when number of genes in list is {nb_genes} ")
+        logger.warning(f"Rates computed for {cpt - 1} genes when number of genes in list is {nb_genes}")
+        logger.warning(
+            f"The following genes were not found in the GFF database : {set(gene_list) - set(rates_df['gene_id'])}"
+        )
     else:
         logger.info(f"Rates computed for {nb_genes} genes")
 
-    # We assemble all genes data frame together
-    if list_mutation_rates:
-        mutation_rates_df = pd.concat(list_mutation_rates)
-    else:
-        mutation_rates_df = pd.DataFrame(columns=["gene_id", "chrom", "pos", "ref", "alt", "prob"])
-        logger.warning(f"Rates dataframe is empty")
-
-    return mutation_rates_df
+    return rates_df
 
 
-def validate_model(ctx, param, value):
-    """
-    Validatin function called at the program start to check model is correct.
-    Model can be either kmer, carlson or roulette
+#############################
+# CLI                       #
+#############################
+
+
+def _validate_params(model: str, fasta: Path | None, scaling_factor: float | None) -> None:
+    """Validate cross-parameter dependencies that cannot be expressed as individual option constraints.
 
     Args:
-        ctx (click.Context):  context
-        param (click.Parameter): parameter
-        value (str): value provided for the model
+        model: Selected mutation rate model.
+        fasta: Path to the genome FASTA file (required for the kmer model).
+        scaling_factor: Scaling factor (required for carlson/roulette models).
 
     Raises:
-        click.BadParameter: raised if user provided a value not in the allowed values
-
-    Returns:
-        str: model value
+        click.UsageError: When a required companion parameter is missing.
     """
-    allowed_models = ["kmer", "carlson", "roulette"]
-    if value not in allowed_models:
-        raise click.BadParameter(f'Invalid model. Allowed values: {", ".join(allowed_models)}')
-    return value
+
+    if model in ("carlson", "roulette") and scaling_factor is None:
+        raise click.UsageError(f'--model "{model}" requires --scaling_factor to be provided')
+    if model == "kmer" and fasta is None:
+        raise click.UsageError('--model "kmer" requires --fasta to be provided')
+
+
+def _setup_conf(ctx: click.Context) -> None:
+    """Initialise logging, log all parameters, and create the output directory.
+
+    Args:
+        ctx: Click context holding the fully-resolved command parameters.
+    """
+
+    init_log()
+    logger = logging.getLogger("logger")
+    logger.info("Running {}".format(Path(__file__).name))
+
+    logger.info("Parameters :")
+    logger.info("----------")
+    for key, value in ctx.params.items():
+        if value is not None:
+            logger.info(f"{key} : {value}")
+    logger.info("----------")
+
+    Path(ctx.params["outdir"]).mkdir(parents=True, exist_ok=True)
 
 
 @click.command()
-@click.option("--config")
-@click.option("--gff")
-@click.option("--fasta")
-@click.option("--mutation_rate_model", help="Path to a k-mer mutation rate model or roulette directory")
-@click.option("--gene_list")
-@click.option("--outdir")
-@click.option("--model", type=click.STRING, callback=validate_model)
-def main(config, gff, fasta, mutation_rate_model, gene_list, outdir, model):
-    """
-    Generate per generation mutation rates according to a mutation rate model.
-    Loci to be considered are provided as a GFF file or a gffutils database file, and a gene list.
+@click.option(
+    "--rates_model_path",
+    required=True,
+    type=click.Path(exists=True, path_type=Path),
+    help="Path to a k-mer mutation rate model or roulette directory",
+)
+@click.option(
+    "--model",
+    required=True,
+    type=click.Choice(["kmer", "carlson", "roulette"]),
+    help="Mutation rate model to use.",
+)
+@click.option(
+    "--gff",
+    required=True,
+    type=click.Path(exists=True, path_type=Path),
+    help="GFF file with gene annotations or an existing gffutils .db file",
+)
+@click.option("--outdir", required=True, type=click.Path(path_type=Path), help="Output directory")
+@click.option(
+    "--gene_list",
+    type=click.Path(exists=True, path_type=Path),
+    help="Optional file containing gene identifiers to process (one per line)",
+)
+@click.option(
+    "--fasta",
+    type=click.Path(exists=True, path_type=Path),
+    help="Genome sequence in FASTA format (required for the kmer model)",
+)
+@click.option(
+    "--scaling_factor",
+    type=click.FLOAT,
+    help="Scaling factor to apply to mutation rates when using the Roulette or Carlson model (ignored for kmer model)",
+)
+@click.option(
+    "--output-rates",
+    type=str,
+    default="mutation_rates.tsv",
+    help="Name of the output mutation rates file",
+)
+def main(
+    rates_model_path: Path,
+    model: str,
+    gff: Path,
+    outdir: Path,
+    gene_list: Path,
+    fasta: Path,
+    scaling_factor: float,
+    output_rates: str,
+) -> None:
+    """Generate a per-site per-generation haploid mutation rates file.
+
+    The output file (``mutation_rates.tsv``) contains one row per possible SNV
+    across all CDS regions (extended by ``CDS_OFFSET`` bases on each side to
+    capture splicing-relevant positions) of the requested genes. Each row holds
+    the gene identifier, genomic coordinates, reference and alternate alleles,
+    and the estimated per-generation mutation probability (``prob``).
+
+    This file feeds directly into the annotation and enrichment-test steps of
+    the pipeline: annotations are added column-wise, and the ``prob`` column is
+    used by the simulation to weight randomly drawn mutations.
+
+    Three mutation rate models are supported:
+
+    * **kmer** – trinucleotide (or higher-order) model; requires a FASTA genome
+      and a tab-separated model file with columns ``from``, ``to``, ``mu_snp``.
+    * **carlson** / **roulette** – pre-computed rates from the Roulette resource;
+      require a directory of per-chromosome indexed VCF files.
 
     Args:
-        conf_file (str): Use a YAML configuration file instead of command line arguments.
-        gff (str): Annotations provided as GFF or a gffutils database file.
-        fasta (str): Genome sequence in fasta format to retrieve kmer sequences (kmer only)
-        mutation_rate_model (str): Path to a k-mer mutation rate model or roulette directory
-        gene_list (str): File containing a list of genes of interest.
-        outdir (str): Output directory.
-        model (str): Mutation rate model to be used. Allowed values: kmer, carlson or roulette
+        rates_model_path: Path to a k-mer model TSV or the Roulette VCF directory.
+        model: Mutation rate model.  One of ``kmer``, ``carlson``, ``roulette``.
+        gff: Gene annotations as a GFF file or an existing gffutils ``.db`` file.
+        outdir: Output directory; created automatically if absent.
+        gene_list: File containing gene identifiers to process (one per line).
+            When omitted, all genes in the GFF are processed.
+        fasta: Genome sequence in FASTA format (required for the kmer model).
+        scaling_factor: Per-generation scaling factor applied to Roulette/Carlson rates.
+        output_rates: Name of the output mutation rates file.
     """
 
-    # Initiate logger
-    init_log()
-    logger = logging.getLogger("logger")
-    logger.info("Running {}".format(__file__.split("/")[-1]))
+    _setup_conf(click.get_current_context())
+    _validate_params(model=model, fasta=fasta, scaling_factor=scaling_factor)
 
-    # Load configuration file
-    if config:
-        try:
-            conf = load_conf(config)
-        except FileNotFoundError:
-            logger.error(f"No such config file {config}")
-            sys.exit(1)
-    else:
-        conf = dict()
+    # Load GFF file or database
+    gff_db = load_gff(gff, outdir / "gff.db")
 
-    # Superseed configuration in config file with the configuration passed through command line arguments
-    ctx = click.get_current_context()
-    conf = superseed_conf(conf, ctx.params)
-
-    # Log configuration
-    logger.info(f"Parameters :")
-    logger.info("----------")
-    for key, value in conf.items():
-        logger.info(f"{key} : {value}")
-    logger.info("----------")
-
-    # Create output directory
-    os.makedirs(conf["OUTDIR"], exist_ok=True)
-
-    # Load GFF file or GFF database used by gffutils
-    gff_db = load_gff(conf["GFF"], f'{conf["OUTDIR"]}/gff.db')
-
-    # Load gene list
-    gene_list = load_gene_list(conf, gff_db)
+    # Load gene list if provided, otherwise get all genes in GFF
+    genes = load_gene_list(gene_list, gff_db)
 
     if model == "kmer":
-        # Load mutation rate model
-        mutation_rate_model = load_mutation_rate_model(conf["MUTATION_RATE_MODEL"])
-
-        # Load fasta file
-        fasta = pyfaidx.Fasta(conf["FASTA"])
-
-        # Calculate mutation rates for every loci of interest
-        mutation_rates_df = calculate_rates_kmer(mutation_rate_model, fasta, gff_db, gene_list)
+        rate_model = load_kmer_mutation_rate_model(rates_model_path)
+        genome = pyfaidx.Fasta(fasta)
+        mutation_rates_df = calculate_rates_kmer(rate_model, genome, gff_db, genes)
     else:
-        mutation_rates_df = calculate_rates_roulette(mutation_rate_model, gff_db, gene_list, model)
+        mutation_rates_df = calculate_rates_roulette(rates_model_path, gff_db, genes, model, scaling_factor)
 
     # Export mutation rates file
-    mutation_rates_df.to_csv("{}/{}".format(conf["OUTDIR"], "mutation_rates.tsv"), sep="\t", index=None)
-    logger.info(f'Mutation rates file created here : {conf["OUTDIR"]}/mutation_rates.tsv')
+    out_path = outdir / output_rates
+    mutation_rates_df.to_csv(out_path, sep="\t", index=False)
+
+    logging.getLogger("logger").info(f"Mutation rates file created here : {out_path}")
 
 
 if __name__ == "__main__":

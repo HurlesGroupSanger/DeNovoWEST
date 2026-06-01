@@ -1,0 +1,36 @@
+{
+    "roulette model \u2013 produces a non-empty mutation rates file for OR4F5": {
+        "content": [
+            {
+                "0": [
+                    [
+                        "mutation_rates.tsv:md5,9262254690ea9c9e41db79942b7e05e1",
+                        "gene_list.tsv"
+                    ]
+                ]
+            }
+        ],
+        "timestamp": "2026-06-01T16:48:57.014071818",
+        "meta": {
+            "nf-test": "0.9.5",
+            "nextflow": "23.10.1"
+        }
+    },
+    "kmer model \u2013 produces a non-empty mutation rates file for OR4F5": {
+        "content": [
+            {
+                "0": [
+                    [
+                        "mutation_rates.tsv:md5,22c281ea2e37aa26e0bfb4941235472e",
+                        "gene_list.tsv"
+                    ]
+                ]
+            }
+        ],
+        "timestamp": "2026-06-01T16:44:16.363358544",
+        "meta": {
+            "nf-test": "0.9.5",
+            "nextflow": "23.10.1"
+        }
+    }
+}

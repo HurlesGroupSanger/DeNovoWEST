@@ -215,8 +215,11 @@ workflow{
       // Default mutation rate model is kmer trinucleotide model
       params.rates_creation.model = params.rates_creation.model ?: 'kmer'
 
+      // scaling_factor is required for roulette/carlson; leave empty for kmer (validated by the script)
+      params.rates_creation.scaling_factor = params.rates_creation.scaling_factor ?: ""
+
       // Create rates files (one per split gene list)
-      rates_ch = RATE_CREATION(split_gene_list_ch.toSortedList().flatten(), gffutils_db_ch.first(), file(params.genome_fasta), file(params.rates_creation.path),  params.rates_creation.model)
+      rates_ch = RATE_CREATION(split_gene_list_ch.toSortedList().flatten(), gffutils_db_ch.first(), file(params.genome_fasta), file(params.rates_creation.path), params.rates_creation.model, params.rates_creation.scaling_factor)
 
       // If the point was to generate a rates file with no annotation, we simply merge the unannotated individual rates file
       if (!(params.annotate_rates)) {

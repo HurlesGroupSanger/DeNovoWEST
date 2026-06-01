@@ -93,24 +93,28 @@ process RATE_CREATION {
     publishDir "${params.outdir}/rates/split/", mode: 'symlink', overwrite: true
 
     input :
-    path gene_list 
+    path gene_list
     path gff_db
     path fasta
     path mutation_rate_model
     val mutation_rate_model_type
+    val scaling_factor
 
     output :
-    tuple (path "${gene_list}_mutation/mutation_rates.tsv"),  val(gene_list)
+    tuple (path "${gene_list}_mutation/mutation_rates.tsv"),  val(gene_list.name)
 
     script :
+    def sf_arg = scaling_factor ? "--scaling_factor ${scaling_factor}" : ""
     """
     create_rates_file.py \
       --gff $gff_db \
       --fasta $fasta \
-      --mutation_rate_model $mutation_rate_model \
+      --rates_model_path $mutation_rate_model \
       --gene_list $gene_list \
       --outdir ${gene_list}_mutation \
-      --model $mutation_rate_model_type
+      --model $mutation_rate_model_type \
+      ${sf_arg}
+
     """
 }
 
