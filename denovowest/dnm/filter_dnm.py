@@ -172,7 +172,9 @@ def load_dnm(dnm, genes):
         genes (list) : list of gene identifiers
     """
 
-    dnm_df = pd.read_csv(dnm, sep="\t")
+    dnm_df = pd.read_csv(dnm, sep="\t", dtype={"gene_id": "string"})
+    # TODO : handle this case so discarded DNM with no gene associated can be traced
+    dnm_df = dnm_df.loc[~dnm_df.gene_id.isna()]
     dnm_df["gene_id"] = format_gene_id(list(dnm_df["gene_id"]), genes)
 
     return dnm_df
