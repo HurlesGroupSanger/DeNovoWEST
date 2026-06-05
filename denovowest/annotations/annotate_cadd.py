@@ -1,27 +1,31 @@
 #!/usr/bin/env python
-import pandas as pd
-import click
-import pysam
-import sys
 import logging
+import sys
+from itertools import count, groupby
 
-from itertools import groupby, count
+import click
+import pandas as pd
+import pysam
+
+from denovowest.utils.io_helpers import as_range
 from denovowest.utils.log import init_log
 
 
-def load_cadd(cadd_file, chrom, start, end):
-    """
-    Access to specific region in CADD file.
+def load_cadd(cadd_file: pysam.TabixFile, chrom: str, start: int, end: int) -> pd.DataFrame:
+    """Fetch CADD scores for a genomic region.
+
     Args:
-        cadd_file (pysam.TabixFile): CADD score file
-        chrom (str): chromosome identifier
-        start (int): beginning position of the region
-        end (int): terminating position of the region
+        cadd_file: CADD score tabix file.
+        chrom: Chromosome identifier (without "chr" prefix).
+        start: 0-based start position.
+        end: End position.
+
+    Returns:
+        DataFrame with columns [chrom, pos, ref, alt, raw, score].
     """
 
-    def parse(line):
+    def _parse(line: str) -> dict:
         chrom, pos, ref, alt, raw, scaled = line.split("\t")
-
         return {
             "chrom": chrom,
             "pos": int(pos),
@@ -31,34 +35,20 @@ def load_cadd(cadd_file, chrom, start, end):
             "score": float(scaled),
         }
 
-    return pd.DataFrame([parse(x) for x in cadd_file.fetch(chrom, start, end)])
-
-
-def as_range(region):
-    """
-    Returns genomic region boundaries
-
-    Args:
-        region (list): genomic region positions
-
-    Returns:
-        tuple: beginning and terminating position of the genomic region
-    """
-    l = list(region)
-    return l[0], l[-1]
+    return pd.DataFrame([_parse(x) for x in cadd_file.fetch(chrom, start, end)])
 
 
 @click.command()
 @click.argument("rates")
 @click.argument("cadd")
 @click.argument("output")
-def annotate_cadd(rates, cadd, output):
-    """Adds CADD score to rates file
+def annotate_cadd(rates: str, cadd: str, output: str) -> None:
+    """Add CADD scores to a rates file.
 
     Args:
-        rates (str): Path to rates file
-        cadd (str): Path to CADD file
-        output (str): Path to output file (merged dataframe)
+        rates: Path to the rates file.
+        cadd: Path to the CADD tabix file.
+        output: Path to the output file.
     """
 
     init_log()
@@ -74,39 +64,35 @@ def annotate_cadd(rates, cadd, output):
         sys.exit(0)
 
     # Depending on the gff, chromosome can be defined as "chrX" or just "X"
-    if str(rates_df.iloc[0].chrom).startswith("chr"):
-        add_chr = True
-    else:
-        add_chr = False
+    add_chr = str(rates_df.iloc[0].chrom).startswith("chr")
 
-    # Load cadd file
-    cadd_df = pysam.TabixFile(cadd)
+    # Load CADD tabix file
+    cadd_tabix = pysam.TabixFile(cadd)
 
     # For each gene
-    list_merged_df = list()
+    list_merged_df = []
     for gene_id, gene_rates_df in rates_df.groupby("gene_id"):
         chrom = str(gene_rates_df.chrom.values[0]).replace("chr", "")
 
-        # Split each gene in contiguous block (i.e. exons) and load CADD scores
-        # (memory and performance issue)
-        list_block_df = list()
+        # Split each gene in contiguous blocks (i.e. exons) and load CADD scores
+        list_block_df = []
         for _, block in groupby(sorted(set(gene_rates_df["pos"])), key=lambda n, c=count(): n - next(c)):
             start, end = as_range(block)
             try:
-                block_cadd_df = load_cadd(cadd_df, chrom, start - 1, end)
+                block_cadd_df = load_cadd(cadd_tabix, chrom, start - 1, end)
                 list_block_df.append(block_cadd_df)
             except ValueError:
+                logger.warning(f"No CADD scores for {gene_id} at {chrom}:{start}-{end}")
                 continue
 
-        # Merge rates with CADD score
+        # Merge rates with CADD scores
         if list_block_df:
             gene_cadd_df = pd.concat(list_block_df)
             if add_chr:
-                gene_cadd_df.chrom = "chr" + gene_cadd_df.chrom
-
+                gene_cadd_df["chrom"] = "chr" + gene_cadd_df["chrom"]
             merged_gene_df = gene_rates_df.merge(gene_cadd_df, how="left", on=["chrom", "pos", "ref", "alt"])
         else:
-            merged_gene_df = gene_rates_df
+            merged_gene_df = gene_rates_df.copy()
             merged_gene_df["raw"] = pd.NA
             merged_gene_df["score"] = pd.NA
 
@@ -118,4 +104,4 @@ def annotate_cadd(rates, cadd, output):
 
 
 if __name__ == "__main__":
-    merged_df = annotate_cadd()
+    annotate_cadd()

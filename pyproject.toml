@@ -44,6 +44,8 @@ denovowest = "denovowest.cli:main"
 [tool.pytest.ini_options]
 markers = [
     "unit: unit tests for core package internals",
+    "smoke: end-to-end CLI tests that exercise the full command on small fixtures",
+    "regression: output comparison tests against known-good reference files",
     "misc: tests for standalone scripts under misc/",
     "functional: broader workflow and integration tests",
 ]
