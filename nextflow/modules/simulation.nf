@@ -25,14 +25,12 @@ process SIMULATION {
 
 
 
-    beforeScript "[ -v NF_TEST ] && export PYTHONPATH=$baseDir/../../../../../denovowest/simulation/;"
-
     script :
     """
     if [  "$impute_missing_scores" = "true"  ]; then
-        simulation.py $dnm $rates $column --nmales $nmales --nfemales $nfemales --runtype $runtype --nsim $nsim --impute-missing-scores --outfile ${id}_enrichment_results.tsv $debug --jobs $cpus
+        denovowest simulation $dnm $rates $column --nmales $nmales --nfemales $nfemales --runtype $runtype --nsim $nsim --impute-missing-scores --outfile ${id}_enrichment_results.tsv $debug --jobs $cpus
     else
-        simulation.py $dnm $rates $column --nmales $nmales --nfemales $nfemales --runtype $runtype --nsim $nsim --outfile ${id}_enrichment_results.tsv $debug --jobs $cpus
+        denovowest simulation $dnm $rates $column --nmales $nmales --nfemales $nfemales --runtype $runtype --nsim $nsim --outfile ${id}_enrichment_results.tsv $debug --jobs $cpus
     fi
 
     mv simulation_logs.json ${id}_simulation_logs.json

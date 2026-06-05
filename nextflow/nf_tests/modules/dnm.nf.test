@@ -1,38 +1,60 @@
 nextflow_process {
 
-    name "DNM module"
+    name "DNM module – FILTER_DNM"
     script "modules/dnm.nf"
     process "FILTER_DNM"
 
-    test("filter_dnm") {
+    /////////////////////////////////////////////////////////////
+    // FILTER_DNM                                               //
+    /////////////////////////////////////////////////////////////
+
+    test("filter_dnm – snapshot") {
 
         when {
-
-			params {
-						dnm = "$baseDir/nf_tests/test_data/dnm/filter_dnm/input/DNM_b38_MANE.tsv"
-						gene_list = "$baseDir/nf_tests/test_data/dnm/filter_dnm/input/gene_list.tsv"
-
-					}
-					process {
-						"""
-						input[0] = file(params.dnm)
-						input[1] = file(params.gene_list)
-						"""
-					}
+            params {
+                dnm       = "$baseDir/../examples/dnm/filter_dnm/input/DNM_b38_MANE.tsv"
+                gene_list = "$baseDir/../examples/dnm/filter_dnm/input/gene_list.tsv"
+            }
+            process {
+                """
+                input[0] = file(params.dnm)
+                input[1] = file(params.gene_list)
+                """
+            }
         }
 
         then {
-
             assert process.success
-
-            // Test that the output matches the latest output
             assert snapshot(process.out).match()
-
-			// Check that the output example is still up to date (Kept and discarded DNM files)
-            assert path(process.out.get(0).get(0)).md5 == path("$baseDir/../examples/dnm/filter_dnm/output/kept_dnm.tsv").md5
-            assert path(process.out.get(1).get(0)).md5 == path("$baseDir/../examples/dnm/filter_dnm/output/discarded_dnm.tsv").md5
-            
         }
     }
-}
 
+    test("filter_dnm – output matches reference") {
+
+        when {
+            params {
+                dnm       = "$baseDir/../examples/dnm/filter_dnm/input/DNM_b38_MANE.tsv"
+                gene_list = "$baseDir/../examples/dnm/filter_dnm/input/gene_list.tsv"
+            }
+            process {
+                """
+                input[0] = file(params.dnm)
+                input[1] = file(params.gene_list)
+                """
+            }
+        }
+
+        then {
+            assert process.success
+
+            def ref_kept      = path("$baseDir/../examples/dnm/filter_dnm/output/kept_dnm.tsv")
+            def ref_discarded = path("$baseDir/../examples/dnm/filter_dnm/output/discarded_dnm.tsv")
+
+            with(process.out) {
+                assert path(get(0)[0][0]).md5 == ref_kept.md5
+                assert path(get(0)[0][1]).md5 == ref_discarded.md5
+            }
+        }
+    }
+
+}

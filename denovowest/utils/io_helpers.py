@@ -1,90 +1,158 @@
-import os
-import gffutils
+"""Shared I/O helpers used by multiple DeNovoWEST commands.
+
+These helpers intentionally stay lightweight: they mostly wrap common file-loading
+patterns so command modules can share consistent handling of configuration files,
+annotation column lists, and GFF databases.
+"""
+
 import logging
+from pathlib import Path
+from typing import Optional
+
+import gffutils
+import pandas as pd
 import yaml
 
 
-def read_columns_from_file(columns_file):
-    """
-    Read columns to extract from annotation file
+###################
+# File utilities  #
+###################
+
+
+def read_columns_from_file(columns_file: str) -> list[str]:
+    """Read one annotation column name per line from a plain-text file.
 
     Args:
-        columns_file (str): file listing columns to extract from TSV/VCF/dbNSFP
+        columns_file: File listing columns to extract from TSV, VCF, or dbNSFP resources.
+
+    Returns:
+        List of column names.
     """
 
     with open(columns_file, "r") as f:
-        columns = [x.strip() for x in f.readlines()]
-
-    return columns
+        return [line.strip() for line in f]
 
 
-def load_gff(gff_file, gff_db_out=""):
-    """
-    Create or load a gffutils database.
+def load_conf(filename: str) -> dict:
+    """Load the content of a YAML configuration file into a dictionary.
 
     Args:
-        gff_file (str): Path to a GFF or a gffutils database file.
-        gff_db_out (str): If a GFF file is provided, the user can name the yet to be created gffutils db file.
-    Returns:
-        gffutils.db: GFF database.
+        filename: Path to a YAML configuration file.
 
+    Returns:
+        Configuration dictionary.
     """
 
-    logger = logging.getLogger("logger")
-
-    # gffutils db input
-    if gff_file.endswith(".db"):
-        logger.info(f"Loading gffutils database {gff_file}")
-        gff_db = gffutils.FeatureDB(gff_file)
-    # GFF input
-    else:
-        if gff_db_out:
-            gff_db_path = gff_db_out
-        else:
-            gff_db_path = gff_file + ".db"
-        logger.info(f"Creating GFF db {gff_db_path}")
-
-        try:
-            os.remove(gff_db_path)
-            logger.info(f"Removed old gffutils database : {gff_db_path}")
-        except OSError:
-            pass
-
-        logger.info(f"Creating gffutils database : {gff_db_path}")
-        gff_db = gffutils.create_db(gff_file, gff_db_path, merge_strategy="create_unique")
-
-    return gff_db
+    with open(filename) as f:
+        return yaml.load(f, Loader=yaml.FullLoader)
 
 
-def load_conf(filename):
-    """Load the content of a YAML configuration file in a dictionnary
+def superseed_conf(conf: dict, command_params: dict) -> dict:
+    """Override configuration file values with command-line parameters.
 
     Args:
-        filename (str): Path to a YAML configuration file.
+        conf: Configuration from the config file.
+        command_params: Command-line parameters.
 
     Returns:
-        dict: Configuration dictionnary.
-    """
-
-    with open(filename) as file:
-        conf = yaml.load(file, Loader=yaml.FullLoader)
-
-    return conf
-
-
-def superseed_conf(conf, command_params):
-    """Superseed configuration in config file with parameters from the command line
-
-    Args:
-        conf (dict): configuration from the config file (if any)
-        command_params (dict): command line parameters
-
-    Returns:
-        dict: Configuration dictionnary.
+        Updated configuration dictionary.
     """
 
     for key, value in command_params.items():
         if value and key != "config":
             conf[key.upper()] = value
-
     return conf
+
+
+###################
+# GFF utilities   #
+###################
+
+
+def load_gff(gff_file: str, gff_db_out: Optional[str] = None) -> gffutils.FeatureDB:
+    """Create or load a gffutils database.
+
+    The helper accepts either an existing ``.db`` file or a source GFF file. For
+    GFF inputs, the database is rebuilt at the requested output path, replacing
+    any existing file at that location.
+
+    Args:
+        gff_file: Path to a GFF file or an existing gffutils database.
+        gff_db_out: Optional output path for the created database when ``gff_file`` is a GFF.
+
+    Returns:
+        Loaded or newly created database.
+    """
+
+    logger = logging.getLogger("logger")
+    path = Path(gff_file)
+
+    if path.suffix == ".db":
+        logger.info(f"Loading gffutils database {gff_file}")
+        return gffutils.FeatureDB(str(path))
+
+    db_path = Path(gff_db_out) if gff_db_out else path.with_suffix(".db")
+    logger.info(f"Creating GFF db {db_path}")
+
+    if db_path.exists():
+        db_path.unlink()
+        logger.info(f"Removed old gffutils database: {db_path}")
+
+    return gffutils.create_db(str(path), str(db_path), merge_strategy="create_unique")
+
+
+def extract_ensembl_gene_id_without_version(gff_db: gffutils.FeatureDB) -> dict[str, str]:
+    """Build a mapping from versionless ENSEMBL gene ID to the versioned form stored in the GFF.
+
+    Args:
+        gff_db: gffutils database.
+
+    Returns:
+        Dictionary mapping bare ENSG ID to versioned ENSG ID
+        (e.g. ``{"ENSG00000010404": "ENSG00000010404.1"}``).
+    """
+
+    return {
+        gene.id.split(".")[0]: gene.id
+        for gene in gff_db.features_of_type("gene", order_by="start")
+    }
+
+
+###################
+# Genomic helpers #
+###################
+
+
+def as_range(region) -> tuple[int, int]:
+    """Return the first and last positions of a genomic block.
+
+    Args:
+        region: Iterable of genomic positions.
+
+    Returns:
+        Tuple of (start, end) positions.
+    """
+
+    positions = list(region)
+    return positions[0], positions[-1]
+
+
+def is_chr_prefixed(file_path: str) -> bool:
+    """Return True if chromosome identifiers in the file are prefixed with "chr".
+
+    Inspects up to 100 data rows, looking for a recognised chromosome column
+    (``chrom``, ``chr``, ``#chr``, ``#chrom``). Falls back to the first column
+    if none of those names are present.
+
+    Args:
+        file_path: Path to a tab-separated variant or annotation file.
+
+    Returns:
+        True if chromosomes use the "chr" prefix, False otherwise.
+    """
+
+    df = pd.read_csv(file_path, sep="\t", comment="#", nrows=100)
+    for key in ["chrom", "chr", "#chr", "#chrom"]:
+        if key in df.columns:
+            return str(df[key].iloc[0]).startswith("chr")
+    return str(df.iloc[0, 0]).startswith("chr")

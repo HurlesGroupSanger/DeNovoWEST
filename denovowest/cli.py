@@ -1,3 +1,11 @@
+"""Top-level Click entrypoint for the public DeNovoWEST CLI.
+
+The CLI is the stable user-facing interface for running individual annotation and
+simulation steps from a Python environment. Nextflow modules may call these
+commands, but the commands are also intended to be usable directly during local
+exploration, debugging, or stepwise execution.
+"""
+
 import click
 from denovowest.simulation import simulation
 from denovowest.annotations import annotate_cadd, annotate_custom, annotate_dbnsfp, annotate_vcf
@@ -5,7 +13,7 @@ from denovowest.annotations import annotate_cadd, annotate_custom, annotate_dbns
 
 @click.group()
 def main():
-    """CLI for denovowest"""
+    """Run one of the public DeNovoWEST subcommands."""
     pass
 
 

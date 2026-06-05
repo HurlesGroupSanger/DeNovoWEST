@@ -1,14 +1,23 @@
 #!/usr/bin/env python
+import logging
+import sys
+
 import click
 import gffutils
 import pandas as pd
-import sys
-import logging
 
+from denovowest.utils.io_helpers import extract_ensembl_gene_id_without_version
 from denovowest.utils.log import init_log
 from denovowest.utils.params import CONSEQUENCES_SEVERITIES
 
 # TODO: better handle versioned and non-versioned gene ids
+
+#################
+# Constants     #
+#################
+
+# Consequences that classify a variant as an indel
+INDELS = frozenset(["inframe", "frameshift", "inframe_insertion", "inframe_deletion"])
 
 
 @click.group()
@@ -20,13 +29,13 @@ def cli():
 @click.argument("rates")
 @click.argument("fasta")
 @click.argument("out_vcf")
-def rates_to_vcf(rates, fasta, out_vcf):
-    """Transforms a rate file (tabular format) in VCF format to use before calling bcftoolscsq
+def rates_to_vcf(rates: str, fasta: str, out_vcf: str) -> None:
+    """Transform a rates file (tabular format) into VCF format for use with bcftools csq.
 
     Args:
-        rates (file): Rate file
-        fasta (file): FASTA file or fasta index file used to compute the rate file
-        out_vcf (str): Destination of the output VCF file
+        rates: Rate file.
+        fasta: FASTA file or FASTA index file used to compute the rate file.
+        out_vcf: Destination of the output VCF file.
     """
 
     # Retrieve contig length from FASTA file
@@ -61,29 +70,33 @@ def rates_to_vcf(rates, fasta, out_vcf):
             f.write(f"{row.chrom}\t{row.pos}\t.\t{row.ref}\t{row.alt}\t.\t.\tGENE={row.gene_id}\n")
 
 
-def extract_worst_consequence(vcf_df, gff_db, force_indel_annotation):
-    """
-    BCFtools csq returns a consequence string per transcript.
-    We extract the one that contains the worst consequence.
+def extract_worst_consequence(
+    vcf_df: pd.DataFrame,
+    gff_db: gffutils.FeatureDB,
+    force_indel_annotation: bool,
+) -> pd.DataFrame:
+    """Extract the worst bcftools csq consequence for each variant.
 
-    Sometimes there will be multiple annotations for a single transcript (e.g. synonymous&splice_donor),
-    in this case we retrieve the worst annotation among the multiple annotations
+    BCFtools csq returns a consequence string per transcript. We extract the one
+    that contains the worst consequence. Sometimes there will be multiple
+    annotations for a single transcript (e.g. synonymous&splice_donor); in that
+    case we retrieve the worst annotation among the multiple annotations.
 
     Args:
-        vcf_df (pd.DataFrame): Variant file annotated with bcftools csq
-        gff_db (gffutils.FeatureDB): gffutils database
-        force_indel_annotation(bool) : force indels to be annotated as indels (i.e. inframe, frameshift)
+        vcf_df: Variant file annotated with bcftools csq.
+        gff_db: gffutils database.
+        force_indel_annotation: Force indels to be annotated as indels (i.e. inframe, frameshift).
 
     Returns:
-        pd.DataFrame: the VCF df with two new columns, one for the worst overall consequ
+        The VCF df with two new columns: consequence and full_consequence_bcftoolscsq.
     """
 
     both_use_version = do_both_sources_use_version(gff_db, vcf_df)
     if not both_use_version:
         ensembl_gene_id_map_version = extract_ensembl_gene_id_without_version(gff_db)
 
-    list_worst_csq = list()
-    list_csqs = list()
+    list_worst_csq = []
+    list_csqs = []
     for idx, record in vcf_df.iterrows():
 
         # Get gene name(s)
@@ -128,7 +141,7 @@ def extract_worst_consequence(vcf_df, gff_db, force_indel_annotation):
                 csqs = worst_csqs
 
                 # If we want all coding indels to be annotated as inframe or frameshift
-                if force_indel_annotation & is_indel(record):
+                if force_indel_annotation and is_indel(record):
                     csq, csqs = assign_indel_csq(csq, csqs)
 
                 # We keep the long bcftools string uniquely if it differs from the
@@ -141,7 +154,7 @@ def extract_worst_consequence(vcf_df, gff_db, force_indel_annotation):
                 csqs = ""
 
         except IndexError:
-            # bcftoolscsq return sometimes empty consequences
+            # bcftoolscsq returns sometimes empty consequences
             csq = ""
             csqs = ""
 
@@ -154,52 +167,56 @@ def extract_worst_consequence(vcf_df, gff_db, force_indel_annotation):
     return vcf_df
 
 
-def do_both_sources_use_version(gff_db, vcf_df):
+def do_both_sources_use_version(gff_db: gffutils.FeatureDB, vcf_df: pd.DataFrame) -> bool:
+    """Check whether both the GFF and the VCF use versioned ENSEMBL gene IDs.
 
-    for gene in gff_db.features_of_type("gene", order_by="start"):
-        gff_gene_id = gene.id
-        break
+    Args:
+        gff_db: gffutils database.
+        vcf_df: Variant file with a GENE INFO field.
 
-    for idx, record in vcf_df.iterrows():
+    Returns:
+        True if both sources include a version suffix (e.g. ENSG0000001.2).
+    """
+
+    gff_gene_id = next(gff_db.features_of_type("gene", order_by="start")).id
+
+    vcf_gene_id = ""
+    for _, record in vcf_df.iterrows():
         vcf_gene_id = record.INFO.split(";")[0].replace("GENE=", "")
-        if vcf_gene_id != "":
+        if vcf_gene_id:
             break
 
-    if "." in gff_gene_id and "." in vcf_gene_id:
-        return True
-    else:
-        return False
+    return "." in gff_gene_id and "." in vcf_gene_id
 
 
-def is_indel(record):
-    """
-    Test whether the variant is an indel or a SNP
+def is_indel(record: pd.Series) -> bool:
+    """Test whether the variant is an indel.
 
     Args:
-        record (pd.Series): variant
+        record: Variant as a pandas Series with REF and ALT fields.
+
+    Returns:
+        True if the variant is an indel, False if it is a SNP.
     """
 
-    if (len(record.REF) != 1) | (len(record.ALT) != 1):
-        return True
-    else:
-        return False
+    return len(record.REF) != 1 or len(record.ALT) != 1
 
 
-def assign_indel_csq(csq, csqs):
-    """
-    Some indels are not called as inframe or frameshift. It means that no SNP-based score
-    (CADD, dbNSFP...) can be assigned for them. In the simulation script, the user can decide
-    to infer a score for those, but if he does not choose this option, these variants will be removed
-    from the analysis.
+def assign_indel_csq(csq: str, csqs: str) -> tuple[str, str]:
+    """Coerce a consequence to inframe or frameshift for coding indels.
 
-    Here we offer an option to call indel indels even if bcftoolscsq returns a different consequence (e.g. splice_donor)
+    Some indels are not called as inframe or frameshift (e.g. splice_donor).
+    This means that no SNP-based score (CADD, dbNSFP...) can be assigned for
+    them. Here we offer an option to force indel indels to be called as inframe
+    or frameshift even if bcftoolscsq returns a different consequence.
 
     Args:
-        csq (str): the worst consequence found for this variant (e.g. splice_donor)
-        csqs (str): the bcftoolscsq string including the worst consequence  (e.g. synonymous&splice_donor)
-    """
+        csq: The worst consequence found for this variant (e.g. splice_donor).
+        csqs: The full bcftoolscsq string (e.g. synonymous&splice_donor).
 
-    INDELS = ["inframe", "frameshift", "inframe_insertion", "inframe_deletion"]
+    Returns:
+        Tuple of (csq, csqs), potentially coerced to an indel consequence.
+    """
 
     # If the worst consequence is already inframe or frameshift, nothing to do
     if csq in INDELS:
@@ -226,45 +243,25 @@ def assign_indel_csq(csq, csqs):
     return "frameshift", csqs
 
 
-def extract_ensembl_gene_id_without_version(gff_db):
-    """
-    It might happen that the user input file contains ENSEMBL gene ids without version number
-    when the GFF file does contain them. In that case we need to map the two together.
-
-    Args:
-        gff_db (gffutils.FeatureDB): gffutils database
-
-    Returns:
-        dict: maps ENSG with version to ENSG without version (e.g. {ENSG00000010404 : ENSG00000010404.1})
-    """
-
-    ensembl_gene_id_map_version = dict()
-    for gene in gff_db.features_of_type("gene", order_by="start"):
-        ensembl_gene_id_map_version[gene.id.split(".")[0]] = gene.id
-
-    return ensembl_gene_id_map_version
-
-
 @cli.command()
 @click.argument("vcf")
 @click.argument("rates")
-@click.argument("gff_db")
+@click.argument("gff_db_path")
 @click.argument("out_rates")
 @click.option(
     "--force-indel-annotation",
     is_flag=True,
     default=False,
 )
-def vcf_to_rates(vcf, rates, gff_db, out_rates, force_indel_annotation):
-    """
-    Merge the VCF file annotated with bcftoolscsq with a rate file (tabular)
+def vcf_to_rates(vcf: str, rates: str, gff_db_path: str, out_rates: str, force_indel_annotation: bool) -> None:
+    """Merge the VCF file annotated with bcftoolscsq with a rate file (tabular).
 
     Args:
-        vcf (str): Path of the VCF file
-        rates (str): Path to the rates file
-        gff_db (str) : Path to gffutils database
-        out_rates (str): Path of the output rates file
-        force_indel_annotation(bool) : force indels to be annotated as indels (i.e. inframe, frameshift)
+        vcf: Path of the VCF file.
+        rates: Path to the rates file.
+        gff_db_path: Path to gffutils database.
+        out_rates: Path of the output rates file.
+        force_indel_annotation: Force indels to be annotated as indels (i.e. inframe, frameshift).
     """
 
     init_log()
@@ -274,12 +271,13 @@ def vcf_to_rates(vcf, rates, gff_db, out_rates, force_indel_annotation):
     rates_df = pd.read_csv(rates, sep="\t", dtype={"chrom": str})
 
     # Read VCF
+    vcf_columns = ["#CHROM", "POS", "ID", "REF", "ALT", "QUAL", "FILTER", "INFO"]
     try:
         if vcf.endswith("gz"):
             vcf_df = pd.read_csv(vcf, sep="\t", comment="#", header=None, compression="gzip")
         else:
             vcf_df = pd.read_csv(vcf, sep="\t", comment="#", header=None)
-        vcf_df.columns = "#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO".split("\t")
+        vcf_df.columns = vcf_columns
         vcf_df["#CHROM"] = vcf_df["#CHROM"].astype(str)
 
     except pd.errors.EmptyDataError:
@@ -294,7 +292,7 @@ def vcf_to_rates(vcf, rates, gff_db, out_rates, force_indel_annotation):
             sys.exit(1)
 
     # Load gffutils database
-    gff_db = gffutils.FeatureDB(gff_db)
+    gff_db = gffutils.FeatureDB(gff_db_path)
 
     # Extract BCFtools consequence in a separate column
     vcf_df = extract_worst_consequence(vcf_df, gff_db, force_indel_annotation)

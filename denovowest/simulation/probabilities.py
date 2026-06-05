@@ -3,7 +3,7 @@ import numpy as np
 from joblib import Parallel, delayed
 from scipy import stats
 
-from denovowest.utils.params import DEFAULT_MAX_NB_MUTATIONS_SIM, DEFAULT_MIN_NB_SIM, STOP_SKIP_SIMULATION_THRESHOLD
+from denovowest.utils.params import DEFAULT_MAX_NB_MUTATIONS_SIM, STOP_SKIP_SIMULATION_THRESHOLD
 
 
 def calc_p0(mu, obs_sum_scores):
@@ -68,7 +68,7 @@ def calc_pn(mu, obs_sum_scores, rates, nb_mutation_poisson, scores_sorted, score
 
     # Scaling the number of simulations to be performed based on the probability of observing nb_mutation_poisson DNMs
     # TODO : see if there is a room for improvement here too
-    nsim = max([int(round(cfg.nsim * pndnm)), DEFAULT_MIN_NB_SIM])
+    nsim = cfg.nsim
 
     s = np.nan
 
@@ -93,7 +93,7 @@ def calc_pn(mu, obs_sum_scores, rates, nb_mutation_poisson, scores_sorted, score
     # Otherwise, we simulate the cumulated scores for nb_mutation_poisson randomly picked mutations nsim times and calculate the proportion of simulations
     # for which we obtain a score greater than or equal to the observed score
     else:
-        s = sim_score(mu, obs_sum_scores, rates, nb_mutation_poisson, score_column, cfg)
+        s = sim_score(mu, obs_sum_scores, rates, nb_mutation_poisson, score_column, nsim, cfg)
         pscore = (float(s) + 1) / (nsim + 1)  # Using a pseudocount to avoid getting a p-value of 0
 
     # This probability is adjusted by the probability of actually observing nb_mutation_poisson mutations given the poisson rate (expected number of mutations)
@@ -102,7 +102,7 @@ def calc_pn(mu, obs_sum_scores, rates, nb_mutation_poisson, scores_sorted, score
     return (pn, nsim, s)
 
 
-def sim_score(mu, obs_sum_scores, rates, nb_mutation_poisson, score_column, cfg):
+def sim_score(mu, obs_sum_scores, rates, nb_mutation_poisson, score_column, nsim, cfg):
     """
     Draws nsim times nb_mutation_poisson mutations from set of all possible mutations according to their mutation rate.
     Count how many times their cumulated scores is greater than or equal to the observed sum of scores.
@@ -113,6 +113,7 @@ def sim_score(mu, obs_sum_scores, rates, nb_mutation_poisson, score_column, cfg)
         rates (pd.DataFrame): all possible mutations annotated
         nb_mutation_poisson (int): number of mutations to draw
         score_column(str) : column to extract the scores from
+        nsim (int): number of simulations to run for the current poisson step
         cfg (Config): configuration object that stores script parameters
     """
 
@@ -127,8 +128,8 @@ def sim_score(mu, obs_sum_scores, rates, nb_mutation_poisson, score_column, cfg)
 
     # Split simulations into chunks
     split_sim = 100
-    num_full_chunks = cfg.nsim // split_sim
-    remaining_simulations = cfg.nsim % split_sim
+    num_full_chunks = nsim // split_sim
+    remaining_simulations = nsim % split_sim
 
     # Run full chunks in parallel
     full_chunk_results = Parallel(n_jobs=cfg.jobs)(delayed(simulate_chunk)(split_sim) for _ in range(num_full_chunks))
@@ -344,8 +345,7 @@ def estimate_pval_extremely_enriched_gene(nb_mutation_poisson, obs_sum_scores, s
         # Otherwise we just take an upper bound on
         # the number of exceedance in the simulation round for k-1.
         # This is done to avoid running unneeded simulations
-        nsim = max([int(round(cfg.nsim * pndnm)), DEFAULT_MIN_NB_SIM])
-        psim = 1 / (nsim + 1)
+        psim = 1 / (cfg.nsim + 1)
 
         ptot = pndnm * psim
 

@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 import logging
 import re
+from pathlib import Path
 
 import click
 import gffutils
@@ -11,117 +12,148 @@ from denovowest.utils.io_helpers import load_gff
 from denovowest.utils.log import init_log
 from denovowest.utils.params import CDS_OFFSET
 
+#############################
+# CLI                       #
+#############################
+
 
 @click.command()
-@click.argument("dnm")
-@click.argument("gene_list")
-@click.option("--output_kept_dnm")
-@click.option("--output_discarded_dnm")
-@click.option("--gff")
-def filter_dnm(dnm, gene_list, output_kept_dnm, output_discarded_dnm, gff):
-    """
-    Remove from DNM table the variants in genes not found in gene list.
-    The gene list has been either provided by the user or built from the rates file.
+@click.argument("dnm", type=click.Path(exists=True, path_type=Path))
+@click.argument("gene_list", type=click.Path(exists=True, path_type=Path))
+@click.option("--output_kept_dnm", type=click.Path(path_type=Path))
+@click.option("--output_discarded_dnm", type=click.Path(path_type=Path))
+@click.option("--gff", type=click.Path(exists=True, path_type=Path))
+def filter_dnm(
+    dnm: Path,
+    gene_list: Path,
+    output_kept_dnm: Path,
+    output_discarded_dnm: Path,
+    gff: Path | None,
+) -> None:
+    """Remove from the DNM table variants whose gene is absent from the gene list.
 
-    If the GFF option is provided, variants not found in CDS regions will be discarded.
+    The gene list is either user-provided or built from the rates file.
+    If ``--gff`` is provided, variants outside CDS regions are also discarded.
 
     Args:
-        dnm (str): path to DNM file
-        gene_list (str): path to gene list file
-        output_kept_dnm (str): path to kept DNM table
-        output_discarded_dnm (str): path to filtered DNM table
-        gff (str): path to GFF file
+        dnm: Path to the DNM file.
+        gene_list: Path to the gene list file.
+        output_kept_dnm: Destination path for retained variants.
+        output_discarded_dnm: Destination path for discarded variants.
+        gff: Path to a GFF file or gffutils database (enables CDS filtering).
     """
+
+    init_log()
 
     genes = load_gene_list(gene_list)
     dnm_df = load_dnm(dnm, genes)
 
-    # Filter DNM table on gene list
+    # Filter on gene list membership
     dnm_df, dnm_discarded_df = filter_on_gene_list(dnm_df, genes)
 
-    # Filter DNM table on CDS regions
+    # Optionally filter on CDS regions
     if gff:
         dnm_df, dnm_discarded_gff_df = filter_on_gff(dnm_df, gff)
         dnm_discarded_df = pd.concat([dnm_discarded_df, dnm_discarded_gff_df])
 
-    # Export DNM tables
     export_dnm(dnm_df, dnm_discarded_df, output_kept_dnm, output_discarded_dnm)
-
-    # Log stats
     log_stats(dnm_df, dnm_discarded_df, output_discarded_dnm)
 
 
-def filter_on_gene_list(dnm_df, gene_list):
-    """
-    Remove from DNM table the variants in genes not found in gene list
+#############################
+# Filtering                 #
+#############################
+
+
+def filter_on_gene_list(
+    dnm_df: pd.DataFrame,
+    gene_list: list[str],
+) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """Remove rows whose gene is not in ``gene_list``.
 
     Args:
-        dnm_df (pd.DataFrame): DNM table
-        gene_list (list): gene list
+        dnm_df: DNM table.
+        gene_list: Allowed gene identifiers.
+
+    Returns:
+        Tuple of (kept DataFrame, discarded DataFrame).
+        The discarded DataFrame carries a ``reason`` column.
     """
 
-    dnm_kept_df = dnm_df.loc[dnm_df["gene_id"].isin(gene_list)]
-    dnm_discarded_df = dnm_df.loc[~dnm_df["gene_id"].isin(gene_list)].copy()
-    dnm_discarded_df["reason"] = "not_in_gene_list"
+    kept = dnm_df.loc[dnm_df["gene_id"].isin(gene_list)].copy()
+    discarded = dnm_df.loc[~dnm_df["gene_id"].isin(gene_list)].copy()
+    discarded["reason"] = "not_in_gene_list"
+    return kept, discarded
 
-    return dnm_kept_df, dnm_discarded_df
 
+def filter_on_gff(
+    dnm_df: pd.DataFrame,
+    gff: Path,
+) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """Remove rows that fall outside CDS regions defined in the GFF file.
 
-def filter_on_gff(dnm_df, gff):
-    """
-    Remove from DNM table the variants not found in CDS regions
     Args:
-        dnm_df (pd.DataFrame): DNM table
-        gff (str): path to GFF file or gffutils database
+        dnm_df: DNM table (already filtered by gene list).
+        gff: Path to a GFF file or gffutils database.
+
+    Returns:
+        Tuple of (kept DataFrame, discarded DataFrame).
+        The discarded DataFrame carries a ``reason`` column.
     """
 
     logger = logging.getLogger("logger")
     gff_db = load_gff(gff)
 
-    # Build gene CDS intervals
     gene_ids = list(dnm_df["gene_id"].unique())
     genes_cds = build_gene_cds_intervals(gff_db, gene_ids, cds_offset=CDS_OFFSET)
     logger.info("Built gene CDS intervals from GFF")
 
-    # Loop over genes
-    list_new_dnm_df = []
+    list_new_dnm: list[pd.DataFrame] = []
     for gene_id, gene_dnm_df in dnm_df.groupby("gene_id"):
-
-        # If gene not in GFF, all its DNM are filtered out
+        gene_dnm_df = gene_dnm_df.copy()
         gene_cds = genes_cds[gene_id]
+
+        # Gene absent from the GFF — discard all its variants
         if gene_cds is None:
-            logger.warning(f"{gene_id} not in GFF")
+            logger.warning(f"{gene_id} not found in GFF")
             gene_dnm_df["in_cds"] = False
             gene_dnm_df["reason"] = "gene_not_in_gff"
-            list_new_dnm_df.append(gene_dnm_df)
+            list_new_dnm.append(gene_dnm_df)
             continue
 
-        # Loop over DNM in the gene to check if they are in CDS regions
-        hit = np.zeros(gene_dnm_df.shape[0], dtype=bool)
+        # Vectorised CDS membership check
+        hit = np.zeros(len(gene_dnm_df), dtype=bool)
         for cds_start, cds_end in gene_cds:
-            hit |= (gene_dnm_df.pos >= cds_start) & (gene_dnm_df.pos <= cds_end)
+            hit |= (gene_dnm_df["pos"].values >= cds_start) & (gene_dnm_df["pos"].values <= cds_end)
 
         gene_dnm_df["in_cds"] = hit
         gene_dnm_df["reason"] = gene_dnm_df["in_cds"].apply(lambda x: "not_in_cds" if not x else "")
-        list_new_dnm_df.append(gene_dnm_df)
+        list_new_dnm.append(gene_dnm_df)
 
-    # Combine all DNM
-    new_dnm_df = pd.concat(list_new_dnm_df)
-    kept_df = new_dnm_df.loc[new_dnm_df["in_cds"]].copy()
-    discarded_df = new_dnm_df.loc[~new_dnm_df["in_cds"]].copy()
-
-    return kept_df.drop(["in_cds", "reason"], axis=1), discarded_df.drop(["in_cds"], axis=1)
+    new_dnm_df = pd.concat(list_new_dnm)
+    kept = new_dnm_df.loc[new_dnm_df["in_cds"]].copy().drop(columns=["in_cds", "reason"])
+    discarded = new_dnm_df.loc[~new_dnm_df["in_cds"]].copy().drop(columns=["in_cds"])
+    return kept, discarded
 
 
-def build_gene_cds_intervals(gff_db, gene_ids, cds_offset):
+def build_gene_cds_intervals(
+    gff_db: gffutils.FeatureDB,
+    gene_ids: list[str],
+    cds_offset: int,
+) -> dict[str, list[tuple[int, int]] | None]:
+    """Build CDS intervals for each gene, extended by ``cds_offset`` on each side.
+
+    Args:
+        gff_db: GFF utils database.
+        gene_ids: Gene identifiers to query.
+        cds_offset: Number of extra bases added on each side of every CDS.
+
+    Returns:
+        Mapping from gene ID to a list of ``(start, end)`` intervals.
+        Genes absent from the GFF map to ``None``.
     """
-    Build merged CDS intervals for each gene in gene_ids.
 
-    Returns mapping: gene_id -> list of (start, end) sorted, non-overlapping.
-    If a gene is missing in the GFF, maps to None.
-    """
-    intervals = {}
-
+    intervals: dict[str, list[tuple[int, int]] | None] = {}
     for gid in gene_ids:
         try:
             gene = gff_db[gid]
@@ -129,128 +161,108 @@ def build_gene_cds_intervals(gff_db, gene_ids, cds_offset):
             intervals[gid] = None
             continue
 
-        raw_intervals = []
+        raw: list[tuple[int, int]] = []
         for transcript in gff_db.children(gene, level=1):
             for cds in gff_db.children(transcript, featuretype="CDS", order_by="start"):
                 start = max(1, cds.start - cds_offset)
                 end = cds.end + cds_offset
-                raw_intervals.append((start, end))
+                raw.append((start, end))
 
-        if not raw_intervals:
-            intervals[gid] = []
-            continue
-
-        intervals[gid] = raw_intervals
+        intervals[gid] = raw if raw else []
 
     return intervals
 
 
-def is_in_cds(gff_db, gene, pos):
-    """
-    Check if a given DNM is in a CDS region defined in the GFF file
+#############################
+# Data loading / formatting #
+#############################
+
+
+def load_dnm(dnm: Path, genes: list[str]) -> pd.DataFrame:
+    """Load the DNM file and normalise gene identifiers.
 
     Args:
-        gff_db (gffutils.FeatureDB): gffutils database
-        gene (gffutils.Feature): gene in GFFDB
-        pos (int) : genomic loci of the variant
-    """
+        dnm: Path to the DNM file.
+        genes: Gene identifiers from the rates/gene-list file,
+            used to reconcile ENSEMBL version differences.
 
-    for transcript in gff_db.children(gene, level=1):
-        for cds in gff_db.children(transcript, featuretype="CDS", order_by="start"):
-            if (pos >= cds.start - CDS_OFFSET) and (pos <= cds.end + CDS_OFFSET):
-                return True
-
-    return False
-
-
-def load_dnm(dnm, genes):
-    """
-    Load DNM file
-
-    Args:
-        dnm (str): path to DNM file
-        genes (list) : list of gene identifiers
+    Returns:
+        DNM DataFrame with normalised ``gene_id`` column.
     """
 
     dnm_df = pd.read_csv(dnm, sep="\t", dtype={"gene_id": "string"})
     # TODO : handle this case so discarded DNM with no gene associated can be traced
     dnm_df = dnm_df.loc[~dnm_df.gene_id.isna()]
     dnm_df["gene_id"] = format_gene_id(list(dnm_df["gene_id"]), genes)
-
     return dnm_df
 
 
-def load_gene_list(gene_list):
-    """
-    Load gene list that will be used to filter the DNM table
+def load_gene_list(gene_list: Path) -> list[str]:
+    """Load the gene list used to filter the DNM table.
 
     Args:
-        gene_list (str): path to gene list
+        gene_list: Path to the gene list file (one identifier per line).
+
+    Returns:
+        List of stripped gene identifiers.
     """
 
     with open(gene_list, "r") as f:
-        genes = f.readlines()
-
-    genes = [gene_id.strip() for gene_id in genes]
-
-    return genes
+        return [line.strip() for line in f if line.strip()]
 
 
-def format_gene_id(genes_in_dnm, genes_list):
-    """
-    Get rid of trailing spaces after gene ids and matches gene identifiers from rates file
+def format_gene_id(genes_in_dnm: list[str], genes_list: list[str]) -> list[str]:
+    """Normalise gene identifiers so DNM and rates files use the same format.
+
+    Handles the common mismatch where the rates file has versioned ENSEMBL IDs
+    (e.g. ``ENSG00000012048.19``) while the DNM file does not (e.g. ``ENSG00000012048``).
 
     Args:
-        genes_in_dnm (list): list of genes in DNM file
-        genes_list (list) : list of genes provided by the user or taken from the rates file
+        genes_in_dnm: Gene identifiers from the DNM file.
+        genes_list: Gene identifiers from the rates/gene-list file.
+
+    Returns:
+        Normalised gene identifier list for the DNM file.
     """
 
-    # Strip genes identifiers to remove typo mistakes
-    genes_in_dnm = [gene_id.strip() for gene_id in genes_in_dnm]
+    # Strip leading/trailing whitespace
+    genes_in_dnm = [g.strip() for g in genes_in_dnm]
 
-    # If the DNM file gene identifiers do not contain version number but the rates file does, we suffix the gene identifier with the version
-    pattern_ensembl_version = r"^ENSG\d{11}\.\d+$"
-    pattern_ensembl_id_only = r"^ENSG\d{11}$"
-    if bool(re.match(pattern_ensembl_id_only, genes_in_dnm[0])) & bool(
-        re.match(pattern_ensembl_version, genes_list[0])
-    ):
-        genes_dict = {x.split(".")[0]: x for x in genes_list}
-        genes_in_dnm = [genes_dict[x] if x in genes_dict.keys() else x for x in genes_in_dnm]
+    if not genes_in_dnm or not genes_list:
+        return genes_in_dnm
+
+    pattern_versioned = r"^ENSG\d{11}\.\d+$"
+    pattern_unversioned = r"^ENSG\d{11}$"
+
+    dnm_unversioned = bool(re.match(pattern_unversioned, genes_in_dnm[0]))
+    list_versioned = bool(re.match(pattern_versioned, genes_list[0]))
+
+    # If DNM file lacks version but rates file has it, append the version
+    if dnm_unversioned and list_versioned:
+        version_map = {x.split(".")[0]: x for x in genes_list}
+        genes_in_dnm = [version_map.get(g, g) for g in genes_in_dnm]
 
     return genes_in_dnm
 
 
-def log_stats(dnm_kept_df, dnm_discarded_df, output_discarded_dnm):
-    """
-    Log stats about the DNM table filtering
+#############################
+# Export / reporting        #
+#############################
+
+
+def export_dnm(
+    dnm_df: pd.DataFrame,
+    dnm_discarded_df: pd.DataFrame,
+    output_kept_dnm: Path,
+    output_discarded_dnm: Path,
+) -> None:
+    """Write kept and discarded DNM tables to TSV files.
 
     Args:
-        dnm_kept_df (pd.DataFrame): DNM kept
-        dnm_discarded_df (pd.DataFrame): DNM filtered out
-        output_discarded_dnm (str): path to filtered DNM table
-    """
-    nb_dnm = dnm_kept_df.shape[0] + dnm_discarded_df.shape[0]
-    logger = logging.getLogger("logger")
-
-    if dnm_discarded_df.empty:
-        logger.info(f"All DNM ({nb_dnm}) were retained")
-    else:
-        nb_dnm_discarded = dnm_discarded_df.shape[0]
-        logger.warning(f"{nb_dnm_discarded}/{nb_dnm} DNM were discarded, of which :")
-        for reason, count in dict(dnm_discarded_df.reason.value_counts()).items():
-            logger.warning(f"- {reason} : {count} DNM")
-        logger.warning(f"Check filtered DNM table : {output_discarded_dnm}")
-
-
-def export_dnm(dnm_df, dnm_discarded_df, output_kept_dnm, output_discarded_dnm):
-    """
-    Export DNM tables
-
-    Args:
-        dnm_df (pd.DataFrame): DNM kept
-        dnm_discarded_df (pd.DataFrame): DNM filtered out
-        output_kept_dnm (str): path to kept DNM table
-        output_discarded_dnm (str): path to filtered DNM table
+        dnm_df: Retained DNM rows.
+        dnm_discarded_df: Discarded DNM rows.
+        output_kept_dnm: Destination path for retained variants.
+        output_discarded_dnm: Destination path for discarded variants.
     """
 
     dnm_df.sort_values(by=["chrom", "pos", "ref", "alt"], inplace=True)
@@ -260,6 +272,31 @@ def export_dnm(dnm_df, dnm_discarded_df, output_kept_dnm, output_discarded_dnm):
     dnm_discarded_df.to_csv(output_discarded_dnm, sep="\t", index=False)
 
 
+def log_stats(
+    dnm_kept_df: pd.DataFrame,
+    dnm_discarded_df: pd.DataFrame,
+    output_discarded_dnm: Path,
+) -> None:
+    """Log filtering statistics.
+
+    Args:
+        dnm_kept_df: Retained DNM rows.
+        dnm_discarded_df: Discarded DNM rows.
+        output_discarded_dnm: Path to the discarded DNM file (for user reference).
+    """
+
+    logger = logging.getLogger("logger")
+    nb_dnm = len(dnm_kept_df) + len(dnm_discarded_df)
+
+    if dnm_discarded_df.empty:
+        logger.info(f"All DNM ({nb_dnm}) were retained")
+    else:
+        nb_discarded = len(dnm_discarded_df)
+        logger.warning(f"{nb_discarded}/{nb_dnm} DNM were discarded, of which :")
+        for reason, count in dnm_discarded_df["reason"].value_counts().items():
+            logger.warning(f"- {reason} : {count} DNM")
+        logger.warning(f"Check filtered DNM table : {output_discarded_dnm}")
+
+
 if __name__ == "__main__":
-    init_log()
     filter_dnm()

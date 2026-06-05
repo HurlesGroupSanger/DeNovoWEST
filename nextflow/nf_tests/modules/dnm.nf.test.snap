@@ -1,19 +1,36 @@
 {
+    "filter_dnm \u2013 snapshot": {
+        "content": [
+            {
+                "0": [
+                    [
+                        "dnms_kept_after_gene_filtering.tsv:md5,5a63331984b1658f73428fcc110182e3",
+                        "dnms_discarded_after_gene_filtering.tsv:md5,8d86ac075a96379170b2634ad802b69d"
+                    ]
+                ]
+            }
+        ],
+        "timestamp": "2026-06-01T18:28:52.904930193",
+        "meta": {
+            "nf-test": "0.9.5",
+            "nextflow": "23.10.1"
+        }
+    },
     "filter_dnm": {
         "content": [
             {
                 "0": [
-                    "dnm_kept.tsv:md5,aa09d3b0cbbcdbc148887caa6222ce9b"
-                ],
-                "1": [
-                    "dnm_discarded.tsv:md5,cb3264d7c6216a8c2333f403b47c9952"
+                    [
+                        "dnms_kept_after_gene_filtering.tsv:md5,5a63331984b1658f73428fcc110182e3",
+                        "dnms_discarded_after_gene_filtering.tsv:md5,8d86ac075a96379170b2634ad802b69d"
+                    ]
                 ]
             }
         ],
+        "timestamp": "2026-06-01T17:14:06.022329186",
         "meta": {
-            "nf-test": "0.8.4",
+            "nf-test": "0.9.5",
             "nextflow": "23.10.1"
-        },
-        "timestamp": "2025-01-13T19:05:48.11717393"
+        }
     }
 }

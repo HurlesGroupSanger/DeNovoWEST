@@ -99,9 +99,6 @@ CONSEQUENCES_MAPPING = {
 # Default maximum number of expected mutation to test for using the simulation approach
 DEFAULT_MAX_NB_MUTATIONS_SIM = 250
 
-# Minimum number of simulation per batch
-DEFAULT_MIN_NB_SIM = 10**7
-
 # Threshold to stop/skip simulation when poisson probabilities are extremely low
 STOP_SKIP_SIMULATION_THRESHOLD = 10**-12
 

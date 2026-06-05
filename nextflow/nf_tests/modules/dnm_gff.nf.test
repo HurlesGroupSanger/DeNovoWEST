@@ -1,0 +1,70 @@
+nextflow_process {
+
+    name "DNM module – FILTER_DNM_GFF"
+    script "modules/dnm.nf"
+    process "FILTER_DNM_GFF"
+
+    // Gene structure used by the CDS tests:
+    //   gene   chr1:1000-2000
+    //   CDS    chr1:1200-1800   (effective range with CDS_OFFSET=50: 1150-1850)
+    //
+    // Three variants:
+    //   pos 1100  outside CDS  →  discarded
+    //   pos 1500  inside CDS   →  kept
+    //   pos 1900  outside CDS  →  discarded
+
+    test("filter_dnm_gff – process exits successfully with real data") {
+
+        when {
+            process {
+                """
+                input[0] = file("$baseDir/../examples/dnm/filter_dnm/input/DNM_b38_MANE.tsv")
+                input[1] = file("$baseDir/../examples/dnm/filter_dnm/input/gene_list.tsv")
+                input[2] = file("$baseDir/../examples/rates/create_rates_kmer/input/OR4F5.gff")
+                """
+            }
+        }
+
+        then {
+            assert process.success
+            assert process.trace.tasks().size() == 1
+
+            with(process.out) {
+                def lines = path(get(0)[0][0]).readLines()
+                assert lines[0].startsWith("gene_id\t")
+            }
+        }
+    }
+
+    test("filter_dnm_gff – discards variants outside CDS") {
+
+        when {
+            process {
+                """
+                input[0] = file("$baseDir/nf_tests/test_data/dnm/filter_dnm_gff/input/dnm.tsv")
+                input[1] = file("$baseDir/nf_tests/test_data/dnm/filter_dnm_gff/input/gene_list.tsv")
+                input[2] = file("$baseDir/nf_tests/test_data/dnm/filter_dnm_gff/input/test.gff")
+                """
+            }
+        }
+
+        then {
+            assert process.success
+            assert process.trace.tasks().size() == 1
+
+            with(process.out) {
+                def kept      = path(get(0)[0][0]).readLines()
+                def discarded = path(get(0)[0][1]).readLines()
+
+                // Only the variant at pos 1500 (inside CDS 1200-1800 + offset 50) is kept
+                assert kept.size() == 2       // header + 1 variant
+                assert kept[1].contains("1500")
+
+                // The two variants outside the padded CDS are discarded
+                assert discarded.size() == 3  // header + 2 variants
+                assert discarded.tail().every { it.contains("not_in_cds") }
+            }
+        }
+    }
+
+}
