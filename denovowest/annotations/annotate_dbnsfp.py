@@ -14,6 +14,7 @@ from denovowest.utils.io_helpers import (
     fill_annotation_na,
     load_gff,
     read_columns_from_file,
+    resolve_column_conflicts,
 )
 from denovowest.utils.log import init_log
 
@@ -322,28 +323,6 @@ def extract_columns_from_dbnsfp(
     return list_indices, found_columns
 
 
-def check_columns(input_columns: list[str], dbnsfp_columns: list[str]) -> set[str]:
-    """Identify dbNSFP columns that already exist in the variants file.
-
-    Args:
-        input_columns: Columns already present in the input variants DataFrame.
-        dbnsfp_columns: Columns from dbNSFP.
-
-    Returns:
-        Set of column names present in both.
-    """
-
-    logger = logging.getLogger("logger")
-
-    shared_columns = set(input_columns) & set(dbnsfp_columns)
-    for col in shared_columns:
-        logger.warning(
-            f"{col} already exists in the variant file; "
-            "the dbNSFP column will be suffixed with _dbnsfp"
-        )
-    return shared_columns
-
-
 def load_rates_file(rates: str) -> tuple[pd.DataFrame, bool]:
     """Load a rates/DNM file.
 
@@ -448,9 +427,14 @@ def annotate_dbnsfp(rates_dnm: str, dbnsfp: str, output: str, columns: str, colu
     # Retrieve columns to extract from dbNSFP
     dbnsfp_columns_indices, dbnsfp_columns_names = extract_columns_from_dbnsfp(dbnsfp_df, columns, columns_file)
 
-    # Suffix any column names that clash with the input file
-    existing_columns = check_columns(rates_df_columns, dbnsfp_columns_names)
-    dbnsfp_columns_names = [f"{col}_dbnsfp" if col in existing_columns else col for col in dbnsfp_columns_names]
+    # Rename any new columns that clash with existing ones
+    dbnsfp_columns_names, renames = resolve_column_conflicts(rates_df_columns, dbnsfp_columns_names, "dbnsfp")
+    for original, renamed in renames.items():
+        logger.warning(
+            f"Column '{original}' already exists in the input file — the dbNSFP annotation "
+            f"will be written as '{renamed}'. If using this as the simulation score, "
+            f"pass --score-column {renamed} to the simulation command."
+        )
 
     # For each gene
     list_merged_df = []

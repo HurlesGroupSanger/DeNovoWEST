@@ -7,7 +7,7 @@ import click
 import pandas as pd
 import pysam
 
-from denovowest.utils.io_helpers import as_range, fill_annotation_na
+from denovowest.utils.io_helpers import as_range, fill_annotation_na, resolve_column_conflicts
 from denovowest.utils.log import init_log
 
 
@@ -66,6 +66,15 @@ def annotate_cadd(rates: str, cadd: str, output: str) -> None:
     # Depending on the gff, chromosome can be defined as "chrX" or just "X"
     add_chr = str(rates_df.iloc[0].chrom).startswith("chr")
 
+    # Resolve any column name conflicts with existing columns upfront
+    cadd_columns, renames = resolve_column_conflicts(list(rates_df.columns), ["raw", "score"], "cadd")
+    for original, renamed in renames.items():
+        logger.warning(
+            f"Column '{original}' already exists in the input file — the CADD annotation "
+            f"will be written as '{renamed}'. If using this as the simulation score, "
+            f"pass --score-column {renamed} to the simulation command."
+        )
+
     # Load CADD tabix file
     cadd_tabix = pysam.TabixFile(cadd)
 
@@ -90,17 +99,19 @@ def annotate_cadd(rates: str, cadd: str, output: str) -> None:
             gene_cadd_df = pd.concat(list_block_df)
             if add_chr:
                 gene_cadd_df["chrom"] = "chr" + gene_cadd_df["chrom"]
+            if renames:
+                gene_cadd_df = gene_cadd_df.rename(columns=renames)
             merged_gene_df = gene_rates_df.merge(gene_cadd_df, how="left", on=["chrom", "pos", "ref", "alt"])
         else:
             merged_gene_df = gene_rates_df.copy()
-            merged_gene_df["raw"] = pd.NA
-            merged_gene_df["score"] = pd.NA
+            for col in cadd_columns:
+                merged_gene_df[col] = pd.NA
 
         list_merged_df.append(merged_gene_df)
 
     # Combine results for all genes
     merged_df = pd.concat(list_merged_df)
-    fill_annotation_na(merged_df, ["raw", "score"])
+    fill_annotation_na(merged_df, cadd_columns)
     merged_df.to_csv(output, sep="\t", index=False)
 
 

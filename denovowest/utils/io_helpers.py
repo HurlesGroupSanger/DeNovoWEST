@@ -137,6 +137,39 @@ def as_range(region) -> tuple[int, int]:
     return positions[0], positions[-1]
 
 
+def resolve_column_conflicts(
+    input_columns: list[str],
+    new_columns: list[str],
+    suffix: str,
+) -> tuple[list[str], dict[str, str]]:
+    """Rename new annotation columns that clash with existing input columns.
+
+    Clashing columns are renamed to ``{column}_{suffix}`` so the original column
+    is never overwritten. Call-sites should log a warning for each rename and
+    tell the user which ``--score-column`` value to pass downstream.
+
+    Args:
+        input_columns: Columns already present in the input DataFrame.
+        new_columns: Columns the annotation step wants to add.
+        suffix: Source identifier appended on conflict (e.g. ``"cadd"``, ``"dbnsfp"``).
+
+    Returns:
+        Tuple of (resolved_names, renames) where ``renames`` maps each original
+        name to its suffixed replacement for every column that clashed.
+    """
+
+    renames: dict[str, str] = {}
+    resolved: list[str] = []
+    for col in new_columns:
+        if col in input_columns:
+            renamed = f"{col}_{suffix}"
+            renames[col] = renamed
+            resolved.append(renamed)
+        else:
+            resolved.append(col)
+    return resolved, renames
+
+
 def fill_annotation_na(df: pd.DataFrame, annotation_columns: list[str]) -> pd.DataFrame:
     """Replace NaN with ``"."`` in newly-added annotation columns only.
 

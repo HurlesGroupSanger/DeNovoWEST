@@ -15,7 +15,7 @@ import click
 import pandas as pd
 import pysam
 
-from denovowest.utils.io_helpers import as_range, fill_annotation_na, is_chr_prefixed, read_columns_from_file
+from denovowest.utils.io_helpers import as_range, fill_annotation_na, is_chr_prefixed, read_columns_from_file, resolve_column_conflicts
 from denovowest.utils.log import init_log
 
 # TODO : Handle annotation with matching on gene identifier/symbol
@@ -268,28 +268,6 @@ def extract_columns_indices(
     return columns_indices, columns_names
 
 
-def check_columns(input_columns: list[str], custom_columns: list[str]) -> set[str]:
-    """Identify annotation columns that already exist in the variants file.
-
-    Args:
-        input_columns: Columns already present in the input variants DataFrame.
-        custom_columns: Columns from the annotation file.
-
-    Returns:
-        Set of column names present in both.
-    """
-
-    logger = logging.getLogger("logger")
-
-    shared_columns = set(input_columns) & set(custom_columns)
-    for col in shared_columns:
-        logger.warning(
-            f"{col} already exists in the variant file; "
-            "the annotation column will be suffixed with _custom"
-        )
-    return shared_columns
-
-
 @click.command()
 @click.argument("variants", type=click.Path(exists=True))
 @click.argument("annotation", type=click.Path(exists=True))
@@ -328,9 +306,15 @@ def cli(variants: str, annotation: str, output: str, columns: str, columns_file:
     # Resolve columns to extract
     columns_indices, columns_names = extract_columns_indices(annotation_df, columns, columns_file)
 
-    # Suffix any column names that clash with the input file
-    existing_columns = check_columns(list(variants_df.columns), columns_names)
-    columns_names = [f"{col}_custom" if col in existing_columns else col for col in columns_names]
+    # Rename any new columns that clash with existing ones
+    logger = logging.getLogger("logger")
+    columns_names, renames = resolve_column_conflicts(list(variants_df.columns), columns_names, "custom")
+    for original, renamed in renames.items():
+        logger.warning(
+            f"Column '{original}' already exists in the input file — the annotation "
+            f"column will be written as '{renamed}'. If using this as the simulation score, "
+            f"pass --score-column {renamed} to the simulation command."
+        )
 
     # Annotate and export
     annotated_df = annotate(variants_df, annotation_df, columns_indices, columns_names, chr_prefixed_variants)

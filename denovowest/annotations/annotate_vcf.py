@@ -13,7 +13,7 @@ import click
 import pandas as pd
 import pysam
 
-from denovowest.utils.io_helpers import as_range, fill_annotation_na, is_chr_prefixed, load_gff, read_columns_from_file
+from denovowest.utils.io_helpers import as_range, fill_annotation_na, is_chr_prefixed, load_gff, read_columns_from_file, resolve_column_conflicts
 from denovowest.utils.log import init_log
 
 
@@ -347,8 +347,7 @@ def build_gene_mapping_from_gff(gff_db) -> dict[str, str]:
     return gene_mapping
 
 
-def check_columns(
-    variants_df: pd.DataFrame,
+def _parse_annotation_columns(
     annotation_vcf: pysam.VariantFile,
     columns: str,
     columns_file: str,
@@ -356,7 +355,6 @@ def check_columns(
     """Determine which INFO fields to retrieve from the VCF annotation file.
 
     Args:
-        variants_df: Variants file.
         annotation_vcf: VCF file containing the annotations.
         columns: Comma-separated INFO field names to retrieve.
         columns_file: File listing INFO field names to retrieve (one per line).
@@ -365,24 +363,13 @@ def check_columns(
         List of INFO field names to retrieve.
     """
 
-    logger = logging.getLogger("logger")
-
-    # If the user provided the columns to extract in a separate file we read it
     if columns_file:
-        annotation_columns = read_columns_from_file(columns_file)
-    # If provided as a string we split it
-    elif columns:
-        annotation_columns = columns.split(",")
+        return read_columns_from_file(columns_file)
+    if columns:
+        return columns.split(",")
     # Default: all INFO fields from the first record
-    else:
-        record = next(iter(annotation_vcf))
-        annotation_columns = list(dict(record.info).keys())
-
-    shared_columns = set(variants_df.columns) & set(annotation_columns)
-    for col in shared_columns:
-        logger.warning(f"{col} already exists in the variant file")
-
-    return annotation_columns
+    record = next(iter(annotation_vcf))
+    return list(dict(record.info).keys())
 
 
 def build_gene_mapping_from_column(variants_df: pd.DataFrame) -> dict[str, str]:
@@ -461,8 +448,17 @@ def cli(variants: str, annotation: str, output: str, columns: str, columns_file:
     else:
         gene_mapping = {}
 
+    # Resolve annotation columns and rename any that clash with existing columns
+    annotation_columns = _parse_annotation_columns(annotation_vcf, columns, columns_file)
+    annotation_columns, renames = resolve_column_conflicts(list(variants_df.columns), annotation_columns, "vcf")
+    for original, renamed in renames.items():
+        logger.warning(
+            f"Column '{original}' already exists in the input file — the VCF annotation "
+            f"will be written as '{renamed}'. If using this as the simulation score, "
+            f"pass --score-column {renamed} to the simulation command."
+        )
+
     # Annotate variants file
-    annotation_columns = check_columns(variants_df, annotation_vcf, columns, columns_file)
     annotated_df = annotate(
         variants_df, annotation_vcf, annotation_columns, match_gene, gene_mapping,
         chr_prefixed_variants, gene_field, gene_content,

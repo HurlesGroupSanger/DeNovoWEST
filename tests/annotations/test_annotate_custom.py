@@ -10,9 +10,9 @@ from click.testing import CliRunner
 
 from denovowest.annotations.annotate_custom import (
     _parse,
-    check_columns,
     extract_columns_indices,
 )
+from denovowest.utils.io_helpers import resolve_column_conflicts
 from denovowest.cli import main
 
 #############################
@@ -150,22 +150,36 @@ def test_extract_columns_indices_defaults_to_all_beyond_coords():
     assert indices == [4, 5, 6]
 
 
-#############################
-# Unit – check_columns      #
-#############################
+##########################################
+# Unit – resolve_column_conflicts        #
+##########################################
 
 
 @pytest.mark.unit
-def test_check_columns_detects_name_clash():
-    """Returns the set of column names present in both the variant file and annotation."""
-    shared = check_columns(["gene_id", "chrom", "score"], ["score", "VEST4"])
+def test_resolve_column_conflicts_renames_clashing_column():
+    """Clashing columns are renamed with the source suffix; non-clashing ones are unchanged."""
+    resolved, renames = resolve_column_conflicts(
+        ["gene_id", "chrom", "score"], ["score", "VEST4"], "custom"
+    )
 
-    assert shared == {"score"}
+    assert resolved == ["score_custom", "VEST4"]
+    assert renames == {"score": "score_custom"}
 
 
 @pytest.mark.unit
-def test_check_columns_returns_empty_set_when_no_clash():
-    """Returns an empty set when variant file and annotation have no columns in common."""
-    shared = check_columns(["gene_id", "chrom", "pos"], ["score", "VEST4"])
+def test_resolve_column_conflicts_no_clash_returns_unchanged():
+    """Returns the original names unchanged when there are no conflicts."""
+    resolved, renames = resolve_column_conflicts(
+        ["gene_id", "chrom", "pos"], ["score", "VEST4"], "custom"
+    )
 
-    assert shared == set()
+    assert resolved == ["score", "VEST4"]
+    assert renames == {}
+
+
+@pytest.mark.unit
+def test_resolve_column_conflicts_suffix_reflects_source():
+    """The suffix in the renamed column name reflects the source argument."""
+    resolved, _ = resolve_column_conflicts(["score"], ["score"], "dbnsfp")
+
+    assert resolved == ["score_dbnsfp"]

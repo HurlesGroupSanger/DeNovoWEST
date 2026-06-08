@@ -300,6 +300,17 @@ def vcf_to_rates(vcf: str, rates: str, gff_db_path: str, out_rates: str, force_i
     # Extract gene id to distinguish between overlapping genes
     vcf_df["gene_id"] = [x.split(";")[0].replace("GENE=", "") for x in vcf_df.INFO]
 
+    # If the rates file already has a 'consequence' column (e.g. from a previous annotation
+    # run), rename it to preserve it — the new bcftools csq annotation takes the canonical name
+    # because 'consequence' is a fixed column name expected downstream by the simulation.
+    if "consequence" in rates_df.columns:
+        logger.warning(
+            "Column 'consequence' already exists in the rates file — the existing column "
+            "will be renamed to 'consequence_prev'. The new bcftools csq annotation "
+            "will be written as 'consequence'."
+        )
+        rates_df = rates_df.rename(columns={"consequence": "consequence_prev"})
+
     # Merge files
     out_rates_df = rates_df.merge(
         vcf_df[["#CHROM", "POS", "REF", "ALT", "consequence", "full_consequence_bcftoolscsq", "gene_id"]],

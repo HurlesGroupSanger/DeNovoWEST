@@ -103,6 +103,34 @@ def test_annotate_cadd_empty_input_exits_cleanly(tmp_path):
 
 
 @pytest.mark.unit
+def test_annotate_cadd_renames_conflicting_column(tmp_path):
+    """When 'score' already exists in the input, the CADD column is written as 'score_cadd'
+    and the original 'score' column is preserved unchanged."""
+    # Build an input file that already carries a 'score' column (e.g. from a previous step)
+    variants_with_score = pd.read_csv(VARIANTS, sep="\t", dtype=str)
+    variants_with_score["score"] = "0.99"
+    conflict_input = tmp_path / "with_score.tsv"
+    variants_with_score.to_csv(conflict_input, sep="\t", index=False)
+    output = tmp_path / "out.tsv"
+    runner = CliRunner()
+
+    result = runner.invoke(main, ["annotate-cadd", str(conflict_input), str(CADD), str(output)])
+
+    assert result.exit_code == 0, result.output
+    # Warning must name the renamed column and hint at --score-column
+    assert "score_cadd" in result.output
+    assert "--score-column score_cadd" in result.output
+    out_df = pd.read_csv(output, sep="\t", dtype=str)
+    # Original column is preserved
+    assert "score" in out_df.columns
+    assert (out_df["score"] == "0.99").all()
+    # New CADD annotation is in the renamed column; raw had no conflict so keeps its name
+    assert "score_cadd" in out_df.columns
+    assert "raw" in out_df.columns
+    assert "raw_cadd" not in out_df.columns
+
+
+@pytest.mark.unit
 def test_annotate_cadd_no_chr_prefix(tmp_path):
     """Rates file without "chr" prefix: output chromosomes also have no prefix."""
     no_chr_input = tmp_path / "nochr.tsv"
