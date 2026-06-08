@@ -137,6 +137,28 @@ def as_range(region) -> tuple[int, int]:
     return positions[0], positions[-1]
 
 
+def fill_annotation_na(df: pd.DataFrame, annotation_columns: list[str]) -> pd.DataFrame:
+    """Replace NaN with ``"."`` in newly-added annotation columns only.
+
+    Existing input columns are left untouched so that any NaN values the user
+    deliberately carried in from upstream steps are preserved as empty cells.
+    The ``"."`` sentinel is the standard missing-value token used by tools such
+    as CADD, dbNSFP, and VEP, and can be re-parsed as NaN by pandas with
+    ``na_values=[".", "NA"]``.
+
+    Args:
+        df: Output DataFrame that has already had annotation columns appended.
+        annotation_columns: Names of the columns that were added by the annotation step.
+
+    Returns:
+        The same DataFrame with ``"."`` substituted for NaN in ``annotation_columns``.
+    """
+
+    cols_present = [c for c in annotation_columns if c in df.columns]
+    df[cols_present] = df[cols_present].fillna(".")
+    return df
+
+
 def is_chr_prefixed(file_path: str) -> bool:
     """Return True if chromosome identifiers in the file are prefixed with "chr".
 

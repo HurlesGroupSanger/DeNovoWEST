@@ -11,6 +11,7 @@ import pysam
 from denovowest.utils.io_helpers import (
     as_range,
     extract_ensembl_gene_id_without_version,
+    fill_annotation_na,
     load_gff,
     read_columns_from_file,
 )
@@ -508,6 +509,7 @@ def annotate_dbnsfp(rates_dnm: str, dbnsfp: str, output: str, columns: str, colu
     else:
         merged_df.columns = rates_df_columns + ["transcript_in_dbnsfp"] + dbnsfp_columns_names
 
+    fill_annotation_na(merged_df, ["transcript_in_dbnsfp"] + dbnsfp_columns_names)
     merged_df.to_csv(output, sep="\t", index=False)
 
 

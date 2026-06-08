@@ -13,7 +13,7 @@ import click
 import pandas as pd
 import pysam
 
-from denovowest.utils.io_helpers import as_range, is_chr_prefixed, load_gff, read_columns_from_file
+from denovowest.utils.io_helpers import as_range, fill_annotation_na, is_chr_prefixed, load_gff, read_columns_from_file
 from denovowest.utils.log import init_log
 
 
@@ -469,7 +469,8 @@ def cli(variants: str, annotation: str, output: str, columns: str, columns_file:
     )
 
     # Export annotated file
-    annotated_df.to_csv(output, sep="\t", index=False, na_rep=".")
+    fill_annotation_na(annotated_df, annotation_columns)
+    annotated_df.to_csv(output, sep="\t", index=False)
 
 
 if __name__ == "__main__":

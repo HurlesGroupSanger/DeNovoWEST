@@ -7,7 +7,7 @@ import click
 import pandas as pd
 import pysam
 
-from denovowest.utils.io_helpers import as_range
+from denovowest.utils.io_helpers import as_range, fill_annotation_na
 from denovowest.utils.log import init_log
 
 
@@ -100,6 +100,7 @@ def annotate_cadd(rates: str, cadd: str, output: str) -> None:
 
     # Combine results for all genes
     merged_df = pd.concat(list_merged_df)
+    fill_annotation_na(merged_df, ["raw", "score"])
     merged_df.to_csv(output, sep="\t", index=False)
 
 

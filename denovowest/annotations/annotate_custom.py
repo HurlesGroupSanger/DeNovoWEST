@@ -15,7 +15,7 @@ import click
 import pandas as pd
 import pysam
 
-from denovowest.utils.io_helpers import as_range, is_chr_prefixed, read_columns_from_file
+from denovowest.utils.io_helpers import as_range, fill_annotation_na, is_chr_prefixed, read_columns_from_file
 from denovowest.utils.log import init_log
 
 # TODO : Handle annotation with matching on gene identifier/symbol
@@ -334,7 +334,8 @@ def cli(variants: str, annotation: str, output: str, columns: str, columns_file:
 
     # Annotate and export
     annotated_df = annotate(variants_df, annotation_df, columns_indices, columns_names, chr_prefixed_variants)
-    annotated_df.to_csv(output, sep="\t", index=False, na_rep=".")
+    fill_annotation_na(annotated_df, columns_names)
+    annotated_df.to_csv(output, sep="\t", index=False)
 
 
 if __name__ == "__main__":
