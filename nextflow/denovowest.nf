@@ -14,6 +14,7 @@ include { RATES_STATS } from './modules/rates.nf'
 include { MERGE_RATES_STATS } from './modules/rates.nf'
 include { SUMMARIZE_RATES_STATS } from './modules/rates.nf'
 include { FILTER_RATES_REGION } from './modules/rates.nf'
+include {RATES_PER_GENE_PER_CSQ} from './modules/rates.nf'
 
 include { FILTER_DNM } from './modules/dnm.nf'
 include { FILTER_DNM_GFF } from './modules/dnm.nf'
@@ -379,6 +380,7 @@ workflow{
 
       // Merge results
       rates_merged_ch = MERGE_RATES(rates_annotated_ch.map { tuple -> tuple[0] }.collect())
+      
 
       // Remove excluded regions
       if (params.containsKey("excluded_regions")) {
@@ -386,6 +388,8 @@ workflow{
             rates_merged_ch = FILTER_RATES_REGION(rates_merged_ch[0], rates_merged_ch[1], excluded_regions_ch, file(params.genome_fasta))[0]
             rates_merged_ch = rates_merged_ch.first().map { it[0] }
       }
+
+      rates_per_gene_per_csq_ch = RATES_PER_GENE_PER_CSQ(rates_merged_ch[0])
 
       // Create rates stats
       // rates_stats_ch = RATES_STATS(rates_annotated_ch)

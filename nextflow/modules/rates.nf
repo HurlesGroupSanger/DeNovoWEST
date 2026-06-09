@@ -237,7 +237,26 @@ process FILTER_RATES_REGION {
   """
 }
 
+/*
+ * Generate two matrices containing the rates and the number of records per gene per consequence
+ */
+process RATES_PER_GENE_PER_CSQ {
 
+  publishDir "${params.outdir}/rates/stats", mode: 'copy', overwrite: true
+
+  input : 
+  path rates
+  
+  output : 
+  path "rates_per_gene_per_csq.tsv"
+  path "nb_records_per_gene_per_csq.tsv"
+
+  script : 
+  """
+  get_rates_per_gene_per_consequence.py $rates --output rates_per_gene_per_csq.tsv --output-nb  nb_records_per_gene_per_csq.tsv
+  """
+
+}
 
 
 /*
