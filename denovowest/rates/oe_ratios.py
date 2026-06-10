@@ -64,9 +64,9 @@ def _compute_observed_dnm_per_gene(dnm_snv_df: pd.DataFrame) -> pd.DataFrame:
         observed[gene_id] = {csq: csq_df.shape[0] for csq, csq_df in gene_df.groupby("consequence")}
 
     result = pd.DataFrame(observed).transpose()
-    # Reindex to ensure all tracked consequences are always present as columns,
-    # even when none of the input DNMs carry that consequence
-    result = result.reindex(columns=CONSEQUENCES, fill_value=0)
+    # reindex: adds consequence columns absent from every gene (fill_value=0)
+    # fillna:  fills NaN for genes that had no mutations for a consequence that other genes did have
+    result = result.reindex(columns=CONSEQUENCES, fill_value=0).fillna(0)
     return result
 
 

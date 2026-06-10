@@ -18,6 +18,159 @@ from denovowest.rates.oe_ratios import (
 )
 from denovowest.utils.params import ConsequenceGroups
 
+#####################
+# Regression data   #
+#####################
+
+_NMALES, _NFEMALES = 50, 50
+_N_SITES = 10  # per-site rows per (gene, consequence) in the rates file
+
+# 10 synthetic genes: (gene_id, chrom, category, hgnc_id, start, end, strand, size_multiplier)
+_GENES_FULL = [
+    ("ENSG00000000001", "chr1",  "constrained",   "HGNC:101",  1000, 11000, "+", 1.00),
+    ("ENSG00000000002", "chr1",  "constrained",   "HGNC:102", 15000, 25000, "+", 1.20),
+    ("ENSG00000000003", "chr1",  "constrained",   "HGNC:103", 30000, 40000, "-", 0.80),
+    ("ENSG00000000004", "chr1",  "moderate",      "HGNC:104", 45000, 55000, "+", 1.50),
+    ("ENSG00000000005", "chr1",  "moderate",      "HGNC:105", 60000, 70000, "-", 1.00),
+    ("ENSG00000000006", "chr2",  "moderate",      "HGNC:106",  1000, 11000, "+", 1.10),
+    ("ENSG00000000007", "chr2",  "moderate",      "HGNC:107", 15000, 25000, "+", 0.90),
+    ("ENSG00000000008", "chr2",  "unconstrained", "HGNC:108", 30000, 40000, "-", 1.30),
+    ("ENSG00000000009", "chr2",  "unconstrained", "HGNC:109", 45000, 55000, "+", 0.70),
+    ("ENSG00000000010", "chrX",  "unconstrained", "HGNC:110",  1000, 11000, "+", 1.00),
+]
+
+_GENE_CHROM: dict[str, str]  = {g[0]: g[1] for g in _GENES_FULL}
+_GENE_MULT:  dict[str, float] = {g[0]: g[7] for g in _GENES_FULL}
+
+# Base prob_sum per consequence for a ×1.0 gene (spread across _N_SITES per-site rows)
+_BASE_PROB_SUM: dict[str, float] = {
+    "synonymous":      5.00e-3,
+    "missense":        1.00e-2,
+    "stop_gained":     5.00e-4,
+    "stop_retained":   1.00e-4,
+    "start_lost":      5.00e-5,
+    "stop_lost":       5.00e-5,
+    "splice_region":   5.00e-4,
+    "splice_acceptor": 1.00e-4,
+    "splice_donor":    1.00e-4,
+}
+
+# Observed de novo mutations: (gene_id, consequence, ref, alt, pos)
+_DNM_SPEC = [
+    # constrained gene 1: missense ×4, stop_gained ×1, splice_donor ×1
+    ("ENSG00000000001", "missense",        "G", "A", 2100),
+    ("ENSG00000000001", "missense",        "C", "T", 2200),
+    ("ENSG00000000001", "missense",        "G", "C", 2300),
+    ("ENSG00000000001", "missense",        "T", "A", 2400),
+    ("ENSG00000000001", "stop_gained",     "C", "T", 3100),
+    ("ENSG00000000001", "splice_donor",    "A", "G", 3200),
+    # constrained gene 2: synonymous ×1, missense ×5, stop_gained ×1
+    ("ENSG00000000002", "synonymous",      "T", "C", 16100),
+    ("ENSG00000000002", "missense",        "G", "A", 16200),
+    ("ENSG00000000002", "missense",        "C", "G", 16300),
+    ("ENSG00000000002", "missense",        "A", "T", 16400),
+    ("ENSG00000000002", "missense",        "G", "C", 16500),
+    ("ENSG00000000002", "missense",        "T", "A", 16600),
+    ("ENSG00000000002", "stop_gained",     "C", "T", 17100),
+    # constrained gene 3: missense ×3, splice_acceptor ×1
+    ("ENSG00000000003", "missense",        "G", "A", 31100),
+    ("ENSG00000000003", "missense",        "C", "T", 31200),
+    ("ENSG00000000003", "missense",        "T", "G", 31300),
+    ("ENSG00000000003", "splice_acceptor", "A", "C", 32100),
+    # moderate gene 4: synonymous ×2, missense ×3
+    ("ENSG00000000004", "synonymous",      "T", "C", 46100),
+    ("ENSG00000000004", "synonymous",      "A", "G", 46200),
+    ("ENSG00000000004", "missense",        "G", "A", 46300),
+    ("ENSG00000000004", "missense",        "C", "T", 46400),
+    ("ENSG00000000004", "missense",        "G", "C", 46500),
+    # moderate gene 5: synonymous ×1, missense ×2
+    ("ENSG00000000005", "synonymous",      "A", "T", 61100),
+    ("ENSG00000000005", "missense",        "G", "C", 61200),
+    ("ENSG00000000005", "missense",        "C", "A", 61300),
+    # moderate gene 6: synonymous ×1, missense ×2
+    ("ENSG00000000006", "synonymous",      "T", "A", 2100),
+    ("ENSG00000000006", "missense",        "G", "T", 2200),
+    ("ENSG00000000006", "missense",        "A", "C", 2300),
+    # moderate gene 7: synonymous ×1, missense ×2
+    ("ENSG00000000007", "synonymous",      "C", "T", 16100),
+    ("ENSG00000000007", "missense",        "G", "A", 16200),
+    ("ENSG00000000007", "missense",        "T", "C", 16300),
+    # unconstrained gene 8: synonymous ×2, missense ×2
+    ("ENSG00000000008", "synonymous",      "A", "G", 31100),
+    ("ENSG00000000008", "synonymous",      "T", "C", 31200),
+    ("ENSG00000000008", "missense",        "G", "A", 31300),
+    ("ENSG00000000008", "missense",        "C", "T", 31400),
+    # unconstrained gene 9: synonymous ×1, missense ×1
+    ("ENSG00000000009", "synonymous",      "A", "T", 46100),
+    ("ENSG00000000009", "missense",        "C", "G", 46200),
+    # unconstrained gene 10 (chrX): synonymous ×1, missense ×1
+    ("ENSG00000000010", "synonymous",      "G", "C", 2100),
+    ("ENSG00000000010", "missense",        "T", "A", 2200),
+]
+
+# ── Helpers for computing analytically-derived expected O/E values ─────────────
+
+
+def _autosomal_factor() -> float:
+    return 2.0 * (_NMALES + _NFEMALES)
+
+
+def _x_factor() -> float:
+    """X-chromosome scaling factor (same formula as compute_x_factor_correction)."""
+    alpha = 3.4
+    male_k = 2 / (1 + 1 / alpha)
+    female_k = 2 / (1 + alpha)
+    female_transmit = _NMALES + _NFEMALES
+    male_transmit = _NFEMALES
+    return (male_transmit * male_k + female_transmit * female_k) / _autosomal_factor()
+
+
+def _expected_counts(gene_id: str) -> dict[str, float]:
+    """Expected mutation count per consequence for one gene, given the cohort size."""
+    factor = _autosomal_factor() * (_x_factor() if _GENE_CHROM[gene_id] == "chrX" else 1.0)
+    return {csq: _BASE_PROB_SUM[csq] * _GENE_MULT[gene_id] * factor for csq in _BASE_PROB_SUM}
+
+
+def _observed_counts(gene_id: str) -> dict[str, int]:
+    """Observed mutation counts per consequence for one gene, read from _DNM_SPEC."""
+    obs: dict[str, int] = {csq: 0 for csq in _BASE_PROB_SUM}
+    for gid, csq, *_ in _DNM_SPEC:
+        if gid == gene_id:
+            obs[csq] += 1
+    return obs
+
+
+# ── Helpers for generating on-the-fly regression inputs ──────────────────────
+
+
+def _write_full_gff(path: Path) -> None:
+    lines = ["##gff-version 3"]
+    for gene_id, chrom, _, hgnc, start, end, strand, _ in _GENES_FULL:
+        lines.append(f"{chrom}\t.\tgene\t{start}\t{end}\t.\t{strand}\t.\tID={gene_id};hgnc_id={hgnc}")
+    path.write_text("\n".join(lines) + "\n")
+
+
+def _write_full_rates_matrix(path: Path) -> None:
+    pd.DataFrame(
+        {gene_id: {csq: _BASE_PROB_SUM[csq] * mult for csq in _BASE_PROB_SUM}
+         for gene_id, mult in _GENE_MULT.items()}
+    ).transpose().to_csv(path, sep="\t")
+
+
+def _write_full_dnm(path: Path) -> None:
+    pd.DataFrame([
+        {"gene_id": gid, "chrom": _GENE_CHROM[gid], "pos": pos,
+         "ref": ref, "alt": alt, "consequence": csq}
+        for gid, csq, ref, alt, pos in _DNM_SPEC
+    ]).to_csv(path, sep="\t", index=False)
+
+
+def _write_full_categories(path: Path) -> None:
+    pd.DataFrame(
+        [{"gene_id": g[0], "category": g[2]} for g in _GENES_FULL]
+    ).set_index("gene_id").to_csv(path, sep="\t")
+
+
 ###########
 # Fixtures #
 ###########
@@ -425,3 +578,79 @@ class TestOeRatiosCLIOutput:
 
     def test_synonymous_ratio_is_positive(self, oe_cli_output):
         assert oe_cli_output["ENSG00000000001"]["synonymous"] > 0
+
+
+##############
+# Regression #
+##############
+
+
+@pytest.fixture(scope="module")
+def regression_oe_output(tmp_path_factory):
+    """Run the full CLI pipeline on the 10-gene dataset generated on-the-fly."""
+    tmp = tmp_path_factory.mktemp("regression_oe")
+    gff_path        = tmp / "genes.gff"
+    rates_path      = tmp / "rates.tsv"
+    dnm_path        = tmp / "dnm.tsv"
+    categories_path = tmp / "gene_categories.tsv"
+    outdir          = tmp / "out"
+    outdir.mkdir()
+
+    _write_full_gff(gff_path)
+    _write_full_rates_matrix(rates_path)
+    _write_full_dnm(dnm_path)
+    _write_full_categories(categories_path)
+
+    result = CliRunner().invoke(main, [
+        str(dnm_path), str(rates_path), str(gff_path),
+        str(_NMALES), str(_NFEMALES),
+        str(outdir),
+        "--gene-categories", str(categories_path),
+    ])
+    assert result.exit_code == 0, result.output
+    return json.loads((outdir / "oe_ratios.json").read_text())
+
+
+@pytest.mark.regression
+class TestOeRatiosNonRegression:
+    """Verify O/E ratios against values derived analytically from the test-data constants.
+
+    Expected O/E = observed / expected, where:
+      - observed is read from _DNM_SPEC
+      - expected = BASE_PROB_SUM × multiplier × cohort_factor
+        with cohort_factor = autosomal_factor × (x_factor if chrX else 1)
+
+    If the pipeline's scaling or aggregation logic changes, these tests will fail.
+    """
+
+    def test_all_genes_present_in_output(self, regression_oe_output):
+        assert set(regression_oe_output.keys()) == {g[0] for g in _GENES_FULL}
+
+    def test_all_consequence_and_aggregate_keys_present(self, regression_oe_output):
+        expected_keys = set(_BASE_PROB_SUM) | {"all"}
+        for gene_id in regression_oe_output:
+            assert set(regression_oe_output[gene_id].keys()) == expected_keys, gene_id
+
+    def test_aggregate_oe_ratio_matches_analytical_value(self, regression_oe_output):
+        for gene_id in _GENE_MULT:
+            exp = _expected_counts(gene_id)
+            obs = _observed_counts(gene_id)
+            expected_oe = sum(obs.values()) / sum(exp.values())
+            assert regression_oe_output[gene_id]["all"] == pytest.approx(expected_oe, rel=1e-6), \
+                f"Aggregate O/E mismatch for {gene_id}"
+
+    def test_per_consequence_oe_ratio_matches_analytical_value(self, regression_oe_output):
+        for gene_id in _GENE_MULT:
+            exp = _expected_counts(gene_id)
+            obs = _observed_counts(gene_id)
+            for csq in _BASE_PROB_SUM:
+                expected_oe = obs[csq] / exp[csq]
+                assert regression_oe_output[gene_id][csq] == pytest.approx(expected_oe, rel=1e-6), \
+                    f"Per-consequence O/E mismatch for {gene_id}.{csq}"
+
+    def test_constrained_genes_have_higher_aggregate_oe_than_unconstrained(self, regression_oe_output):
+        constrained   = [g[0] for g in _GENES_FULL if g[2] == "constrained"]
+        unconstrained = [g[0] for g in _GENES_FULL if g[2] == "unconstrained"]
+        avg_constrained   = sum(regression_oe_output[g]["all"] for g in constrained)   / len(constrained)
+        avg_unconstrained = sum(regression_oe_output[g]["all"] for g in unconstrained) / len(unconstrained)
+        assert avg_constrained > avg_unconstrained

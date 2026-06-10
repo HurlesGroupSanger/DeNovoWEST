@@ -17,3 +17,5 @@ nextflow/runs
 denovowest.egg-info/
 nextflow/test
 dist/
+*.db
+CLAUDE.md
