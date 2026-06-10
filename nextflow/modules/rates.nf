@@ -259,6 +259,34 @@ process RATES_PER_GENE_PER_CSQ {
 }
 
 
+process OE_RATIOS {
+
+  publishDir "${params.outdir}/rates/stats", mode: 'copy', overwrite: true
+
+  input : 
+  path rates_per_gene_per_csq
+  path dnm
+  path gff
+  val nmales
+  val nfemales
+  val gene_categories
+  val gnomad_constraints
+  
+  output : 
+  path "rates_per_gene_per_csq.tsv"
+  path "nb_records_per_gene_per_csq.tsv"
+
+  script : 
+  def gene_cat = gene_categories ? "--gene-categories ${gene_categories}" : ""
+  def gnomad = gnomad_constraints ? "--gnomad-constraints ${gnomad_constraints}" : ""
+
+  """
+  oe_ratios.py $dnm $rates_per_gene_per_csq $gff $nmales $nfemales ./ ${gene_cat}  ${gnomad}
+  """
+
+}
+
+
 /*
  * Generate a JSON file containing statistics about the rates 
  */

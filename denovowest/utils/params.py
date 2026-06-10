@@ -127,6 +127,18 @@ class ConsequenceGroups(list, Enum):
         "start_lost",
         "stop_lost",
     ]
+    # Consequences used to compute per-gene mutation rates and O/E ratios
+    OE_RATIO = [
+        "synonymous",
+        "missense",
+        "stop_gained",
+        "stop_retained",
+        "start_lost",
+        "stop_lost",
+        "splice_region",
+        "splice_acceptor",
+        "splice_donor",
+    ]
 
 
 # Some indels are located in canonical splice site or splice region

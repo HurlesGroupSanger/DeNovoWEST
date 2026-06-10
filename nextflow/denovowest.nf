@@ -15,6 +15,8 @@ include { MERGE_RATES_STATS } from './modules/rates.nf'
 include { SUMMARIZE_RATES_STATS } from './modules/rates.nf'
 include { FILTER_RATES_REGION } from './modules/rates.nf'
 include {RATES_PER_GENE_PER_CSQ} from './modules/rates.nf'
+include {OE_RATIOS} from './modules/rates.nf'
+
 
 include { FILTER_DNM } from './modules/dnm.nf'
 include { FILTER_DNM_GFF } from './modules/dnm.nf'
@@ -60,8 +62,10 @@ workflow{
     params.annotate_dnm = params.annotate_dnm ?: false
     params.run_enrichment = params.run_enrichment ?: false
     params.run_clustering = params.run_clustering ?: false
+    params.plot_oe_ratios = params.plot_oe_ratios ?: false
 
-    if (!params.create_rates && !params.annotate_rates && !params.annotate_dnm && !params.run_enrichment && !params.run_clustering) {
+
+    if (!params.create_rates && !params.annotate_rates && !params.annotate_dnm && !params.run_enrichment && !params.run_clustering && !params.plot_oe_ratios) {
           log.error "❌ You have to select a pipeline execution mode (e.g. rates file creation)."
           System.exit(1)
     }
@@ -149,6 +153,13 @@ workflow{
       }
     }
 
+    // OE ratios
+    if (params.plot_oe_ratios) {
+
+        params.oe_ratios.gene_categories =  params.oe_ratios.gene_categories ?: ""
+        params.oe_ratios.gnomad_constraints =  params.oe_ratios.gnomad_constraints ?: ""
+
+    }
 
 
     ///////////////////////////////// 
@@ -389,8 +400,6 @@ workflow{
             rates_merged_ch = rates_merged_ch.first().map { it[0] }
       }
 
-      rates_per_gene_per_csq_ch = RATES_PER_GENE_PER_CSQ(rates_merged_ch[0])
-
       // Create rates stats
       // rates_stats_ch = RATES_STATS(rates_annotated_ch)
       // rates_stats_merged_ch = MERGE_RATES_STATS(rates_stats_ch.collect())
@@ -571,6 +580,19 @@ workflow{
       {
         dnm_annotated_ch = dnm_ch
       }
+    }
+
+
+    ////////////////////
+    // PLOT OE RATIOS //
+    ////////////////////
+
+    // TODO : implement input checks
+    if (params.plot_oe_ratios) {
+
+        rates_per_gene_per_csq_ch = RATES_PER_GENE_PER_CSQ(rates_merged_ch[0])
+        oe_ratios_ch = OE_RATIOS(rates_per_gene_per_csq_ch[0], dnm_annotated_ch.first(), gffutils_db_ch.first(), params.enrichment.nmales, params.enrichment.nfemales, params.oe_ratios.gene_categories, params.oe_ratios.gnomad_constraints)
+
     }
 
     //////////////// 
