@@ -2,7 +2,10 @@ import json
 from pathlib import Path
 
 import click
+import matplotlib.pyplot as plt
+import numpy as np
 import pandas as pd
+from scipy.stats import poisson
 
 from denovowest.utils.helpers import compute_expected_number_of_mutations_stats
 from denovowest.utils.io_helpers import load_gff
@@ -99,11 +102,81 @@ def compute_oe_ratios(observed_dnm_per_gene_per_csq_df, expected_mutations_per_g
 
 
 def category_analysis(
-    observed_dnm_per_gene_per_csq_df, expected_mutations_per_gene_per_csq_df, gene_categories_df, outdir
+    observed_dnm_per_gene_per_csq_df, expected_mutations_per_gene_per_csq_df, gene_infos, gene_categories_df, outdir
 ):
 
-    # TODO: implement category analysis
-    pass
+    for csq in CONSEQUENCES:
+
+        try:
+            observed_dnm_per_gene_df = observed_dnm_per_gene_per_csq_df[[csq]]
+            expected_mutations_per_gene_df = expected_mutations_per_gene_per_csq_df[[csq]]
+        except KeyError:
+            print(f"Consequence {csq} not found in the data, skipping category analysis for this consequence.")
+            continue
+
+        oe_ratio_df = oe_ratio_per_category(
+            observed_dnm_per_gene_df, expected_mutations_per_gene_df, gene_categories_df
+        )
+
+        plot_oe_ratio_per_gene_category(oe_ratio_df, csq, outdir / f"oe_ratio_per_category_{csq}.png")
+
+
+def oe_ratio_per_category(df_observed, df_expected, df_gene_category):
+
+    s_expected = df_expected.sum(axis=1)
+    s_observed = df_observed.sum(axis=1)
+
+    list_s = list()
+    for category, min_df_gene_category in df_gene_category.groupby("category"):
+
+        genes_in_category = set(min_df_gene_category.index) & set(s_expected.index)
+        nb_genes_in_category = len(genes_in_category)
+        sum_observed = s_observed[list(set(s_observed.index) & set(genes_in_category))].sum()
+        sum_expected = s_expected[list(genes_in_category)].sum()
+        oe_ratio = sum_observed / sum_expected
+
+        s = pd.Series(
+            {
+                "oe_ratio": oe_ratio,
+                "nb_genes_in_category": nb_genes_in_category,
+                "sum_observed": sum_observed,
+                "sum_expected": sum_expected,
+            },
+            name=category,
+        )
+        list_s.append(s)
+
+    df = pd.DataFrame(list_s)
+
+    # Compute Confidence interval
+    df.sum_observed = df.sum_observed.astype(int)
+    df["ci.lower"] = df.apply(lambda row: poisson.interval(0.95, row["sum_observed"])[0] / row["sum_expected"], axis=1)
+    df["ci.upper"] = df.apply(lambda row: poisson.interval(0.95, row["sum_observed"])[1] / row["sum_expected"], axis=1)
+
+    df["category"] = df.index
+
+    return df
+
+
+def plot_oe_ratio_per_gene_category(df, csq, output_path):
+    categories = df["category"].unique()
+    x_base = np.arange(len(categories))
+
+    plt.figure(figsize=(14, 8))
+
+    ys = df["oe_ratio"].values
+    yerr = [ys - df["ci.lower"].values, df["ci.upper"].values - ys]
+    plt.scatter(x_base, ys, s=80, color="steelblue")
+    plt.errorbar(x_base, ys, yerr=yerr, fmt="none", ecolor="black", capsize=4, elinewidth=1)
+
+    plt.axhline(1, color="red", linestyle="--")
+    plt.xticks(x_base, categories)
+    plt.xlabel("Gene category")
+    plt.ylabel("O/e ratio")
+    plt.title(f"Observed/expected {csq} DNM ratio per gene category")
+    plt.ylim(bottom=0)
+    plt.savefig(output_path, dpi=150, bbox_inches="tight")
+    plt.close()
 
 
 def gnomad_constraints_analysis(
@@ -185,7 +258,11 @@ def main(
     if gene_categories:
         gene_categories_df = pd.read_csv(gene_categories, sep="\t", index_col=0)
         category_analysis(
-            observed_dnm_per_gene_per_csq_df, expected_mutations_per_gene_per_csq_df, gene_categories_df, outdir
+            observed_dnm_per_gene_per_csq_df,
+            expected_mutations_per_gene_per_csq_df,
+            gene_infos,
+            gene_categories_df,
+            outdir,
         )
 
     if gnomad_constraints:

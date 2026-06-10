@@ -12,6 +12,7 @@ dependencies:
 - pysam  
 - scipy
 - joblib
+- seaborn
 - pip:
   - denovonear
   - denovowest
