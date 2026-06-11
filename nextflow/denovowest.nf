@@ -590,7 +590,14 @@ workflow{
     // TODO : implement input checks
     if (params.plot_oe_ratios) {
 
-        rates_per_gene_per_csq_ch = RATES_PER_GENE_PER_CSQ(rates_merged_ch[0])
+        if (!params.create_rates && !params.annotate_rates) {
+          rates_per_gene_per_csq_ch = RATES_PER_GENE_PER_CSQ(params.rates)
+        }
+        else {
+          rates_per_gene_per_csq_ch = RATES_PER_GENE_PER_CSQ(rates_merged_ch[0])
+        }
+
+
         oe_ratios_ch = OE_RATIOS(rates_per_gene_per_csq_ch[0], dnm_annotated_ch.first(), gffutils_db_ch.first(), params.enrichment.nmales, params.enrichment.nfemales, params.oe_ratios.gene_categories, params.oe_ratios.gnomad_constraints)
 
     }

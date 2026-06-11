@@ -261,7 +261,8 @@ process RATES_PER_GENE_PER_CSQ {
 
 process OE_RATIOS {
 
-  publishDir "${params.outdir}/rates/stats", mode: 'copy', overwrite: true
+  publishDir "${params.outdir}/oe_ratios/plots", pattern: "*.png", mode: 'copy', overwrite: true
+  publishDir "${params.outdir}/oe_ratios", pattern: "*.json", mode: 'copy', overwrite: true
 
   input : 
   path rates_per_gene_per_csq
@@ -273,8 +274,32 @@ process OE_RATIOS {
   val gnomad_constraints
   
   output : 
-  path "rates_per_gene_per_csq.tsv"
-  path "nb_records_per_gene_per_csq.tsv"
+  path "oe_ratios.json"
+  path "oe_ratio_per_category_splice_donor.png", optional : true
+  path "oe_ratio_per_category_splice_region.png", optional : true
+  path "oe_ratio_per_category_start_lost.png", optional : true
+  path "oe_ratio_per_category_stop_gained.png", optional : true
+  path "oe_ratio_per_category_stop_lost.png", optional : true
+  path "oe_ratio_per_category_synonymous.png", optional : true
+  path "oe_ratio_per_gnomad_loeuf_bins_missense.png", optional : true
+  path "oe_ratio_per_gnomad_loeuf_bins_splice_acceptor.png", optional : true
+  path "oe_ratio_per_gnomad_loeuf_bins_splice_donor.png", optional : true
+  path "oe_ratio_per_gnomad_loeuf_bins_splice_region.png", optional : true
+  path "oe_ratio_per_gnomad_loeuf_bins_start_lost.png", optional : true
+  path "oe_ratio_per_gnomad_loeuf_bins_stop_gained.png", optional : true
+  path "oe_ratio_per_gnomad_loeuf_bins_stop_lost.png", optional : true
+  path "oe_ratio_per_gnomad_loeuf_bins_synonymous.png", optional : true
+  path "oe_ratio_per_gnomad_missense_bins_missense.png", optional : true
+  path "oe_ratio_per_gnomad_missense_bins_splice_acceptor.png", optional : true
+  path "oe_ratio_per_gnomad_missense_bins_splice_donor.png", optional : true
+  path "oe_ratio_per_gnomad_missense_bins_splice_region.png", optional : true
+  path "oe_ratio_per_gnomad_missense_bins_start_lost.png", optional : true
+  path "oe_ratio_per_gnomad_missense_bins_stop_gained.png", optional : true
+  path "oe_ratio_per_gnomad_missense_bins_stop_lost.png", optional : true
+  path "oe_ratio_per_gnomad_missense_bins_synonymous.png", optional : true
+  path "oe_ratios_per_category.json", optional : true
+  path "oe_ratios_per_gnomad_loeuf_bins.json", optional : true
+  path "oe_ratios_per_gnomad_missense_bins.json", optional : true
 
   script : 
   def gene_cat = gene_categories ? "--gene-categories ${gene_categories}" : ""

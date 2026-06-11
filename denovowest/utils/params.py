@@ -132,7 +132,6 @@ class ConsequenceGroups(list, Enum):
         "synonymous",
         "missense",
         "stop_gained",
-        "stop_retained",
         "start_lost",
         "stop_lost",
         "splice_region",

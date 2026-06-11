@@ -37,7 +37,6 @@ _BASE_PROB_SUM: dict[str, float] = {
     "synonymous":      5.00e-3,
     "missense":        1.00e-2,
     "stop_gained":     5.00e-4,
-    "stop_retained":   1.00e-4,
     "start_lost":      5.00e-5,
     "stop_lost":       5.00e-5,
     "splice_region":   5.00e-4,

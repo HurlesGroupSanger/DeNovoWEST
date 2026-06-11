@@ -11,6 +11,7 @@ from denovowest.rates.oe_ratios import (
     _compute_expected_dnm_per_gene,
     _compute_observed_dnm_per_gene,
     _export_oe_ratios,
+    _filter_empty_categories,
     _load_gene_infos,
     _oe_ratio_per_category,
     compute_oe_ratios,
@@ -47,7 +48,6 @@ _BASE_PROB_SUM: dict[str, float] = {
     "synonymous":      5.00e-3,
     "missense":        1.00e-2,
     "stop_gained":     5.00e-4,
-    "stop_retained":   1.00e-4,
     "start_lost":      5.00e-5,
     "stop_lost":       5.00e-5,
     "splice_region":   5.00e-4,
@@ -426,6 +426,71 @@ def test_oe_ratio_per_category_has_required_columns(category_data):
 
     for col in ["oe_ratio", "nb_genes_in_category", "sum_observed", "sum_expected", "ci.lower", "ci.upper", "category"]:
         assert col in df.columns
+
+
+@pytest.mark.unit
+def test_oe_ratio_per_category_uncategorized_genes_appear_as_separate_row():
+    """Genes in the expected table but absent from the category file get their own row."""
+    observed = pd.DataFrame({"synonymous": [2.0, 4.0, 6.0]}, index=["G1", "G2", "G3"])
+    expected = pd.DataFrame({"synonymous": [4.0, 4.0, 6.0]}, index=["G1", "G2", "G3"])
+    # Only G1 and G2 are in the category file; G3 is uncategorized
+    categories = pd.DataFrame(
+        {"category": ["constrained", "constrained"]},
+        index=pd.Index(["G1", "G2"], name="gene_id"),
+    )
+
+    df = _oe_ratio_per_category(observed, expected, categories)
+
+    assert "not_in_user_gene_list" in df.index
+    assert df.loc["not_in_user_gene_list", "nb_genes_in_category"] == 1
+    assert df.loc["not_in_user_gene_list", "oe_ratio"] == pytest.approx(6.0 / 6.0)
+
+
+@pytest.mark.unit
+def test_oe_ratio_per_category_no_uncategorized_row_when_all_categorized(category_data):
+    """When every gene appears in the category file, no extra row is added."""
+    observed, expected, categories = category_data
+
+    df = _oe_ratio_per_category(observed, expected, categories)
+
+    assert "not_in_user_gene_list" not in df.index
+
+
+@pytest.mark.unit
+def test_filter_empty_categories_drops_category_with_warning(caplog):
+    """_filter_empty_categories emits one warning per empty category and removes it."""
+    import logging
+    import warnings
+
+    categories = pd.DataFrame(
+        {"category": ["known", "empty_category"]},
+        index=pd.Index(["G1", "G2"], name="gene_id"),
+    )
+
+    with caplog.at_level(logging.WARNING, logger="logger"):
+        with warnings.catch_warnings():
+            warnings.simplefilter("error")   # any RuntimeWarning becomes a test failure
+            result = _filter_empty_categories(categories, {"G1"}, "test category")
+
+    assert not any(result["category"] == "empty_category")
+    assert any("empty_category" in r.message for r in caplog.records)
+
+
+@pytest.mark.unit
+def test_filter_empty_categories_warns_once_not_per_consequence(caplog):
+    """The warning fires exactly once per empty category, regardless of how many consequences exist."""
+    import logging
+
+    categories = pd.DataFrame(
+        {"category": ["known", "empty_category"]},
+        index=pd.Index(["G1", "G2"], name="gene_id"),
+    )
+
+    with caplog.at_level(logging.WARNING, logger="logger"):
+        _filter_empty_categories(categories, {"G1"}, "test category")
+
+    empty_category_warnings = [r for r in caplog.records if "empty_category" in r.message]
+    assert len(empty_category_warnings) == 1
 
 
 ######################################
