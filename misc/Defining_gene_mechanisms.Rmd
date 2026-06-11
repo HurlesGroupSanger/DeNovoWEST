@@ -1,0 +1,312 @@
+---
+title: "Defining AltFunc and LOF Mechanism Gene Groups from DDG2P"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    theme: flatly
+    code_folding: hide
+    fig_width: 10
+    fig_height: 5
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE,
+                      fig.align = "center")
+```
+
+## Overview
+
+This script is the single source of truth for mechanism group definitions. It derives
+two complementary classifications of DD genes from the raw DDG2P database and exports
+the results for use by downstream analyses.
+
+### The two definitions
+
+| | AltFunc detection | LOF detection |
+|---|---|---|
+| **Lenient** | `variant consequence == "altered gene product structure"` | `variant consequence` contains `"absent gene product"` |
+| **Stringent** | `molecular mechanism` ∈ {gain of function, dominant negative, undetermined non-loss-of-function} | `molecular mechanism == "loss of function"` |
+
+The lenient definition uses `variant consequence` for both AltFunc and LOF. This column
+is more inclusive than `molecular mechanism` because it is populated for genes whose
+mechanism has not yet been manually curated in the 2025 DDG2P — these genes have
+`molecular mechanism == "undetermined"` but retain their `variant consequence` annotation
+from prior curation. Using `variant consequence` for LOF captures ~100 additional genes
+over `molecular mechanism == "loss of function"`.
+
+The stringent definition uses `molecular mechanism` for both AltFunc and LOF, relying
+only on the manually curated 2025 annotations.
+
+### Allelic requirement mapping
+
+X-hemizygous is treated as recessive-like: complete loss in hemizygous males causes disease,
+making it mechanistically equivalent to biallelic autosomal recessive.
+
+| Class | Allelic requirements |
+|---|---|
+| Dominant (AD) | `monoallelic_autosomal`, `monoallelic_X_heterozygous` |
+| Recessive (AR) | `biallelic_autosomal`, `monoallelic_X_hemizygous` |
+
+### Per-gene label assignment
+
+Applied identically to both definitions (substituting lenient or stringent AltFunc flag):
+
+| Label | Condition |
+|---|---|
+| `AltFunc_only` | AltFunc AND no LOF entries |
+| `Mixed_AltFunc_&_LOF` | AltFunc AND any LOF entries |
+| `LOF_AD_only` | no AltFunc, LOF_AD entries only |
+| `LOF_AR_only` | no AltFunc, LOF_AR entries only |
+| `LOF_other` | no AltFunc, BOTH LOF_AD AND LOF_AR entries present |
+| `DDG2P_other` | in DDG2P but no entries match any mechanism keyword |
+
+Note: `LOF_other` captures genes with disease entries under both dominant and recessive
+inheritance. These were previously silently collapsed into `LOF_AR_only` due to
+`case_when` ordering — this is now corrected.
+
+---
+
+## Libraries
+
+```{r libraries}
+library(tidyverse)
+library(scales)
+library(knitr)
+library(rtracklayer)
+
+
+theme_set(theme_bw(base_size = 12))
+
+mech_levels <- c("AltFunc_only", "Mixed_AltFunc_&_LOF",
+                 "LOF_AD_only", "LOF_AR_only",
+                 "LOF_other", "DDG2P_other")
+
+mech_colors <- c(
+  "AltFunc_only"        = "#D73027",
+  "Mixed_AltFunc_&_LOF" = "#FC8D59",
+  "LOF_AD_only"         = "#4575B4",
+  "LOF_AR_only"         = "#74ADD1",
+  "LOF_other"           = "#ABD9E9",
+  "DDG2P_other"         = "#999999"
+)
+```
+
+---
+
+## Load data
+
+```{r load}
+g2p_raw <- read_csv("G2P_DD_2026-06-11.csv", show_col_types = FALSE)
+
+cat("DDG2P entries:", nrow(g2p_raw), "\n")
+cat("Unique genes: ", length(unique(g2p_raw$`gene symbol`)), "\n\n")
+
+cat("--- molecular mechanism values ---\n")
+g2p_raw %>% count(`molecular mechanism`, sort = TRUE) %>% print()
+
+cat("--- variant consequence values (top 10) ---\n")
+g2p_raw %>% count(`variant consequence`, sort = TRUE) %>% head(10) %>% print()
+```
+
+---
+
+## Step 1 – Per-entry mechanism flags
+
+```{r per-entry}
+dominant_req  <- c("monoallelic_autosomal", "monoallelic_X_heterozygous")
+recessive_req <- c("biallelic_autosomal",   "monoallelic_X_hemizygous")
+
+altfunc_stringent_mechs <- c("gain of function", "dominant negative",
+                             "undetermined non-loss-of-function")
+
+g2p_flagged <- g2p_raw %>%
+  dplyr::rename(
+    gene_symbol = `gene symbol`,
+    hgnc_id     = `hgnc id`,
+    allelic_req = `allelic requirement`,
+    var_conseq  = `variant consequence`,
+    mol_mech    = `molecular mechanism`
+  ) %>%
+  mutate(
+    var_conseq = replace_na(var_conseq, "missing"),
+    mol_mech   = replace_na(mol_mech,   "missing"),
+
+    # Lenient AltFunc: dominant inheritance + altered gene product structure (variant_consequence)
+    AltFunc_lenient   = allelic_req %in% dominant_req &
+                        var_conseq == "altered gene product structure",
+
+    # Stringent AltFunc: dominant inheritance + curated AltFunc molecular_mechanism
+    AltFunc_stringent = allelic_req %in% dominant_req &
+                        mol_mech %in% altfunc_stringent_mechs,
+
+    # Lenient LOF: absent gene product in variant_consequence (more inclusive)
+    LOF_AD_lenient = allelic_req %in% dominant_req  &
+                     str_detect(var_conseq, "absent gene product"),
+    LOF_AR_lenient = allelic_req %in% recessive_req &
+                     str_detect(var_conseq, "absent gene product"),
+
+    # Stringent LOF: loss of function in molecular_mechanism (manually curated only)
+    LOF_AD_stringent = allelic_req %in% dominant_req  & mol_mech == "loss of function",
+    LOF_AR_stringent = allelic_req %in% recessive_req & mol_mech == "loss of function"
+  )
+
+tibble(
+  Flag              = c("AltFunc (lenient)", "AltFunc (stringent)",
+                        "LOF_AD (lenient)",  "LOF_AR (lenient)",
+                        "LOF_AD (stringent)","LOF_AR (stringent)"),
+  `Entries flagged` = c(sum(g2p_flagged$AltFunc_lenient),
+                        sum(g2p_flagged$AltFunc_stringent),
+                        sum(g2p_flagged$LOF_AD_lenient),
+                        sum(g2p_flagged$LOF_AR_lenient),
+                        sum(g2p_flagged$LOF_AD_stringent),
+                        sum(g2p_flagged$LOF_AR_stringent))
+) %>%
+  kable(caption = "Number of DDG2P entries flagged per mechanism category")
+```
+
+---
+
+## Step 2 – Collapse to one label per gene
+
+```{r assign-mechanism-fn}
+# Shared label-assignment logic: called once for lenient, once for stringent
+assign_mechanism <- function(any_altfunc, any_lof_ad, any_lof_ar) {
+  case_when(
+    any_altfunc  & !(any_lof_ad | any_lof_ar)  ~ "AltFunc_only",
+    any_altfunc  &   (any_lof_ad | any_lof_ar)  ~ "Mixed_AltFunc_&_LOF",
+    !any_altfunc &  any_lof_ad & !any_lof_ar    ~ "LOF_AD_only",
+    !any_altfunc & !any_lof_ad &  any_lof_ar    ~ "LOF_AR_only",
+    !any_altfunc &  any_lof_ad &  any_lof_ar    ~ "LOF_other",
+    TRUE                                         ~ "DDG2P_other"
+  )
+}
+```
+
+```{r per-gene}
+g2p_per_gene <- g2p_flagged %>%
+  group_by(gene_symbol, hgnc_id) %>%
+  summarise(
+    any_AltFunc_lenient   = any(AltFunc_lenient),
+    any_AltFunc_stringent = any(AltFunc_stringent),
+    any_LOF_AD_lenient    = any(LOF_AD_lenient),
+    any_LOF_AR_lenient    = any(LOF_AR_lenient),
+    any_LOF_AD_stringent  = any(LOF_AD_stringent),
+    any_LOF_AR_stringent  = any(LOF_AR_stringent),
+    .groups = "drop"
+  ) %>%
+  dplyr::mutate(
+    DDG2P_mechanism = factor(
+      assign_mechanism(any_AltFunc_lenient,
+                       any_LOF_AD_lenient, any_LOF_AR_lenient),
+      levels = mech_levels
+    ),
+    DDG2P_mechanism_stringent = factor(
+      assign_mechanism(any_AltFunc_stringent,
+                       any_LOF_AD_stringent, any_LOF_AR_stringent),
+      levels = mech_levels
+    )
+  )
+
+cat("Genes classified:", nrow(g2p_per_gene), "\n")
+```
+
+---
+
+## Step 3 – Summary
+
+### Lenient classification
+
+```{r summary-lenient}
+g2p_per_gene %>%
+  count(DDG2P_mechanism) %>%
+  mutate(pct = percent(n / sum(n), accuracy = 0.1)) %>%
+  kable(col.names = c("Mechanism", "N genes", "%"),
+        caption = "Lenient classification (variant_consequence)")
+```
+
+### Stringent classification
+
+```{r summary-stringent}
+g2p_per_gene %>%
+  count(DDG2P_mechanism_stringent) %>%
+  mutate(pct = percent(n / sum(n), accuracy = 0.1)) %>%
+  kable(col.names = c("Mechanism", "N genes", "%"),
+        caption = "Stringent classification (molecular_mechanism)")
+```
+
+### Cross-tabulation: lenient vs stringent
+
+```{r crosstab}
+g2p_per_gene %>%
+  count(DDG2P_mechanism, DDG2P_mechanism_stringent) %>%
+  pivot_wider(names_from  = DDG2P_mechanism_stringent,
+              values_from = n,
+              values_fill = 0L) %>%
+  select(DDG2P_mechanism, any_of(mech_levels)) %>%
+  dplyr::rename("Lenient \\ Stringent" = DDG2P_mechanism) %>%
+  kable(caption = "Lenient (rows) vs stringent (columns): genes per cross-category")
+```
+
+### Bar chart comparison
+
+```{r bar-compare, fig.height=4}
+bind_rows(
+  g2p_per_gene %>% count(mechanism = DDG2P_mechanism) %>%
+    mutate(definition = "Lenient"),
+  g2p_per_gene %>% count(mechanism = DDG2P_mechanism_stringent) %>%
+    mutate(definition = "Stringent")
+) %>%
+  ggplot(aes(x = mechanism, y = n, fill = definition)) +
+  geom_col(position = position_dodge(width = 0.8), width = 0.7, colour = "white") +
+  geom_text(aes(label = n),
+            position = position_dodge(width = 0.8), vjust = -0.4, size = 3) +
+  scale_fill_manual(values = c("Lenient" = "#2196F3", "Stringent" = "#FF5722")) +
+  scale_x_discrete(labels = \(x) str_wrap(x, 12)) +
+  scale_y_continuous(expand = expansion(mult = c(0, 0.12))) +
+  labs(title = "Gene counts by mechanism: lenient vs stringent",
+       x = NULL, y = "Number of genes", fill = "Definition") +
+  theme(plot.title = element_text(face = "bold"), legend.position = "top")
+```
+
+---
+
+## Step 4 – Export
+
+```{r export}
+out <- g2p_per_gene %>%
+  select(gene_symbol, hgnc_id,
+         DDG2P_mechanism, DDG2P_mechanism_stringent,
+         any_AltFunc_lenient, any_AltFunc_stringent,
+         any_LOF_AD_lenient, any_LOF_AR_lenient,
+         any_LOF_AD_stringent, any_LOF_AR_stringent)
+
+# Add Ensembl IDs
+gff <- import("gencode.v49.basic.annotation.mane_select.ensembl_canonical.bcftoolscsq.gff3.gz")
+df_gff <- as.data.frame(gff)
+dict <- df_gff[, c("gene_id", "gene_name")]
+dict <- unique(dict)
+
+out <- out %>%
+  left_join(dict, by = c("gene_symbol" = "gene_name")) %>%
+  distinct(gene_id, .keep_all = TRUE) %>%
+  filter(!is.na(gene_id)) %>%
+  relocate(gene_id, .before = 1) %>%
+  mutate(category = DDG2P_mechanism) %>%
+  relocate(category, .after = 3)
+
+
+write_tsv(out, "DDG2P_mechanism_definitions.tsv")
+
+cat("Exported", nrow(out), "genes to DDG2P_mechanism_definitions.tsv\n")
+cat("Columns:", paste(names(out), collapse = ", "), "\n")
+```
+
+---
+
+## Session info
+
+```{r session-info}
+sessionInfo()
+```
