@@ -9,6 +9,7 @@ exploration, debugging, or stepwise execution.
 import click
 from denovowest.simulation import simulation
 from denovowest.annotations import annotate_cadd, annotate_custom, annotate_dbnsfp, annotate_vcf
+from denovowest.report import generate_report
 
 
 @click.group()
@@ -23,3 +24,4 @@ main.add_command(annotate_cadd.annotate_cadd, name="annotate-cadd")
 main.add_command(annotate_custom.cli, name="annotate-custom")
 main.add_command(annotate_dbnsfp.annotate_dbnsfp, name="annotate-dbnsfp")
 main.add_command(annotate_vcf.cli, name="annotate-vcf")
+main.add_command(generate_report.report, name="report")

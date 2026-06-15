@@ -13,6 +13,7 @@ dependencies:
 - scipy
 - joblib
 - seaborn
+- jinja2
 - pip:
   - denovonear
   - denovowest

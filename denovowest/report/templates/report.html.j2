@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>{{ title }}</title>
+  <link rel="stylesheet"
+        href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" />
+  <link rel="stylesheet"
+        href="https://cdn.datatables.net/2.0.8/css/dataTables.bootstrap5.min.css" />
+  <style>
+    body { font-size: 0.9rem; }
+    .gene-row { cursor: pointer; }
+    .gene-row:hover td { background-color: #e9ecef; }
+    .detail-cell { padding: 1rem 1.5rem !important; background: #f8f9fa !important; }
+    .expand-icon { display: inline-block; transition: transform 0.15s; margin-right: 4px; }
+    tr.expanded .expand-icon { transform: rotate(90deg); }
+    .pval-significant { color: #198754; font-weight: 600; }
+    .pval-nominal     { color: #fd7e14; }
+    .pval-ns       { color: #6c757d; }
+    .pval-na       { color: #adb5bd; font-style: italic; }
+    .csq-table th, .csq-table td { font-size: 0.8rem; padding: 0.25rem 0.5rem; }
+    .zero-val { color: #dc3545; font-weight: 600; }
+    .summary-strip { border-left: 4px solid; }
+    .strip-total   { border-color: #6c757d; }
+    .strip-sig     { border-color: #198754; }
+    .strip-caution { border-color: #fd7e14; }
+  </style>
+</head>
+<body>
+
+<nav class="navbar navbar-dark bg-dark mb-4">
+  <div class="container-fluid">
+    <span class="navbar-brand fw-bold">DeNovoWEST &mdash; Results Report</span>
+    <span class="text-white-50 small text-truncate ms-2" style="max-width:55%">{{ results_dir }}</span>
+    <span class="text-white-50 small ms-auto text-nowrap">Generated: {{ run_date }}</span>
+  </div>
+</nav>
+
+<div class="container-fluid px-4">
+
+  {# ── Summary strip ──────────────────────────────────────────────────────── #}
+  <div class="row g-3 mb-4">
+    <div class="col-6 col-md-3">
+      <div class="card summary-strip strip-total">
+        <div class="card-body py-2">
+          <div class="text-muted small">Genes tested</div>
+          <div class="fs-3 fw-bold">{{ n_total }}</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="card summary-strip strip-sig">
+        <div class="card-body py-2">
+          <div class="text-muted small">
+            Significant <span class="fw-normal">(min&nbsp;p&nbsp;&lt;&nbsp;{{ corrected_threshold }})</span>
+          </div>
+          <div class="fs-3 fw-bold text-success">{{ n_significant }}</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="card summary-strip strip-caution">
+        <div class="card-body py-2">
+          <div class="text-muted small">Flagged with caution</div>
+          <div class="fs-3 fw-bold text-warning">{{ n_caution }}</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {# ── Gene table ─────────────────────────────────────────────────────────── #}
+  <div class="card mb-4">
+    <div class="card-header fw-semibold">
+      Gene enrichment results
+      <span class="text-muted fw-normal small ms-2">— click a row to expand details</span>
+    </div>
+    <div class="card-body p-0">
+      <table id="gene-table" class="table table-sm table-hover mb-0" style="width:100%">
+        <thead class="table-light">
+          <tr>
+            <th></th>
+            <th>Gene</th>
+            <th>min p-val</th>
+            <th>Enrich. all</th>
+            <th>Enrich. mis</th>
+            <th>Comb. mis</th>
+            <th>Clustering</th>
+            <th>Obs / Exp (all)</th>
+            <th>Obs / Exp (mis)</th>
+            <th>Caution</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+
+  <p class="text-muted small mb-4">
+    <strong>p-value colour scale:</strong>
+    <span class="pval-significant">&#9632; &lt; {{ corrected_threshold }} (corrected)</span> &nbsp;
+    <span class="pval-nominal">&#9632; &lt; {{ nominal_threshold }} (nominal)</span> &nbsp;
+    <span class="pval-ns">&#9632; &ge; {{ nominal_threshold }}</span> &nbsp;
+    <span class="pval-na">&#9632; N/A</span>
+  </p>
+
+</div>{# /container #}
+
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script src="https://cdn.datatables.net/2.0.8/js/dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/2.0.8/js/dataTables.bootstrap5.min.js"></script>
+<script>
+const GENES = {{ gene_json | safe }};
+const CORRECTED_THRESHOLD = {{ corrected_threshold }};
+const NOMINAL_THRESHOLD    = {{ nominal_threshold }};
+
+// ── Formatting helpers ────────────────────────────────────────────────────────
+
+function fmtPval(v) {
+  if (v === null || v === undefined) return '<span class="pval-na">N/A</span>';
+  const cls = v < CORRECTED_THRESHOLD ? 'pval-significant'
+            : v < NOMINAL_THRESHOLD   ? 'pval-nominal'
+            :                           'pval-ns';
+  return `<span class="${cls}">${v.toExponential(2)}</span>`;
+}
+
+function fmtNum(v, dp) {
+  return v !== null && v !== undefined
+    ? v.toFixed(dp)
+    : '<span class="text-muted">N/A</span>';
+}
+
+function fmtRatio(obs, exp) {
+  if (obs === null || exp === null) return '<span class="text-muted">N/A</span>';
+  return `${obs.toFixed(1)} / ${exp.toFixed(1)}`;
+}
+
+// ── Detail panel ──────────────────────────────────────────────────────────────
+
+function buildDetailHtml(gene) {
+  const cautionHtml = gene.caution_reasons.length > 0
+    ? `<div class="alert alert-warning py-2 mb-3 small">
+         <strong>&#9888; Caution:</strong> ${gene.caution_reasons.join('; ')}
+       </div>`
+    : '';
+
+  const ensemblHref =
+    `https://www.ensembl.org/Homo_sapiens/Gene/Summary?g=${gene.base_id}`;
+
+  const statsHtml = `
+    <div class="row g-3 mb-3">
+      <div class="col-md-5">
+        <div class="fw-semibold small text-muted mb-1">Test p-values</div>
+        <table class="table table-sm table-bordered csq-table mb-0">
+          <thead class="table-light"><tr><th>Test</th><th>p-value</th></tr></thead>
+          <tbody>
+            <tr><td>Enrichment (all)</td>     <td>${fmtPval(gene.enrichment_all_pval)}</td></tr>
+            <tr><td>Enrichment (missense)</td> <td>${fmtPval(gene.enrichment_mis_pval)}</td></tr>
+            <tr><td>Combined missense</td>     <td>${fmtPval(gene.combined_mis_pval)}</td></tr>
+            <tr><td>Clustering</td>            <td>${fmtPval(gene.clustering_pval)}</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="col-md-4">
+        <div class="fw-semibold small text-muted mb-1">Counts</div>
+        <table class="table table-sm table-bordered csq-table mb-0">
+          <thead class="table-light"><tr><th>Metric</th><th>Value</th></tr></thead>
+          <tbody>
+            <tr><td>Observed (all)</td>        <td>${fmtNum(gene.observed_all, 2)}</td></tr>
+            <tr><td>Expected (all)</td>         <td>${fmtNum(gene.expected_all, 2)}</td></tr>
+            <tr><td>Observed (mis)</td>         <td>${fmtNum(gene.observed_mis, 2)}</td></tr>
+            <tr><td>Expected (mis)</td>         <td>${fmtNum(gene.expected_mis, 2)}</td></tr>
+            <tr><td># missense variants</td>    <td>${gene.nb_mis_variants !== null ? gene.nb_mis_variants : '<span class="text-muted">N/A</span>'}</td></tr>
+            <tr><td>Clustering distance</td>    <td>${fmtNum(gene.clustering_dist, 1)}</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>`;
+
+  let csqHtml = '';
+  if (gene.csq_data && Object.keys(gene.csq_data).length > 0) {
+    const csqs      = Object.keys(gene.csq_data);
+    const hasRecs   = csqs.some(c => 'nb_records' in gene.csq_data[c]);
+    const hasRates  = csqs.some(c => 'rate'       in gene.csq_data[c]);
+
+    const headers = ['<th>Consequence</th>']
+      .concat(hasRecs   ? ['<th>Records</th>']         : [])
+      .concat(hasRates  ? ['<th>Mut. rate (sum)</th>'] : [])
+      .join('');
+
+    const rows = csqs.map(csq => {
+      const d = gene.csq_data[csq];
+      let cells = `<td><code>${csq}</code></td>`;
+      if (hasRecs) {
+        const n   = d.nb_records;
+        const cls = n === 0 ? 'zero-val' : '';
+        cells += `<td class="${cls}">${n !== undefined && n !== null ? n : '<span class="text-muted">N/A</span>'}</td>`;
+      }
+      if (hasRates) {
+        const r   = d.rate;
+        const cls = r === 0 ? 'zero-val' : '';
+        cells += `<td class="${cls}">${r !== undefined && r !== null ? r.toExponential(3) : '<span class="text-muted">N/A</span>'}</td>`;
+      }
+      return `<tr>${cells}</tr>`;
+    }).join('');
+
+    csqHtml = `
+      <div class="fw-semibold small text-muted mb-1">Per-consequence breakdown</div>
+      <table class="table table-sm table-bordered csq-table mb-0" style="max-width:480px">
+        <thead class="table-light"><tr>${headers}</tr></thead>
+        <tbody>${rows}</tbody>
+      </table>`;
+  }
+
+  return `
+    <div class="d-flex align-items-center gap-2 mb-2">
+      <span class="fw-bold">${gene.gene_id}</span>
+      <a href="${ensemblHref}" target="_blank" class="small text-decoration-none">
+        Ensembl &#8599;
+      </a>
+    </div>
+    ${cautionHtml}
+    ${statsHtml}
+    ${csqHtml}`;
+}
+
+// ── DataTables ────────────────────────────────────────────────────────────────
+
+$(document).ready(function () {
+  const table = $('#gene-table').DataTable({
+    data: GENES,
+    order: [[2, 'asc']],
+    pageLength: 25,
+    language: { search: 'Filter genes:' },
+    columns: [
+      {
+        data: null,
+        orderable: false,
+        className: 'dt-center',
+        defaultContent: '<span class="expand-icon">&#9654;</span>',
+      },
+      { data: 'gene_id', title: 'Gene' },
+      {
+        data: 'min_pval', title: 'min p-val',
+        render: (d, type) => type === 'sort' ? (d ?? 999) : fmtPval(d),
+      },
+      {
+        data: 'enrichment_all_pval', title: 'Enrich. all',
+        render: (d, type) => type === 'sort' ? (d ?? 999) : fmtPval(d),
+      },
+      {
+        data: 'enrichment_mis_pval', title: 'Enrich. mis',
+        render: (d, type) => type === 'sort' ? (d ?? 999) : fmtPval(d),
+      },
+      {
+        data: 'combined_mis_pval', title: 'Comb. mis',
+        render: (d, type) => type === 'sort' ? (d ?? 999) : fmtPval(d),
+      },
+      {
+        data: 'clustering_pval', title: 'Clustering',
+        render: (d, type) => type === 'sort' ? (d ?? 999) : fmtPval(d),
+      },
+      {
+        data: null, orderable: false,
+        render: d => fmtRatio(d.observed_all, d.expected_all),
+      },
+      {
+        data: null, orderable: false,
+        render: d => fmtRatio(d.observed_mis, d.expected_mis),
+      },
+      {
+        data: 'caution', orderable: true,
+        render: (d, type, row) => {
+          if (type === 'sort') return d ? 0 : 1;
+          if (!d) return '<span class="text-muted">—</span>';
+          const tip = row.caution_reasons.join('; ');
+          return `<span class="badge bg-warning text-dark"
+                        title="${tip}" style="cursor:help">&#9888; Caution</span>`;
+        },
+      },
+    ],
+    createdRow: function (row, data) {
+      $(row).addClass('gene-row');
+      if (data.min_pval !== null && data.min_pval < CORRECTED_THRESHOLD) {
+        $(row).addClass('table-success bg-opacity-25');
+      }
+    },
+  });
+
+  // Toggle child row on click
+  $('#gene-table tbody').on('click', 'tr.gene-row', function () {
+    const tr  = $(this);
+    const row = table.row(tr);
+    if (row.child.isShown()) {
+      row.child.hide();
+      tr.removeClass('expanded table-active');
+    } else {
+      row.child(
+        $('<td class="detail-cell" colspan="10">').append(buildDetailHtml(row.data()))
+      ).show();
+      tr.addClass('expanded table-active');
+    }
+  });
+});
+</script>
+</body>
+</html>

@@ -19,8 +19,12 @@ dependencies = [
 	"click",
 	"pyyaml",
 	"pysam",
-	"joblib"
+	"joblib",
+	"jinja2"
 ]
+
+[tool.setuptools.package-data]
+"denovowest.report" = ["templates/*.j2"]
 classifiers = [
     "Programming Language :: Python :: 3",
     "License :: OSI Approved :: MIT License",
