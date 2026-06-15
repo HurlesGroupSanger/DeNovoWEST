@@ -241,6 +241,7 @@ def _build_gene_records(
             {
                 "gene_id": gene_id,
                 "base_id": base_id,
+                "gene_symbol": row.get("gene_symbol") or None,
                 "min_pval": _safe_float(row.get("min_pval")),
                 "combined_mis_pval": _safe_float(row.get("combined_mis_pval")),
                 "enrichment_all_pval": _safe_float(row.get("enrichment_all_pval")),

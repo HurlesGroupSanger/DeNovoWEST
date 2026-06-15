@@ -22,7 +22,7 @@ VARIANTS = _INPUT / "OR4F5_dnms.tsv"
 CADD = _INPUT / "OR4F5.cadd.tsv.gz"
 CADD_EXPECTED = _OUTPUT / "OR4F5_dnms_cadd.tsv"
 
-_EXPECTED_COLUMNS = ["gene_id", "chrom", "pos", "ref", "alt", "region_type", "raw", "score"]
+_EXPECTED_COLUMNS = ["gene_id", "chrom", "pos", "ref", "alt", "region_type", "varid", "gene_symbol", "raw", "score"]
 
 
 #############################

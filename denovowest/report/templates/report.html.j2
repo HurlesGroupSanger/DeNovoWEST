@@ -80,7 +80,8 @@
         <thead class="table-light">
           <tr>
             <th></th>
-            <th>Gene</th>
+            <th>Gene ID</th>
+            <th>Symbol</th>
             <th>min p-val</th>
             <th>Enrich. all</th>
             <th>Enrich. mis</th>
@@ -212,9 +213,13 @@ function buildDetailHtml(gene) {
       </table>`;
   }
 
+  const symbolHtml = gene.gene_symbol
+    ? `<span class="text-muted fw-normal">(${gene.gene_symbol})</span>`
+    : '';
   return `
     <div class="d-flex align-items-center gap-2 mb-2">
       <span class="fw-bold">${gene.gene_id}</span>
+      ${symbolHtml}
       <a href="${ensemblHref}" target="_blank" class="small text-decoration-none">
         Ensembl &#8599;
       </a>
@@ -239,7 +244,11 @@ $(document).ready(function () {
         className: 'dt-center',
         defaultContent: '<span class="expand-icon">&#9654;</span>',
       },
-      { data: 'gene_id', title: 'Gene' },
+      { data: 'gene_id', title: 'Gene ID' },
+      {
+        data: 'gene_symbol', title: 'Symbol',
+        render: d => d ?? '<span class="text-muted">—</span>',
+      },
       {
         data: 'min_pval', title: 'min p-val',
         render: (d, type) => type === 'sort' ? (d ?? 999) : fmtPval(d),
@@ -296,7 +305,7 @@ $(document).ready(function () {
       tr.removeClass('expanded table-active');
     } else {
       row.child(
-        $('<td class="detail-cell" colspan="10">').append(buildDetailHtml(row.data()))
+        $('<td class="detail-cell" colspan="11">').append(buildDetailHtml(row.data()))
       ).show();
       tr.addClass('expanded table-active');
     }

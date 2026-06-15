@@ -39,18 +39,19 @@ def _run_combine_dne_dnn(tmp_path, dne_all_df, dne_mis_df, dnn_df):
 
 
 def test_combine_dne_dnn_merges_sources_and_computes_min_pval_with_mode(tmp_path):
+    # Column names match the simulation output format; gene_symbol is included to verify it flows through
     dne_all_df = pd.DataFrame(
         [
-            {"gene_id": "G1", "expected": 1.0, "observed": 2, "enrichment_pval": 0.2},
-            {"gene_id": "G2", "expected": 1.5, "observed": 3, "enrichment_pval": 0.5},
-            {"gene_id": "G3", "expected": 2.0, "observed": 1, "enrichment_pval": 0.05},
+            {"gene_id": "G1", "gene_symbol": "GeneA", "expected_score": 1.0, "observed_score": 2, "p-value": 0.2},
+            {"gene_id": "G2", "gene_symbol": "GeneB", "expected_score": 1.5, "observed_score": 3, "p-value": 0.5},
+            {"gene_id": "G3", "gene_symbol": "GeneC", "expected_score": 2.0, "observed_score": 1, "p-value": 0.05},
         ]
     )
     dne_mis_df = pd.DataFrame(
         [
-            {"gene_id": "G1", "expected": 0.5, "observed": 1, "enrichment_pval": 0.1},
-            {"gene_id": "G2", "expected": 0.7, "observed": 2, "enrichment_pval": 0.2},
-            {"gene_id": "G4", "expected": 0.4, "observed": 1, "enrichment_pval": 0.3},
+            {"gene_id": "G1", "gene_symbol": "GeneA", "expected_score": 0.5, "observed_score": 1, "p-value": 0.1},
+            {"gene_id": "G2", "gene_symbol": "GeneB", "expected_score": 0.7, "observed_score": 2, "p-value": 0.2},
+            {"gene_id": "G4", "gene_symbol": "GeneD", "expected_score": 0.4, "observed_score": 1, "p-value": 0.3},
         ]
     )
     dnn_df = pd.DataFrame(
@@ -95,6 +96,8 @@ def test_combine_dne_dnn_merges_sources_and_computes_min_pval_with_mode(tmp_path
     assert result.exit_code == 0
     assert set(combined["gene_id"]) == {"G1", "G2", "G3", "G4"}
     assert "clustering_mode" in combined.columns
+    assert "gene_symbol" in combined.columns
+    assert combined.set_index("gene_id").loc["G1", "gene_symbol"] == "GeneA"
 
     by_gene = combined.set_index("gene_id")
     expected_g1_combined = combine_pvalues([0.01, 0.1], method="fisher")[1]
@@ -118,11 +121,12 @@ def test_combine_dne_dnn_merges_sources_and_computes_min_pval_with_mode(tmp_path
 
 
 def test_combine_dne_dnn_omits_clustering_mode_when_not_present(tmp_path):
+    # No gene_symbol column — verifies the output omits it gracefully
     dne_all_df = pd.DataFrame(
-        [{"gene_id": "A1", "expected": 1.0, "observed": 2, "enrichment_pval": 0.4}]
+        [{"gene_id": "A1", "expected_score": 1.0, "observed_score": 2, "p-value": 0.4}]
     )
     dne_mis_df = pd.DataFrame(
-        [{"gene_id": "A1", "expected": 0.5, "observed": 1, "enrichment_pval": 0.2}]
+        [{"gene_id": "A1", "expected_score": 0.5, "observed_score": 1, "p-value": 0.2}]
     )
     dnn_df = pd.DataFrame(
         [
@@ -140,6 +144,7 @@ def test_combine_dne_dnn_omits_clustering_mode_when_not_present(tmp_path):
 
     assert result.exit_code == 0
     assert "clustering_mode" not in combined.columns
+    assert "gene_symbol" not in combined.columns
     expected_combined = combine_pvalues([0.05, 0.2], method="fisher")[1]
     assert combined.loc[0, "combined_mis_pval"] == pytest.approx(expected_combined)
     assert combined.loc[0, "min_pval"] == pytest.approx(min(expected_combined, 0.4))

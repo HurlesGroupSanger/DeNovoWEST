@@ -346,8 +346,14 @@ def run_simulation(rates_df, dnm_df, gene_id, score_column, cfg):
     wall_time = end_time - start_time
     simulation_logs["wall_time"] = f"{wall_time:.6f}"
 
+    # Retrieve gene symbol if present in the rates file (None for legacy files without the column)
+    gene_symbol = None
+    if "gene_symbol" in generates.columns:
+        symbols = generates["gene_symbol"].dropna().unique()
+        gene_symbol = symbols[0] if len(symbols) > 0 else None
+
     # Return the gene id, its expected and observed sum of scores, the p-value from the enrichment simulation test and some informations about the simulation
-    simulation_results = (gene_id, expected_score, obs_sum_scores, pval)
+    simulation_results = (gene_id, gene_symbol, expected_score, obs_sum_scores, pval)
     return simulation_results, simulation_logs
 
 
@@ -407,8 +413,10 @@ def export_results(results: list, outdir: str, outfile: str):
     logger.info("=" * 50)
     set_regular_log()
 
-    # Build results dataframe
-    df = pd.DataFrame.from_records(results, columns=["gene_id", "expected_score", "observed_score", "p-value"])
+    # Build results dataframe; drop gene_symbol column if the rates file didn't carry it
+    df = pd.DataFrame.from_records(results, columns=["gene_id", "gene_symbol", "expected_score", "observed_score", "p-value"])
+    if df["gene_symbol"].isna().all():
+        df = df.drop(columns=["gene_symbol"])
 
     # Export results
     os.makedirs(outdir, exist_ok=True)

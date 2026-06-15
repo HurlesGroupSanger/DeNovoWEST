@@ -91,6 +91,13 @@ def init_log(show_time=True):
     logging.config.dictConfig(MY_LOGGING_CONFIG)
 
 
+def _gff_has_gene_name(gff_db) -> bool:
+    """Return True if the first gene feature in the GFF carries a gene_name attribute."""
+    for gene in gff_db.features_of_type("gene"):
+        return "gene_name" in gene.attributes
+    return False
+
+
 def annotate_with_genes(dnm_df, gff_db, gene_offset):
     """
     Annotate DNM table with gene identifiers if the DNM falls within a gene region
@@ -101,8 +108,14 @@ def annotate_with_genes(dnm_df, gff_db, gene_offset):
         gene_offset (int): Offset (in bp) to consider DNMs close to gene regions.
     """
 
-    # Build a dictionary of genes per chromosome
     logger = logging.getLogger("logger")
+
+    # Check whether the GFF carries gene_name attributes before committing to the column
+    has_gene_name = _gff_has_gene_name(gff_db)
+    if not has_gene_name:
+        logger.warning("GFF does not contain 'gene_name' attributes; 'gene_symbol' column will not be added")
+
+    # Build a dictionary of genes per chromosome
     genes_per_chrom = build_genes_per_chrom(gff_db)
     logger.info("Built genes per chromosome dictionnary from GFF")
 
@@ -126,7 +139,7 @@ def annotate_with_genes(dnm_df, gff_db, gene_offset):
         chrom_genes = genes_per_chrom[chrom]
 
         # Loop over genes and annotate DNMs falling within gene regions
-        for gene_id, gene_start, gene_end in chrom_genes:
+        for gene_id, gene_symbol, gene_start, gene_end in chrom_genes:
             is_in_gene = (chrom_dnm_df["pos"] >= gene_start - gene_offset) & (
                 chrom_dnm_df["pos"] <= gene_end + gene_offset
             )
@@ -136,6 +149,8 @@ def annotate_with_genes(dnm_df, gff_db, gene_offset):
                 continue
 
             gene_dnm_df["gene_id"] = gene_id
+            if has_gene_name:
+                gene_dnm_df["gene_symbol"] = gene_symbol
             list_annotated_dnm_df.append(gene_dnm_df)
 
     annotated_dnm_df = pd.concat(list_annotated_dnm_df)
@@ -167,6 +182,7 @@ def build_genes_per_chrom(gff_db):
     genes_per_chrom = dict()
     for gene in gff_db.features_of_type("gene", order_by="start"):
         gene_id = gene.id
+        gene_symbol = gene.attributes.get("gene_name", [None])[0]
         gene_chrom = gene.chrom
         gene_start = gene.start
         gene_end = gene.end
@@ -176,6 +192,7 @@ def build_genes_per_chrom(gff_db):
         genes_per_chrom[gene_chrom].append(
             (
                 gene_id,
+                gene_symbol,
                 gene_start,
                 gene_end,
             )
@@ -224,10 +241,9 @@ def export_dnm_with_genes(dnm_annotated_with_gene_df, output_file):
         output_file (str): Path to the output TSV file
     """
 
-    # Bring gene_id column to the front
-    dnm_annotated_with_gene_df = dnm_annotated_with_gene_df[
-        ["gene_id"] + [c for c in dnm_annotated_with_gene_df.columns if c != "gene_id"]
-    ]
+    # Bring gene_id to the front; gene_symbol stays as a trailing annotation column
+    other_cols = [c for c in dnm_annotated_with_gene_df.columns if c != "gene_id"]
+    dnm_annotated_with_gene_df = dnm_annotated_with_gene_df[["gene_id"] + other_cols]
 
     # Sort DNMs by chromosome and position
     dnm_annotated_with_gene_df.sort_values(by=["chrom", "pos"], inplace=True)

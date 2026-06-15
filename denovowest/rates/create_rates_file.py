@@ -62,6 +62,13 @@ def load_gene_list(gene_list: Path | None, gff_db: gffutils.FeatureDB) -> list[s
     return [gene.attributes["ID"][0] for gene in gff_db.all_features(featuretype="gene", order_by="start")]
 
 
+def _gff_has_gene_name(gff_db: gffutils.FeatureDB) -> bool:
+    """Return True if the first gene feature in the GFF carries a gene_name attribute."""
+    for gene in gff_db.features_of_type("gene"):
+        return "gene_name" in gene.attributes
+    return False
+
+
 #############################
 # Rate calculation helpers  #
 #############################
@@ -91,6 +98,7 @@ def calculate_rates_cds(
     mutation_rate_model: pd.DataFrame,
     seq: str,
     range_model: int,
+    has_gene_name: bool = True,
 ) -> list[pd.Series]:
     """Calculate per-nucleotide mutation rates for a CDS region using a kmer model.
 
@@ -112,6 +120,7 @@ def calculate_rates_cds(
         cur_seq = seq
 
     len_seq = len(seq)
+    gene_symbol = gene.attributes.get("gene_name", [None])[0] if has_gene_name else None
     list_mutations: list[pd.Series] = []
 
     for i in range(range_model, len(cur_seq) - range_model):
@@ -136,17 +145,10 @@ def calculate_rates_cds(
             else:
                 pos = start + i
 
-            s = pd.Series(
-                {
-                    "gene_id": gene.id,
-                    "chrom": gene.chrom,
-                    "pos": pos,
-                    "ref": ref_nuc,
-                    "alt": alt_nuc,
-                    "prob": mutation_rate,
-                }
-            )
-            list_mutations.append(s)
+            record: dict = {"gene_id": gene.id, "chrom": gene.chrom, "pos": pos, "ref": ref_nuc, "alt": alt_nuc, "prob": mutation_rate}
+            if has_gene_name:
+                record["gene_symbol"] = gene_symbol
+            list_mutations.append(pd.Series(record))
 
     return list_mutations
 
@@ -189,10 +191,15 @@ def calculate_rates_kmer(
         gene_list: List of gene identifiers to process.
 
     Returns:
-        DataFrame with columns ``gene_id``, ``chrom``, ``pos``, ``ref``, ``alt``, ``prob``.
+        DataFrame with columns ``gene_id``, ``chrom``, ``pos``, ``ref``, ``alt``, ``prob`` and optionally ``gene_symbol`` at the end.
     """
 
     logger = logging.getLogger("logger")
+
+    # Check whether the GFF carries gene_name attributes before committing to the column
+    has_gene_name = _gff_has_gene_name(gff_db)
+    if not has_gene_name:
+        logger.warning("GFF does not contain 'gene_name' attributes; 'gene_symbol' column will not be included in the output")
 
     # Default mutation model is 3-mer; other sizes (5-mer, 7-mer) derive the range automatically
     length_model = len(mutation_rate_model.iloc[0]["from"])
@@ -230,7 +237,7 @@ def calculate_rates_kmer(
                 # Get the rates for all possible SNVs in the current CDS region
                 cds_seq = get_sequence(fasta, gene.chrom, start, end)
                 list_mutation_rates_gene += calculate_rates_cds(
-                    gene, start + 1, mutation_rate_model, cds_seq, range_model
+                    gene, start + 1, mutation_rate_model, cds_seq, range_model, has_gene_name
                 )
 
         # Remove duplicates that may arise from overlapping CDS regions and sort by position and alternate allele
@@ -248,7 +255,9 @@ def calculate_rates_kmer(
 
     if not list_mutation_rates:
         logger.error("Rates dataframe is empty")
-        return pd.DataFrame(columns=["gene_id", "chrom", "pos", "ref", "alt", "prob"])
+        base_cols = ["gene_id", "chrom", "pos", "ref", "alt", "prob"]
+        cols = base_cols + ["gene_symbol"] if has_gene_name else base_cols
+        return pd.DataFrame(columns=cols)
 
     rates_df = pd.concat(list_mutation_rates)
 
@@ -308,10 +317,15 @@ def calculate_rates_roulette(
             rate value extracted from the VCF INFO field (``MR`` for Roulette, ``MC`` for Carlson).
 
     Returns:
-        DataFrame with columns ``gene_id``, ``chrom``, ``pos``, ``ref``, ``alt``, ``prob``.
+        DataFrame with columns ``gene_id``, ``chrom``, ``pos``, ``ref``, ``alt``, ``prob`` and optionally ``gene_symbol`` at the end.
     """
 
     logger = logging.getLogger("logger")
+
+    # Check whether the GFF carries gene_name attributes before committing to the column
+    has_gene_name = _gff_has_gene_name(gff_db)
+    if not has_gene_name:
+        logger.warning("GFF does not contain 'gene_name' attributes; 'gene_symbol' column will not be included in the output")
 
     if model == "roulette":
         info_field = "MR"
@@ -350,6 +364,7 @@ def calculate_rates_roulette(
                 logger.warning(f"Can't find any roulette file for chromosome {chrom} (gene {gene_id})")
             continue
 
+        gene_symbol = gene.attributes.get("gene_name", [None])[0] if has_gene_name else None
         list_mutation_rates_gene: list[pd.Series] = []
         seen_cds_boundaries: set[tuple[int, int]] = set()
 
@@ -364,17 +379,17 @@ def calculate_rates_roulette(
 
                 for rec in roulette_file.fetch(start=start, stop=end, region=chrom):
                     try:
-                        s = pd.Series(
-                            {
-                                "gene_id": gene_id,
-                                "chrom": f"chr{chrom}" if gff_uses_chr_prefix else chrom,
-                                "pos": rec.pos,
-                                "ref": rec.ref,
-                                "alt": rec.alts[0],
-                                "prob": float(rec.info[info_field]) * scaling_factor,
-                            }
-                        )
-                        list_mutation_rates_gene.append(s)
+                        record: dict = {
+                            "gene_id": gene_id,
+                            "chrom": f"chr{chrom}" if gff_uses_chr_prefix else chrom,
+                            "pos": rec.pos,
+                            "ref": rec.ref,
+                            "alt": rec.alts[0],
+                            "prob": float(rec.info[info_field]) * scaling_factor,
+                        }
+                        if has_gene_name:
+                            record["gene_symbol"] = gene_symbol
+                        list_mutation_rates_gene.append(pd.Series(record))
                     except KeyError:
                         # No mutation rate info for this SNP
                         continue
@@ -393,7 +408,9 @@ def calculate_rates_roulette(
 
     if not list_mutation_rates:
         logger.error("Rates dataframe is empty")
-        return pd.DataFrame(columns=["gene_id", "chrom", "pos", "ref", "alt", "prob"])
+        base_cols = ["gene_id", "chrom", "pos", "ref", "alt", "prob"]
+        cols = base_cols + ["gene_symbol"] if has_gene_name else base_cols
+        return pd.DataFrame(columns=cols)
 
     rates_df = pd.concat(list_mutation_rates)
 
@@ -508,8 +525,9 @@ def main(
     The output file (``mutation_rates.tsv``) contains one row per possible SNV
     across all CDS regions (extended by ``CDS_OFFSET`` bases on each side to
     capture splicing-relevant positions) of the requested genes. Each row holds
-    the gene identifier, genomic coordinates, reference and alternate alleles,
-    and the estimated per-generation mutation probability (``prob``).
+    the gene identifier, gene symbol (``gene_name`` attribute from the GFF, if
+    present), genomic coordinates, reference and alternate alleles, and the
+    estimated per-generation mutation probability (``prob``).
 
     This file feeds directly into the annotation and enrichment-test steps of
     the pipeline: annotations are added column-wise, and the ``prob`` column is

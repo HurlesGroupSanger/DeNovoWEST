@@ -27,7 +27,7 @@ GFF = _INPUT / "OR4F5.gff"
 VCF_EXPECTED = _OUTPUT / "OR4F5_vcf.tsv"
 
 _COLUMNS = "-c popEVE,EVE,ESM1v".split()
-_EXPECTED_COLUMNS = ["gene_id", "chrom", "pos", "ref", "alt", "region_type", "popEVE", "EVE", "ESM1v"]
+_EXPECTED_COLUMNS = ["gene_id", "chrom", "pos", "ref", "alt", "region_type", "varid", "gene_symbol", "popEVE", "EVE", "ESM1v"]
 
 
 #############################

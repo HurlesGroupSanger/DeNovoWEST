@@ -20,6 +20,29 @@ from denovowest.utils.params import CONSEQUENCES_SEVERITIES
 INDELS = frozenset(["inframe", "frameshift", "inframe_insertion", "inframe_deletion"])
 
 
+#################
+# Helpers       #
+#################
+
+
+def _get_info_field(info: str, key: str) -> str | None:
+    """Extract a single value from a VCF INFO string by field name.
+
+    Args:
+        info: Raw VCF INFO string (e.g. ``"GENE=ENSG00000001;BCSQ=missense|..."``).
+        key: INFO field name to look up (e.g. ``"GENE"`` or ``"BCSQ"``).
+
+    Returns:
+        The field value, or ``None`` if the key is absent.
+    """
+
+    prefix = key + "="
+    for part in info.split(";"):
+        if part.startswith(prefix):
+            return part[len(prefix):]
+    return None
+
+
 @click.group()
 def cli():
     pass
@@ -38,13 +61,17 @@ def rates_to_vcf(rates: str, fasta: str, out_vcf: str) -> None:
         out_vcf: Destination of the output VCF file.
     """
 
+    # Load rates file early so we can inspect columns before writing the VCF header
+    rates_df = pd.read_csv(rates, sep="\t")
+    has_gene_symbol = "gene_symbol" in rates_df.columns
+
     # Retrieve contig length from FASTA file
     if fasta.endswith(".fai"):
         vcf_header_df = pd.read_csv(f"{fasta}", sep="\t", header=None)
     else:
         vcf_header_df = pd.read_csv(f"{fasta}.fai", sep="\t", header=None)
 
-    # Write it in the VCF header format
+    # Write VCF header (SYMBOL INFO field declared only when present in the rates file)
     with open(out_vcf, "w") as f:
         f.write("##fileformat=VCFv4.2\n")
         for idx, row in vcf_header_df.iterrows():
@@ -52,10 +79,9 @@ def rates_to_vcf(rates: str, fasta: str, out_vcf: str) -> None:
             length = row[1]
             f.write(f"##contig=<ID={chrom},length={length}>\n")
         f.write('##INFO=<ID=GENE,Number=.,Type=String,Description="Gene identifier">\n')
+        if has_gene_symbol:
+            f.write('##INFO=<ID=SYMBOL,Number=.,Type=String,Description="Gene symbol">\n')
         f.write("#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\n")
-
-    # Extract information from rates file and transform it in VCF format
-    rates_df = pd.read_csv(rates, sep="\t")
 
     # Filter duplicate variants
     duplicates = rates_df[["gene_id", "chrom", "pos", "ref", "alt"]].duplicated()
@@ -64,10 +90,13 @@ def rates_to_vcf(rates: str, fasta: str, out_vcf: str) -> None:
     # We need to sort the rates file otherwise bcftoolscsq fails
     rates_df = rates_df.sort_values(["chrom", "pos"])
 
-    # Write VCF (including gene id in INFO field to distinguish between overlapping genes)
+    # Write VCF (including gene id and gene symbol in INFO field to distinguish between overlapping genes)
     with open(out_vcf, "a") as f:
         for idx, row in rates_df.iterrows():
-            f.write(f"{row.chrom}\t{row.pos}\t.\t{row.ref}\t{row.alt}\t.\t.\tGENE={row.gene_id}\n")
+            info = f"GENE={row.gene_id}"
+            if has_gene_symbol and pd.notna(row.gene_symbol):
+                info += f";SYMBOL={row.gene_symbol}"
+            f.write(f"{row.chrom}\t{row.pos}\t.\t{row.ref}\t{row.alt}\t.\t.\t{info}\n")
 
 
 def extract_worst_consequence(
@@ -99,8 +128,8 @@ def extract_worst_consequence(
     list_csqs = []
     for idx, record in vcf_df.iterrows():
 
-        # Get gene name(s)
-        gene_id = record.INFO.split(";")[0].replace("GENE=", "")
+        # Get gene name(s) — use key-based lookup so extra INFO fields don't shift positions
+        gene_id = _get_info_field(record.INFO, "GENE")
 
         # TODO : Handle the case where this field is missing or has a different name, find a clever way to support all gff
         try:
@@ -116,7 +145,10 @@ def extract_worst_consequence(
 
         # Look at all the consequences returned by bcftoolscsq
         try:
-            list_csq = record.INFO.split(";")[1].replace("BCSQ=", "").split(",")
+            bcsq_value = _get_info_field(record.INFO, "BCSQ")
+            if bcsq_value is None:
+                raise IndexError
+            list_csq = bcsq_value.split(",")
 
             # If there are multiple consequences, we take the worst one
             worst_csq_value = 1
@@ -182,7 +214,7 @@ def do_both_sources_use_version(gff_db: gffutils.FeatureDB, vcf_df: pd.DataFrame
 
     vcf_gene_id = ""
     for _, record in vcf_df.iterrows():
-        vcf_gene_id = record.INFO.split(";")[0].replace("GENE=", "")
+        vcf_gene_id = _get_info_field(record.INFO, "GENE") or ""
         if vcf_gene_id:
             break
 
@@ -298,7 +330,10 @@ def vcf_to_rates(vcf: str, rates: str, gff_db_path: str, out_rates: str, force_i
     vcf_df = extract_worst_consequence(vcf_df, gff_db, force_indel_annotation)
 
     # Extract gene id to distinguish between overlapping genes
-    vcf_df["gene_id"] = [x.split(";")[0].replace("GENE=", "") for x in vcf_df.INFO]
+    vcf_df["gene_id"] = [_get_info_field(x, "GENE") for x in vcf_df.INFO]
+
+    # Extract gene symbol from INFO if encoded (written by rates_to_vcf when the rates file had gene_symbol)
+    vcf_df["gene_symbol"] = vcf_df.INFO.str.extract(r"SYMBOL=([^;]+)")
 
     # If the rates file already has a 'consequence' column (e.g. from a previous annotation
     # run), rename it to preserve it — the new bcftools csq annotation takes the canonical name
@@ -311,9 +346,15 @@ def vcf_to_rates(vcf: str, rates: str, gff_db_path: str, out_rates: str, force_i
         )
         rates_df = rates_df.rename(columns={"consequence": "consequence_prev"})
 
+    # Build right-side column list: include gene_symbol from VCF only when rates_df
+    # doesn't already carry it (legacy rates files without gene_symbol column)
+    right_cols = ["#CHROM", "POS", "REF", "ALT", "consequence", "full_consequence_bcftoolscsq", "gene_id"]
+    if "gene_symbol" not in rates_df.columns and vcf_df["gene_symbol"].notna().any():
+        right_cols.append("gene_symbol")
+
     # Merge files
     out_rates_df = rates_df.merge(
-        vcf_df[["#CHROM", "POS", "REF", "ALT", "consequence", "full_consequence_bcftoolscsq", "gene_id"]],
+        vcf_df[right_cols],
         left_on=["chrom", "pos", "ref", "alt", "gene_id"],
         right_on=["#CHROM", "POS", "REF", "ALT", "gene_id"],
     )

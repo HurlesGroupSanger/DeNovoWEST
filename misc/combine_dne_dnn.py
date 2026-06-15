@@ -25,16 +25,29 @@ def combine_dne_dnn(dne_file_all, dne_file_mis, dnn_file, out_file):
         None
     """
 
-    # Load DNW results
-    dne_all = pd.read_csv(dne_file_all, sep="\t")
-    dne_all.columns = ["gene_id", "expected_all", "observed_all", "enrichment_all_pval"]
-    dne_mis = pd.read_csv(dne_file_mis, sep="\t")
-    dne_mis.columns = [
-        "gene_id",
-        "expected_mis",
-        "observed_mis",
-        "enrichment_mis_pval",
-    ]
+    # Load DNW results — rename from simulation output column names to analysis-specific names
+    dne_all = pd.read_csv(dne_file_all, sep="\t").rename(
+        columns={
+            "expected_score": "expected_all",
+            "observed_score": "observed_all",
+            "p-value": "enrichment_all_pval",
+        }
+    )
+    dne_mis = pd.read_csv(dne_file_mis, sep="\t").rename(
+        columns={
+            "expected_score": "expected_mis",
+            "observed_score": "observed_mis",
+            "p-value": "enrichment_mis_pval",
+        }
+    )
+
+    # Extract gene_symbol from dne_all before the merge — it is the authoritative source because
+    # dne_mis only covers genes with missense mutations and may not include all genes
+    gene_symbol_df = None
+    if "gene_symbol" in dne_all.columns:
+        gene_symbol_df = dne_all[["gene_id", "gene_symbol"]].drop_duplicates("gene_id")
+    dne_all = dne_all.drop(columns=["gene_symbol"], errors="ignore")
+    dne_mis = dne_mis.drop(columns=["gene_symbol"], errors="ignore")
 
     # Load DNN results
     dnn = pd.read_csv(dnn_file, sep="\t")
@@ -44,6 +57,7 @@ def combine_dne_dnn(dne_file_all, dne_file_mis, dnn_file, out_file):
         axis=1,
         inplace=True,
     )
+    dnn = dnn[["gene_id", "clustering_pval", "nb_mis_variants", "clustering_dist"]]
 
     # If the user combined 3D and linear clustering we want to keep track of the mode for each gene
     if "mode" in dnn.columns:
@@ -52,6 +66,10 @@ def combine_dne_dnn(dne_file_all, dne_file_mis, dnn_file, out_file):
     # Merge dataframes
     merged_data = pd.merge(dne_all, dnn, on="gene_id", how="left")
     merged_data = pd.merge(merged_data, dne_mis, on="gene_id", how="outer")
+
+    # Re-attach gene_symbol from the dne_all lookup (left join so genes absent from dne_all get NaN)
+    if gene_symbol_df is not None:
+        merged_data = merged_data.merge(gene_symbol_df, on="gene_id", how="left")
 
     # Combine p-values using Fisher's method (log-likelihood ratio test)
     merged_data["combined_mis_pval"] = merged_data[["clustering_pval", "enrichment_mis_pval"]].apply(
@@ -64,8 +82,10 @@ def combine_dne_dnn(dne_file_all, dne_file_mis, dnn_file, out_file):
     )
 
     # Write to file
-    columns_to_keep = [
-        "gene_id",
+    columns_to_keep = ["gene_id"]
+    if "gene_symbol" in merged_data.columns:
+        columns_to_keep.append("gene_symbol")
+    columns_to_keep += [
         "min_pval",
         "combined_mis_pval",
         "enrichment_all_pval",

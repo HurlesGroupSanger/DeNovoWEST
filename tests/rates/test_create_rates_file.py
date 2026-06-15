@@ -228,7 +228,7 @@ class TestKmerOutput:
         assert kmer_output is not None
 
     def test_has_expected_columns(self, kmer_output):
-        assert list(kmer_output.columns) == ["gene_id", "chrom", "pos", "ref", "alt", "prob"]
+        assert list(kmer_output.columns) == ["gene_id", "chrom", "pos", "ref", "alt", "prob", "gene_symbol"]
 
     def test_gene_is_OR4F5(self, kmer_output):
         assert set(kmer_output.gene_id) == {"ENSG00000186092.7"}
@@ -259,7 +259,7 @@ class TestRouletteOutput:
         assert roulette_output is not None
 
     def test_has_expected_columns(self, roulette_output):
-        assert list(roulette_output.columns) == ["gene_id", "chrom", "pos", "ref", "alt", "prob"]
+        assert list(roulette_output.columns) == ["gene_id", "chrom", "pos", "ref", "alt", "prob", "gene_symbol"]
 
     def test_gene_is_OR4F5(self, roulette_output):
         assert set(roulette_output.gene_id) == {"ENSG00000186092.7"}
