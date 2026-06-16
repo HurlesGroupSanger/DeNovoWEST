@@ -18,6 +18,7 @@ from pathlib import Path
 from typing import Optional
 
 import click
+import gffutils
 import pandas as pd
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 
@@ -180,6 +181,41 @@ def merge_g2p(df: pd.DataFrame, g2p_df: pd.DataFrame) -> pd.DataFrame:
 
 
 ####################
+# GFF loading      #
+####################
+
+
+def load_gff_gene_coords(gff_path: Path) -> pd.DataFrame:
+    """Extract gene-level coordinates from a GFF3 file using gffutils.
+
+    Args:
+        gff_path: path to a GFF3 or GFF3.gz file.
+
+    Returns:
+        DataFrame with columns [gene_id, gene_name, chrom, start, end].
+        gene_id is the versioned Ensembl ID (e.g. ENSG00000186092.7).
+    """
+
+    records = []
+    for feature in gffutils.DataIterator(str(gff_path)):
+        if feature.featuretype != "gene":
+            continue
+        records.append({
+            "gene_id":   feature.attributes.get("gene_id",   [""])[0],
+            "gene_name": feature.attributes.get("gene_name", [""])[0],
+            "chrom":     feature.chrom,
+            "start":     feature.start,
+            "end":       feature.end,
+        })
+
+    df = pd.DataFrame(records)
+    # Store a version-stripped ID for fallback matching when the results file
+    # uses unversioned Ensembl IDs.
+    df["base_gene_id"] = df["gene_id"].str.split(".").str[0]
+    return df
+
+
+####################
 # Caution flags    #
 ####################
 
@@ -220,10 +256,59 @@ def _check_zero_records(gene_id: str, nb_records_df: Optional[pd.DataFrame]) -> 
     return []
 
 
+def _check_g2p_overlap(
+    row: pd.Series,
+    corrected_threshold: float,
+    gene_coords_df: pd.DataFrame,
+    g2p_gene_set: frozenset[str],
+) -> list[str]:
+    """Flag significant non-G2P genes that overlap a G2P gene in the genome.
+
+    Only applied when the gene is significant (min_pval < corrected_threshold)
+    and absent from G2P.
+    """
+
+    if row.get("g2p_confidence") != "absent":
+        return []
+    min_pval = row.get("min_pval")
+    if pd.isna(min_pval) or float(min_pval) >= corrected_threshold:
+        return []
+
+    gene_id = row["gene_id"]
+    base_id = gene_id.split(".")[0]
+
+    # Locate this gene's coordinates — try versioned ID first, then unversioned
+    query = gene_coords_df[gene_coords_df["gene_id"] == gene_id]
+    if query.empty:
+        query = gene_coords_df[gene_coords_df["base_gene_id"] == base_id]
+    if query.empty:
+        return []
+
+    chrom, start, end = query.iloc[0][["chrom", "start", "end"]]
+
+    # Find all GFF genes on the same chromosome that overlap this locus
+    same_chrom = gene_coords_df[gene_coords_df["chrom"] == chrom]
+    overlapping = same_chrom[
+        (same_chrom["end"] >= start)
+        & (same_chrom["start"] <= end)
+        & (same_chrom["gene_id"] != gene_id)
+    ]
+
+    g2p_hits = sorted(
+        overlapping.loc[overlapping["gene_name"].isin(g2p_gene_set), "gene_name"]
+    )
+    if g2p_hits:
+        return [f"Overlaps G2P gene(s): {', '.join(g2p_hits)}"]
+    return []
+
+
 def compute_caution_flags(
     df: pd.DataFrame,
     nb_records_df: Optional[pd.DataFrame],
     rates_df: Optional[pd.DataFrame],
+    corrected_threshold: float = NOMINAL_THRESHOLD,
+    gene_coords_df: Optional[pd.DataFrame] = None,
+    g2p_gene_set: Optional[frozenset[str]] = None,
 ) -> pd.DataFrame:
     """Add caution flag and reasons columns to the results dataframe.
 
@@ -231,10 +316,15 @@ def compute_caution_flags(
         df: combined tests results.
         nb_records_df: per-gene per-consequence record counts (optional).
         rates_df: per-gene per-consequence mutation rates (optional).
+        corrected_threshold: significance threshold used for the G2P overlap check.
+        gene_coords_df: GFF-derived gene coordinates for overlap detection (optional).
+        g2p_gene_set: set of gene symbols present in G2P (optional).
 
     Returns:
         Copy of df with added 'caution' (bool) and 'caution_reasons' (list[str]) columns.
     """
+
+    do_overlap_check = gene_coords_df is not None and g2p_gene_set is not None
 
     reasons_list = []
     for _, row in df.iterrows():
@@ -244,6 +334,8 @@ def compute_caution_flags(
             + _check_zero_rates(gene_id, rates_df)
             + _check_zero_records(gene_id, nb_records_df)
         )
+        if do_overlap_check:
+            reasons += _check_g2p_overlap(row, corrected_threshold, gene_coords_df, g2p_gene_set)
         reasons_list.append(reasons)
 
     df = df.copy()
@@ -437,13 +529,19 @@ def build_html(
     help="G2P CSV file (e.g. G2P_DD_2026-06-11.csv). Confidence is merged on gene symbol.",
 )
 @click.option(
+    "--gff",
+    type=click.Path(exists=True, dir_okay=False, path_type=Path),
+    default=None,
+    help="GFF3 file (plain or .gz). Used to flag significant non-G2P genes that overlap a G2P gene.",
+)
+@click.option(
     "--output",
     "-o",
     type=click.Path(path_type=Path),
     default=None,
     help="Output HTML file. Defaults to <results_dir>/report.html.",
 )
-def report(results_dir: Path, threshold: float, g2p: Optional[Path], output: Optional[Path]) -> None:
+def report(results_dir: Path, threshold: float, g2p: Optional[Path], gff: Optional[Path], output: Optional[Path]) -> None:
     """Generate an HTML report summarising DeNovoWEST pipeline results.
 
     RESULTS_DIR is the root output directory produced by the pipeline
@@ -453,6 +551,7 @@ def report(results_dir: Path, threshold: float, g2p: Optional[Path], output: Opt
         results_dir: pipeline output root.
         threshold: multiple-testing corrected significance threshold.
         g2p: optional G2P CSV for confidence annotation.
+        gff: optional GFF3 for G2P overlap detection.
         output: destination HTML file (default: <results_dir>/report.html).
     """
 
@@ -471,6 +570,7 @@ def report(results_dir: Path, threshold: float, g2p: Optional[Path], output: Opt
     nb_records_df = load_nb_records(results_dir)
     rates_df = load_rates(results_dir)
 
+    g2p_df = None
     if g2p is not None:
         try:
             g2p_df = load_g2p(g2p)
@@ -478,6 +578,15 @@ def report(results_dir: Path, threshold: float, g2p: Optional[Path], output: Opt
             logger.info(f"Merged G2P annotations for {g2p_df['gene_symbol'].nunique()} genes from {g2p.name}")
         except ValueError as e:
             logger.warning(f"Skipping G2P annotation: {e}")
+
+    gene_coords_df = None
+    if gff is not None:
+        if g2p_df is None:
+            logger.warning("--gff has no effect without --g2p (no G2P gene set to check against)")
+        else:
+            logger.info(f"Loading gene coordinates from {gff.name}")
+            gene_coords_df = load_gff_gene_coords(gff)
+            logger.info(f"Loaded coordinates for {len(gene_coords_df)} genes")
 
     if nb_records_df is not None:
         logger.info(f"Loaded record counts for {len(nb_records_df)} genes")
@@ -489,8 +598,11 @@ def report(results_dir: Path, threshold: float, g2p: Optional[Path], output: Opt
     else:
         logger.warning("Mutation rate stats not found — caution flags will be limited")
 
+    # Build G2P gene set for overlap detection (only when both --g2p and --gff were provided)
+    g2p_gene_set = frozenset(g2p_df["gene_symbol"]) if (g2p_df is not None and gene_coords_df is not None) else None
+
     # Compute caution flags and generate HTML
-    df = compute_caution_flags(df, nb_records_df, rates_df)
+    df = compute_caution_flags(df, nb_records_df, rates_df, threshold, gene_coords_df, g2p_gene_set)
     n_caution = int(df["caution"].sum())
     logger.info(f"{n_caution} gene(s) flagged with caution")
 
