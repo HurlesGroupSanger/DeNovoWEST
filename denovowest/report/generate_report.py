@@ -54,6 +54,17 @@ ALL_CONSEQUENCES = ["synonymous"] + FUNCTIONAL_CONSEQUENCES
 # Fixed nominal threshold; the corrected threshold is supplied by the user at runtime.
 NOMINAL_THRESHOLD = 5e-2
 
+# G2P confidence levels in descending order (highest evidence first).
+CONFIDENCE_RANK: dict[str, int] = {
+    "definitive": 0,
+    "strong": 1,
+    "moderate": 2,
+    "limited": 3,
+    "disputed": 4,
+    "refuted": 5,
+    "absent": 6,
+}
+
 ####################
 # Data loading     #
 ####################
@@ -95,6 +106,77 @@ def load_nb_records(results_dir: Path) -> Optional[pd.DataFrame]:
 def load_rates(results_dir: Path) -> Optional[pd.DataFrame]:
     """Load the per-gene per-consequence mutation rate matrix, if present."""
     return _load_wide_stats(results_dir / RATES_RELPATH)
+
+
+def _best_confidence(group: pd.DataFrame) -> str:
+    """Return the best confidence for one gene, preferring monoallelic_autosomal entries."""
+    mono = group[group["allelic_requirement"] == "monoallelic_autosomal"]
+    candidates = mono if not mono.empty else group
+    return candidates.sort_values("_rank").iloc[0]["g2p_confidence"]
+
+
+def load_g2p(g2p_path: Path) -> pd.DataFrame:
+    """Load a G2P CSV and return the best confidence level per gene symbol.
+
+    Selection rules applied in order:
+    1. If the gene has any monoallelic_autosomal entries, pick the highest
+       confidence among those.
+    2. Otherwise pick the highest confidence among all entries.
+
+    Args:
+        g2p_path: path to a G2P CSV file.
+
+    Returns:
+        DataFrame with columns [gene_symbol, g2p_confidence], one row per gene.
+    """
+
+    df = pd.read_csv(
+        g2p_path,
+        usecols=["gene symbol", "allelic requirement", "confidence"],
+    )
+    df = df.rename(columns={
+        "gene symbol": "gene_symbol",
+        "allelic requirement": "allelic_requirement",
+        "confidence": "g2p_confidence",
+    })
+
+    # Drop rows with unrecognised confidence values (e.g. CSV parsing artefacts)
+    df = df[df["g2p_confidence"].isin(CONFIDENCE_RANK)].copy()
+    df["_rank"] = df["g2p_confidence"].map(CONFIDENCE_RANK)
+
+    result = (
+        df.groupby("gene_symbol", group_keys=False)
+        .apply(_best_confidence)
+        .reset_index()
+    )
+    result.columns = ["gene_symbol", "g2p_confidence"]
+    return result
+
+
+def merge_g2p(df: pd.DataFrame, g2p_df: pd.DataFrame) -> pd.DataFrame:
+    """Add a g2p_confidence column to the results dataframe by merging on gene_symbol.
+
+    Genes absent from G2P are labelled "absent".
+
+    Args:
+        df: combined tests results.
+        g2p_df: output of load_g2p().
+
+    Returns:
+        Copy of df with a new g2p_confidence column.
+
+    Raises:
+        ValueError: if the results dataframe has no gene_symbol column.
+    """
+
+    if "gene_symbol" not in df.columns:
+        raise ValueError(
+            "Results file has no gene_symbol column — G2P annotation requires a pipeline "
+            "version that outputs gene symbols."
+        )
+    merged = df.merge(g2p_df, on="gene_symbol", how="left")
+    merged["g2p_confidence"] = merged["g2p_confidence"].fillna("absent")
+    return merged
 
 
 ####################
@@ -195,6 +277,16 @@ def _safe_int(val) -> Optional[int]:
     return int(val)
 
 
+def _safe_str(val) -> Optional[str]:
+    """Return str or None for NaN/missing values."""
+    try:
+        if pd.isna(val):
+            return None
+    except (TypeError, ValueError):
+        pass
+    return str(val)
+
+
 def _build_gene_records(
     df: pd.DataFrame,
     nb_records_df: Optional[pd.DataFrame],
@@ -241,7 +333,8 @@ def _build_gene_records(
             {
                 "gene_id": gene_id,
                 "base_id": base_id,
-                "gene_symbol": row.get("gene_symbol") or None,
+                "gene_symbol": _safe_str(row.get("gene_symbol")),
+                "g2p_confidence": _safe_str(row.get("g2p_confidence")),
                 "min_pval": _safe_float(row.get("min_pval")),
                 "combined_mis_pval": _safe_float(row.get("combined_mis_pval")),
                 "enrichment_all_pval": _safe_float(row.get("enrichment_all_pval")),
@@ -338,13 +431,19 @@ def build_html(
     help="Multiple-testing corrected significance threshold (e.g. 2.5e-6 for Bonferroni).",
 )
 @click.option(
+    "--g2p",
+    type=click.Path(exists=True, dir_okay=False, path_type=Path),
+    default=None,
+    help="G2P CSV file (e.g. G2P_DD_2026-06-11.csv). Confidence is merged on gene symbol.",
+)
+@click.option(
     "--output",
     "-o",
     type=click.Path(path_type=Path),
     default=None,
     help="Output HTML file. Defaults to <results_dir>/report.html.",
 )
-def report(results_dir: Path, threshold: float, output: Optional[Path]) -> None:
+def report(results_dir: Path, threshold: float, g2p: Optional[Path], output: Optional[Path]) -> None:
     """Generate an HTML report summarising DeNovoWEST pipeline results.
 
     RESULTS_DIR is the root output directory produced by the pipeline
@@ -353,6 +452,7 @@ def report(results_dir: Path, threshold: float, output: Optional[Path]) -> None:
     Args:
         results_dir: pipeline output root.
         threshold: multiple-testing corrected significance threshold.
+        g2p: optional G2P CSV for confidence annotation.
         output: destination HTML file (default: <results_dir>/report.html).
     """
 
@@ -370,6 +470,14 @@ def report(results_dir: Path, threshold: float, output: Optional[Path]) -> None:
     df = load_combined_tests(results_dir)
     nb_records_df = load_nb_records(results_dir)
     rates_df = load_rates(results_dir)
+
+    if g2p is not None:
+        try:
+            g2p_df = load_g2p(g2p)
+            df = merge_g2p(df, g2p_df)
+            logger.info(f"Merged G2P annotations for {g2p_df['gene_symbol'].nunique()} genes from {g2p.name}")
+        except ValueError as e:
+            logger.warning(f"Skipping G2P annotation: {e}")
 
     if nb_records_df is not None:
         logger.info(f"Loaded record counts for {len(nb_records_df)} genes")

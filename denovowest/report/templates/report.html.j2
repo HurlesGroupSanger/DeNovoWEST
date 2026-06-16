@@ -25,6 +25,13 @@
     .strip-total   { border-color: #6c757d; }
     .strip-sig     { border-color: #198754; }
     .strip-caution { border-color: #fd7e14; }
+    .g2p-definitive { background-color: #0a5c2e; color: #fff; }
+    .g2p-strong     { background-color: #198754; color: #fff; }
+    .g2p-moderate   { background-color: #5cb383; color: #fff; }
+    .g2p-limited    { background-color: #fd7e14; color: #fff; }
+    .g2p-disputed   { background-color: #fd7e14; color: #fff; }
+    .g2p-refuted    { background-color: #dc3545; color: #fff; }
+    .g2p-absent     { background-color: #adb5bd; color: #fff; }
   </style>
 </head>
 <body>
@@ -82,6 +89,7 @@
             <th></th>
             <th>Gene ID</th>
             <th>Symbol</th>
+            <th>G2P</th>
             <th>min p-val</th>
             <th>Enrich. all</th>
             <th>Enrich. mis</th>
@@ -250,6 +258,15 @@ $(document).ready(function () {
         render: d => d ?? '<span class="text-muted">—</span>',
       },
       {
+        data: 'g2p_confidence', title: 'G2P',
+        render: (d, type) => {
+          const RANK = { definitive:0, strong:1, moderate:2, limited:3, disputed:4, refuted:5, absent:6 };
+          if (type === 'sort') return d !== null ? (RANK[d] ?? 99) : 99;
+          const val = d ?? 'absent';
+          return `<span class="badge g2p-${val}">${val}</span>`;
+        },
+      },
+      {
         data: 'min_pval', title: 'min p-val',
         render: (d, type) => type === 'sort' ? (d ?? 999) : fmtPval(d),
       },
@@ -305,7 +322,7 @@ $(document).ready(function () {
       tr.removeClass('expanded table-active');
     } else {
       row.child(
-        $('<td class="detail-cell" colspan="11">').append(buildDetailHtml(row.data()))
+        $('<td class="detail-cell" colspan="12">').append(buildDetailHtml(row.data()))
       ).show();
       tr.addClass('expanded table-active');
     }
