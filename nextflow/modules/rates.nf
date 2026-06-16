@@ -194,7 +194,7 @@ process FILTER_RATES_REGION {
   output :
   tuple (path "rates_kept.tsv.gz"), path ("rates_kept.tsv.gz.tbi")
   tuple (path "rates_discarded.tsv.gz"), path ("rates_discarded.tsv.gz.tbi")
-
+  path "filtered_rates_stats.json"
 
   script :
   """
@@ -233,6 +233,23 @@ process FILTER_RATES_REGION {
 
   # Cleanup
   rm regions_to_keep.bed excluded_regions_sorted.bed
+
+  # Save stats about the filtering
+  filter_rates_stats.sh $rates nb_loci_before_filtering > nb_loci_before_filtering.json
+  filter_rates_stats.sh rates_discarded.tsv.gz nb_loci_filtered > nb_loci_filtered.json
+  cat > infos.json << EOF
+  {
+    "input_rates": "\$(readlink -f $rates)",
+    "excluded_regions": "\$(readlink -f $excluded_regions)",
+    "kept_rates": "${params.outdir}/rates/rates_kept.tsv.gz",
+    "discarded_rates": "${params.outdir}/rates/rates_discarded.tsv.gz"
+  }
+  EOF
+
+  jq -s '.[0] * .[1] * .[2]' infos.json nb_loci_before_filtering.json  nb_loci_filtered.json > filtered_rates_stats.json
+  #rm infos.json nb_loci_before_filtering.json  nb_loci_filtered.json
+
+
 
   """
 }

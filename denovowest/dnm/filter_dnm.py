@@ -121,10 +121,15 @@ def filter_on_gff(
             list_new_dnm.append(gene_dnm_df)
             continue
 
-        # Vectorised CDS membership check
+        # Vectorised CDS membership check — for indels, use the full span [pos, pos+len(ref)-1]
+        # so that deletions overlapping a CDS boundary are retained
+        var_start = gene_dnm_df["pos"].values
+        var_end = var_start + gene_dnm_df["ref"].str.len().values - 1
+
         hit = np.zeros(len(gene_dnm_df), dtype=bool)
         for cds_start, cds_end in gene_cds:
-            hit |= (gene_dnm_df["pos"].values >= cds_start) & (gene_dnm_df["pos"].values <= cds_end)
+            # Interval overlap: variant span must overlap the CDS span
+            hit |= (var_start <= cds_end) & (var_end >= cds_start)
 
         gene_dnm_df["in_cds"] = hit
         gene_dnm_df["reason"] = gene_dnm_df["in_cds"].apply(lambda x: "not_in_cds" if not x else "")

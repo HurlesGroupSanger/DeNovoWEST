@@ -5,7 +5,7 @@ from enum import Enum
 #############################
 
 # Number of adjacent nucleotides to consider when retrieving CDS
-CDS_OFFSET = 50
+CDS_OFFSET = 8
 
 
 # Bcftools consequences ordered by severity

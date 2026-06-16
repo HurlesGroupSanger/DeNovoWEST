@@ -73,6 +73,16 @@ workflow{
     params.split_step = params.split_step ?: 100
 
 
+    // Rates creation
+    if (params.create_rates) {
+
+      if ((params.rates_creation.model in ['roulette', 'carlson']) && (!params.rates_creation.containsKey("scaling_factor"))){
+          log.error "❌ A scaling factor is needed when creating the rates file with roulette or carlson"
+          System.exit(1)
+      }
+    }
+
+
     // Annotation
     if (params.annotate_dnm || params.annotate_rates) {
 
