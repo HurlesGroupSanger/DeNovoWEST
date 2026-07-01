@@ -133,8 +133,7 @@ process MERGE_RATES {
   path rates, stageAs : "mutation_rates_*.tsv"
   
   output : 
-  path "merged_rates.tsv.gz"
-  path "merged_rates.tsv.gz.tbi"
+  tuple path ("merged_rates.tsv.gz"), path ("merged_rates.tsv.gz.tbi")
 
   script : 
   """
@@ -186,8 +185,7 @@ process FILTER_RATES_REGION {
   publishDir "${params.outdir}/rates", mode: 'copy', overwrite: true
 
   input :
-  path rates
-  path index
+  tuple path(rates), path(index)
   path excluded_regions
   path fasta
 
@@ -253,6 +251,36 @@ process FILTER_RATES_REGION {
 
   """
 }
+
+
+process SPERM_POSITIVE_SELECTION_ADJUSTMENT {
+
+    beforeScript = params.useModules
+      ? "module load $params.tabixModule;module load $params.bedtoolsModule"
+      : ""
+  
+    publishDir "${params.outdir}/rates", mode: 'copy', overwrite: true
+
+    input :
+    tuple path(rates), path(rates_index)
+    path sperm_positive_selection_adjustment_json
+
+    output :
+    tuple (path "rates_adjusted.tsv.gz"), path ("rates_adjusted.tsv.gz.tbi")
+
+    script:
+    """
+    adjust_rates.py --rates $rates --sperm-selection-adjustment $sperm_positive_selection_adjustment_json --output rates_adjusted.tsv
+
+    bgzip rates_adjusted.tsv
+    tabix -S 1 -s 2 -b 3 -e 3 rates_adjusted.tsv.gz
+
+
+    """
+}
+
+
+
 
 /*
  * Generate two matrices containing the rates and the number of records per gene per consequence
@@ -327,6 +355,9 @@ process OE_RATIOS {
   """
 
 }
+
+
+
 
 
 /*

@@ -16,6 +16,7 @@ include { SUMMARIZE_RATES_STATS } from './modules/rates.nf'
 include { FILTER_RATES_REGION } from './modules/rates.nf'
 include {RATES_PER_GENE_PER_CSQ} from './modules/rates.nf'
 include {OE_RATIOS} from './modules/rates.nf'
+include {SPERM_POSITIVE_SELECTION_ADJUSTMENT} from './modules/rates.nf'
 
 
 include { FILTER_DNM } from './modules/dnm.nf'
@@ -221,12 +222,23 @@ workflow{
         if (params.containsKey("excluded_regions")) {
               excluded_regions_ch = Channel.fromPath(params.excluded_regions)
               rates_merged_ch = FILTER_RATES_REGION(file(params.rates), file(params.rates + ".tbi") , excluded_regions_ch, file(params.genome_fasta))[0]
-
               input_rates_ch = rates_merged_ch.first().map { it[0] }
+
+
         }
         else {
-          input_rates_ch = Channel.value(file(params.rates))
+          rates_merged_ch = Channel.value(file(params.rates))
+          input_rates_ch = rates_merged_ch
         }
+
+        // Adjust mutation rates to take into account positive selection in sperm
+        if (params.containsKey("sperm_positive_selection_adjustment")){
+            rates_merged_ch = SPERM_POSITIVE_SELECTION_ADJUSTMENT(rates_merged_ch[0], rates_merged_ch[1]. file(params.sperm_positive_selection_adjustment))
+            input_rates_ch = rates_merged_ch.first().map { it[0] }
+        }
+
+       
+
 
       rates_ch = SPLIT_RATES(split_gene_list_ch.toSortedList().flatten(), input_rates_ch)
     }
@@ -250,7 +262,7 @@ workflow{
         // Filter rates in excluded regions (e.g. SSR, segmental duplications, ...)
         if (params.containsKey("excluded_regions")) {
             excluded_regions_ch = Channel.fromPath(params.excluded_regions)
-            rates_merged_ch = FILTER_RATES_REGION(rates_merged_ch[0], rates_merged_ch[1], excluded_regions_ch, file(params.genome_fasta))[0]
+            rates_merged_ch = FILTER_RATES_REGION(rates_merged_ch, excluded_regions_ch, file(params.genome_fasta))[0]
             rates_merged_ch = rates_merged_ch.first().map { it[0] }
         }
       }
@@ -397,6 +409,8 @@ workflow{
               }
               cpt = cpt + 1
           }
+
+
       }
 
       // Merge results
@@ -406,9 +420,15 @@ workflow{
       // Remove excluded regions
       if (params.containsKey("excluded_regions")) {
             excluded_regions_ch = Channel.fromPath(params.excluded_regions)
-            rates_merged_ch = FILTER_RATES_REGION(rates_merged_ch[0], rates_merged_ch[1], excluded_regions_ch, file(params.genome_fasta))[0]
-            rates_merged_ch = rates_merged_ch.first().map { it[0] }
+            rates_merged_ch = FILTER_RATES_REGION(rates_merged_ch, excluded_regions_ch, file(params.genome_fasta))[0]
       }
+
+      // Adjust mutation rates to take into account positive selection in sperm
+      if (params.containsKey("sperm_positive_selection_adjustment")){
+            rates_merged_ch = SPERM_POSITIVE_SELECTION_ADJUSTMENT(rates_merged_ch, file(params.sperm_positive_selection_adjustment))
+      }
+
+      rates_merged_ch = rates_merged_ch.first().map { it[0] }
 
       // Create rates stats
       // rates_stats_ch = RATES_STATS(rates_annotated_ch)

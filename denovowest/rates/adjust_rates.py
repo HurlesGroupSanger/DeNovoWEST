@@ -159,7 +159,7 @@ def apply_sperm_selection_adjustment(
 )
 @click.option("--outdir", default=Path("."), type=click.Path(path_type=Path), help="Output directory")
 @click.option(
-    "--output-rates",
+    "--output",
     type=str,
     default="mutation_rates_adjusted.tsv",
     help="Name of the output mutation rates file",
@@ -175,7 +175,7 @@ def main(
     rates: Path,
     sperm_selection_adjustment: Path,
     outdir: Path,
-    output_rates: str,
+    output: str,
     chunk_size: int,
 ) -> None:
     """Adjust mutation rates by applying per-gene and per-site multipliers.
@@ -196,7 +196,7 @@ def main(
     mapping_gene_ids = _build_gene_version_mapping(rates, adjustment_genes, chunk_size)
 
     # Stream through the rates file, applying adjustments and writing output incrementally
-    out_path = outdir / output_rates
+    out_path = outdir / output
     all_matched_site_ids: set[str] = set()
 
     for i, chunk in enumerate(pd.read_csv(rates, sep="\t", chunksize=chunk_size)):
