@@ -173,10 +173,11 @@ workflow{
     }
 
 
+    printParams()
+
     ///////////////////////////////// 
     // GFF UTILS DATABASE CREATION //
     /////////////////////////////////
-
 
     // DEBUG and TEST only : avoid to create gffutils database every time
     if (params.containsKey("gff_db")) {
@@ -186,7 +187,7 @@ workflow{
     else if (params.containsKey("gff")) {
 
       gff_ch = Channel.fromPath(params.gff)
-      gffutils_db_ch = GFFUTILS_DB(gff_ch) 
+      gffutils_db_ch = GFFUTILS_DB(gff_ch)
     }
     
 
@@ -794,3 +795,27 @@ workflow.onComplete {
     }
 
 }
+
+def printParams() {
+    def RESET  = '\u001B[0m'
+    def BOLD   = '\u001B[1m'
+    def CYAN   = '\u001B[36m'
+    def GREEN  = '\u001B[32m'
+    def YELLOW = '\u001B[33m'
+
+    def width = params.keySet()*.toString()*.size().max() ?: 10
+
+    def param_lines = params.sort().collect { k, v ->
+        String.format("${GREEN}  %-${width}s${RESET} : ${YELLOW}%s${RESET}", k, v)
+    }.join('\n')
+
+    log.info """
+${BOLD}${CYAN}═══════════════════════════════════════════════
+           Pipeline parameters
+═══════════════════════════════════════════════${RESET}
+${param_lines}
+${BOLD}${CYAN}═══════════════════════════════════════════════${RESET}
+"""
+}
+
+
