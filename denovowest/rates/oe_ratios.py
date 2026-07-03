@@ -402,23 +402,28 @@ def gnomad_constraints_analysis(
             f"gnomAD constraints file and will be excluded from the stratified analysis."
         )
 
-    # Add decile bins for missense z-score and LOEUF
-    gnomad_constraints_df["mis.z_score.decile"] = (
-        pd.qcut(gnomad_constraints_df["mis.z_score"], 10, labels=False) + 1
+    # Add decile bins for missense z-score and LOEUF.
+    # dropna before qcut so .astype(int) never receives NaN; done on separate subsets to
+    # preserve genes that have one metric but are missing the other.
+    mis_valid = gnomad_constraints_df.dropna(subset=["mis.z_score"]).copy()
+    mis_valid["mis.z_score.decile"] = (
+        pd.qcut(mis_valid["mis.z_score"], 10, labels=False) + 1
     ).astype(int)
-    gnomad_constraints_df["lof.oe_ci.upper.decile"] = (
-        pd.qcut(gnomad_constraints_df["lof.oe_ci.upper"], 10, labels=False) + 1
+
+    loeuf_valid = gnomad_constraints_df.dropna(subset=["lof.oe_ci.upper"]).copy()
+    loeuf_valid["lof.oe_ci.upper.decile"] = (
+        pd.qcut(loeuf_valid["lof.oe_ci.upper"], 10, labels=False) + 1
     ).astype(int)
 
     # Build and filter category DataFrames once — they are gene-level and consequence-independent
     genes_in_rates = set(expected_mutations_per_gene_per_csq_df.index)
     mis_cat_df = _filter_empty_categories(
-        gnomad_constraints_df[["mis.z_score.decile"]].rename(columns={"mis.z_score.decile": "category"}),
+        mis_valid[["mis.z_score.decile"]].rename(columns={"mis.z_score.decile": "category"}),
         genes_in_rates,
         category_label="gnomAD missense z-score decile",
     )
     loeuf_cat_df = _filter_empty_categories(
-        gnomad_constraints_df[["lof.oe_ci.upper.decile"]].rename(columns={"lof.oe_ci.upper.decile": "category"}),
+        loeuf_valid[["lof.oe_ci.upper.decile"]].rename(columns={"lof.oe_ci.upper.decile": "category"}),
         genes_in_rates,
         category_label="gnomAD LOEUF decile",
     )

@@ -320,6 +320,8 @@ process OE_RATIOS {
   
   output : 
   path "oe_ratios.json"
+  path "oe_ratio_per_category_missense.png", optional : true
+  path "oe_ratio_per_category_splice_acceptor.png", optional : true
   path "oe_ratio_per_category_splice_donor.png", optional : true
   path "oe_ratio_per_category_splice_region.png", optional : true
   path "oe_ratio_per_category_start_lost.png", optional : true
