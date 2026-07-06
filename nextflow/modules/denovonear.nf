@@ -97,23 +97,36 @@ process DENOVONEAR_LINEAR {
     """
 }
 
-process BUILD_ENSEMBL_CACHE {
-
-    label "process_long"
-
-    input :
-    path(dnm)
-    path gtf
-    path fasta
+process PATCH_DENOVONEAR {
 
     output :
-    path "ensembl_cache_gene_uniprot_ids.txt"
+    path "patch.done", emit: done
 
     script :
     """
-    dnn_3d_create_cache.py $dnm $gtf $fasta grch38
+    python - <<'EOF'
+import denovonear
+from pathlib import Path
+
+target = Path(denovonear.__file__).parent / "rate_limiter_retries.py"
+src = target.read_text()
+
+if "tempfile.mkdtemp" not in src:
+    src = src.replace("import functools", "import functools\\nimport tempfile", 1)
+    src = src.replace(
+        "folder = Path.home() / '.cache' / 'ensembl'",
+        "folder = tempfile.mkdtemp(prefix='dnn_cache_')",
+        1,
+    )
+    target.write_text(src)
+    print(f"Patched {target}")
+else:
+    print(f"Already patched, skipping")
+EOF
+    touch patch.done
     """
 }
+
 
 process DENOVONEAR_3D {
 
@@ -121,13 +134,12 @@ process DENOVONEAR_3D {
 
     publishDir "${params.outdir}/clustering/3D/batches", mode: 'symlink', overwrite: true
 
-
 	input :
     tuple path(dnm), val(id)
 	path gtf
     path fasta
 	path protein_structures
-    path uniprot_ids_ensembl_cache
+    path patch_done
 
     output :
     path "${id}_3d_clustering_results.tsv", emit :results
