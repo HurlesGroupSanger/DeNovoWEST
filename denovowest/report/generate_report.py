@@ -13,6 +13,7 @@ table and expandable per-gene detail panels.
 
 import json
 import logging
+from collections import defaultdict
 from datetime import date
 from pathlib import Path
 from typing import Optional
@@ -51,6 +52,14 @@ FUNCTIONAL_CONSEQUENCES = [
 ]
 
 ALL_CONSEQUENCES = ["synonymous"] + FUNCTIONAL_CONSEQUENCES
+
+# Splice consequences only exist in multi-exon genes; single-exon genes legitimately
+# have zero rates/records for these and should not be flagged.
+SPLICE_CONSEQUENCES: frozenset[str] = frozenset({
+    "splice_region",
+    "splice_acceptor",
+    "splice_donor",
+})
 
 # Fixed nominal threshold; the corrected threshold is supplied by the user at runtime.
 NOMINAL_THRESHOLD = 5e-2
@@ -215,6 +224,38 @@ def load_gff_gene_coords(gff_path: Path) -> pd.DataFrame:
     return df
 
 
+def load_gff_single_cds_genes(gff_path: Path) -> frozenset[str]:
+    """Return unversioned gene IDs for genes with only a single exon position.
+
+    Single-exon genes have no introns and therefore no splice sites.  Zero rates
+    or record counts for splice consequences are biologically expected for these
+    genes and should not be treated as data-quality issues.
+
+    Args:
+        gff_path: path to a GFF3 or GFF3.gz file.
+
+    Returns:
+        frozenset of unversioned gene IDs (e.g. ``ENSG00000186092``) for genes
+        whose annotated exon positions collapse to a single unique (start, end) pair
+        across all transcripts.
+
+    Note:
+        This function iterates the GFF independently from load_gff_gene_coords,
+        so two I/O passes occur when both are called.
+    """
+
+    exon_positions: dict[str, set] = defaultdict(set)
+    for feature in gffutils.DataIterator(str(gff_path)):
+        if feature.featuretype != "CDS":
+            continue
+        gene_id = feature.attributes.get("gene_id", [""])[0]
+        if gene_id:
+            base_id = gene_id.split(".")[0]
+            exon_positions[base_id].add((feature.start, feature.end))
+
+    return frozenset(gid for gid, positions in exon_positions.items() if len(positions) == 1)
+
+
 ####################
 # Caution flags    #
 ####################
@@ -228,28 +269,46 @@ def _check_missing_pvals(row: pd.Series) -> list[str]:
     return []
 
 
-def _check_zero_rates(gene_id: str, rates_df: Optional[pd.DataFrame]) -> list[str]:
+def _check_zero_rates(
+    gene_id: str,
+    rates_df: Optional[pd.DataFrame],
+    single_cds_gene_ids: Optional[frozenset[str]] = None,
+) -> list[str]:
     """Flag genes with a zero total mutation rate for any functional consequence."""
     if rates_df is None or gene_id not in rates_df.index:
         return []
     row = rates_df.loc[gene_id]
+
+    # Single-exon genes have no splice sites — suppress expected zeroes
+    base_id = gene_id.split(".")[0]
+    skip = SPLICE_CONSEQUENCES if (single_cds_gene_ids and base_id in single_cds_gene_ids) else frozenset()
+
     zero_csqs = [
         csq for csq in FUNCTIONAL_CONSEQUENCES
-        if csq in row.index and row[csq] == 0.0
+        if csq in row.index and row[csq] == 0.0 and csq not in skip
     ]
     if zero_csqs:
         return [f"Zero mutation rate for: {', '.join(zero_csqs)}"]
     return []
 
 
-def _check_zero_records(gene_id: str, nb_records_df: Optional[pd.DataFrame]) -> list[str]:
+def _check_zero_records(
+    gene_id: str,
+    nb_records_df: Optional[pd.DataFrame],
+    single_cds_gene_ids: Optional[frozenset[str]] = None,
+) -> list[str]:
     """Flag genes with no annotated records for any functional consequence."""
     if nb_records_df is None or gene_id not in nb_records_df.index:
         return []
     row = nb_records_df.loc[gene_id]
+
+    # Single-exon genes have no splice sites — suppress expected zeroes
+    base_id = gene_id.split(".")[0]
+    skip = SPLICE_CONSEQUENCES if (single_cds_gene_ids and base_id in single_cds_gene_ids) else frozenset()
+
     zero_csqs = [
         csq for csq in FUNCTIONAL_CONSEQUENCES
-        if csq in row.index and row[csq] == 0
+        if csq in row.index and row[csq] == 0 and csq not in skip
     ]
     if zero_csqs:
         return [f"No annotated records for: {', '.join(zero_csqs)}"]
@@ -309,6 +368,7 @@ def compute_caution_flags(
     corrected_threshold: float = NOMINAL_THRESHOLD,
     gene_coords_df: Optional[pd.DataFrame] = None,
     g2p_gene_set: Optional[frozenset[str]] = None,
+    single_cds_gene_ids: Optional[frozenset[str]] = None,
 ) -> pd.DataFrame:
     """Add caution flag and reasons columns to the results dataframe.
 
@@ -319,6 +379,8 @@ def compute_caution_flags(
         corrected_threshold: significance threshold used for the G2P overlap check.
         gene_coords_df: GFF-derived gene coordinates for overlap detection (optional).
         g2p_gene_set: set of gene symbols present in G2P (optional).
+        single_cds_gene_ids: unversioned gene IDs for single-exon genes; splice-site
+            warnings are suppressed for these genes (optional).
 
     Returns:
         Copy of df with added 'caution' (bool) and 'caution_reasons' (list[str]) columns.
@@ -331,8 +393,8 @@ def compute_caution_flags(
         gene_id = row["gene_id"]
         reasons = (
             _check_missing_pvals(row)
-            + _check_zero_rates(gene_id, rates_df)
-            + _check_zero_records(gene_id, nb_records_df)
+            + _check_zero_rates(gene_id, rates_df, single_cds_gene_ids)
+            + _check_zero_records(gene_id, nb_records_df, single_cds_gene_ids)
         )
         if do_overlap_check:
             reasons += _check_g2p_overlap(row, corrected_threshold, gene_coords_df, g2p_gene_set)
@@ -532,7 +594,11 @@ def build_html(
     "--gff",
     type=click.Path(exists=True, dir_okay=False, path_type=Path),
     default=None,
-    help="GFF3 file (plain or .gz). Used to flag significant non-G2P genes that overlap a G2P gene.",
+    help=(
+        "GFF3 file (plain or .gz). Used to suppress false-positive splice-site warnings "
+        "for single-exon genes, and (when --g2p is also provided) to flag significant "
+        "non-G2P genes that overlap a known G2P gene."
+    ),
 )
 @click.option(
     "--output",
@@ -580,13 +646,15 @@ def report(results_dir: Path, threshold: float, g2p: Optional[Path], gff: Option
             logger.warning(f"Skipping G2P annotation: {e}")
 
     gene_coords_df = None
+    single_cds_gene_ids = None
     if gff is not None:
+        logger.info(f"Loading gene coordinates from {gff.name}")
+        gene_coords_df = load_gff_gene_coords(gff)
+        logger.info(f"Loaded coordinates for {len(gene_coords_df)} genes")
+        single_cds_gene_ids = load_gff_single_cds_genes(gff)
+        logger.info(f"Identified {len(single_cds_gene_ids)} single-exon gene(s) — splice-site warnings suppressed for these")
         if g2p_df is None:
-            logger.warning("--gff has no effect without --g2p (no G2P gene set to check against)")
-        else:
-            logger.info(f"Loading gene coordinates from {gff.name}")
-            gene_coords_df = load_gff_gene_coords(gff)
-            logger.info(f"Loaded coordinates for {len(gene_coords_df)} genes")
+            logger.warning("--gff G2P overlap detection requires --g2p; only single-exon splice suppression will be applied")
 
     if nb_records_df is not None:
         logger.info(f"Loaded record counts for {len(nb_records_df)} genes")
@@ -602,7 +670,7 @@ def report(results_dir: Path, threshold: float, g2p: Optional[Path], gff: Option
     g2p_gene_set = frozenset(g2p_df["gene_symbol"]) if (g2p_df is not None and gene_coords_df is not None) else None
 
     # Compute caution flags and generate HTML
-    df = compute_caution_flags(df, nb_records_df, rates_df, threshold, gene_coords_df, g2p_gene_set)
+    df = compute_caution_flags(df, nb_records_df, rates_df, threshold, gene_coords_df, g2p_gene_set, single_cds_gene_ids)
     n_caution = int(df["caution"].sum())
     logger.info(f"{n_caution} gene(s) flagged with caution")
 
