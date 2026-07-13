@@ -263,7 +263,23 @@ def load_gff_single_cds_genes(gff_path: Path) -> frozenset[str]:
 
 def _check_missing_pvals(row: pd.Series) -> list[str]:
     """Flag genes where one or more p-value tests produced no result."""
-    missing = [col for col in PVAL_COLUMNS if pd.isna(row.get(col))]
+    # clustering_pval and combined_mis_pval are expected NA when fewer than 2
+    # missense DNMs are observed — clustering requires ≥2 observations.
+    # nb_mis_variants is NaN (not 0) when the gene was absent from the clustering
+    # output entirely, meaning it had zero missense DNMs.
+    if "nb_mis_variants" not in row.index:
+        nb_mis: Optional[int] = None  # column absent — cannot determine
+    elif pd.isna(row["nb_mis_variants"]):
+        nb_mis = 0  # absent from clustering file → zero missense DNMs
+    else:
+        nb_mis = int(row["nb_mis_variants"])
+    skip: set[str] = set()
+    if nb_mis is not None and nb_mis <= 1:
+        skip.update({"clustering_pval", "combined_mis_pval"})
+    if nb_mis is not None and nb_mis == 0:
+        skip.add("enrichment_mis_pval")
+
+    missing = [col for col in PVAL_COLUMNS if pd.isna(row.get(col)) and col not in skip]
     if missing:
         return [f"Missing p-value(s): {', '.join(missing)}"]
     return []
