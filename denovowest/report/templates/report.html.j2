@@ -32,6 +32,8 @@
     .g2p-disputed   { background-color: #fd7e14; color: #fff; }
     .g2p-refuted    { background-color: #dc3545; color: #fff; }
     .g2p-absent     { background-color: #adb5bd; color: #fff; }
+    /* Biallelic-only G2P entries get a dashed outline to distinguish them from monoallelic */
+    .g2p-biallelic  { outline: 2px dashed #000; outline-offset: 2px; }
   </style>
 </head>
 <body>
@@ -105,12 +107,17 @@
     </div>
   </div>
 
-  <p class="text-muted small mb-4">
+  <p class="text-muted small mb-2">
     <strong>p-value colour scale:</strong>
     <span class="pval-significant">&#9632; &lt; {{ corrected_threshold }} (corrected)</span> &nbsp;
     <span class="pval-nominal">&#9632; &lt; {{ nominal_threshold }} (nominal)</span> &nbsp;
     <span class="pval-ns">&#9632; &ge; {{ nominal_threshold }}</span> &nbsp;
     <span class="pval-na">&#9632; N/A</span>
+  </p>
+  <p class="text-muted small mb-4">
+    <strong>G2P badge:</strong>
+    filled = monoallelic (dominant) entry present &nbsp;|&nbsp;
+    <span style="outline:2px dashed #000;outline-offset:2px;padding:0 3px">dashed outline</span> = biallelic (recessive) only
   </p>
 
 </div>{# /container #}
@@ -224,10 +231,19 @@ function buildDetailHtml(gene) {
   const symbolHtml = gene.gene_symbol
     ? `<span class="text-muted fw-normal">(${gene.gene_symbol})</span>`
     : '';
+
+  const conf = gene.g2p_confidence ?? 'absent';
+  const req  = gene.g2p_allelic_requirement ?? 'absent';
+  const isBiallelic = req === 'biallelic' || req.startsWith('biallelic_');
+  const g2pBadge = conf !== 'absent'
+    ? `<span class="badge g2p-${conf}${isBiallelic ? ' g2p-biallelic' : ''}" title="${req}">${conf}${isBiallelic ? ' (biallelic)' : ''}</span>`
+    : '';
+
   return `
     <div class="d-flex align-items-center gap-2 mb-2">
       <span class="fw-bold">${gene.gene_id}</span>
       ${symbolHtml}
+      ${g2pBadge}
       <a href="${ensemblHref}" target="_blank" class="small text-decoration-none">
         Ensembl &#8599;
       </a>
@@ -259,11 +275,17 @@ $(document).ready(function () {
       },
       {
         data: 'g2p_confidence', title: 'G2P',
-        render: (d, type) => {
+        render: (d, type, row) => {
           const RANK = { definitive:0, strong:1, moderate:2, limited:3, disputed:4, refuted:5, absent:6 };
           if (type === 'sort') return d !== null ? (RANK[d] ?? 99) : 99;
-          const val = d ?? 'absent';
-          return `<span class="badge g2p-${val}">${val}</span>`;
+          const conf = d ?? 'absent';
+          const req  = row.g2p_allelic_requirement ?? 'absent';
+          const isBiallelic = req === 'biallelic' || req.startsWith('biallelic_');
+          const badgeCls = `badge g2p-${conf}${isBiallelic ? ' g2p-biallelic' : ''}`;
+          const label    = isBiallelic
+            ? `<br><span style="font-size:0.7em;color:#6c757d">biallelic</span>`
+            : '';
+          return `<span class="${badgeCls}">${conf}</span>${label}`;
         },
       },
       {

@@ -75,6 +75,18 @@ CONFIDENCE_RANK: dict[str, int] = {
     "absent": 6,
 }
 
+# Allelic requirements that indicate dominant (heterozygous) disease — used to
+# prefer monoallelic entries when a gene appears in G2P under multiple modes.
+MONOALLELIC_REQUIREMENTS: frozenset[str] = frozenset({
+    # Current G2P format
+    "monoallelic_autosomal",
+    "monoallelic_X_hemizygous",
+    "monoallelic_X_heterozygous",
+    "monoallelic_PAR",
+    # Legacy G2P format
+    "monoallelic",
+})
+
 ####################
 # Data loading     #
 ####################
@@ -118,11 +130,19 @@ def load_rates(results_dir: Path) -> Optional[pd.DataFrame]:
     return _load_wide_stats(results_dir / RATES_RELPATH)
 
 
-def _best_confidence(group: pd.DataFrame) -> str:
-    """Return the best confidence for one gene, preferring monoallelic_autosomal entries."""
-    mono = group[group["allelic_requirement"] == "monoallelic_autosomal"]
+def _best_confidence(group: pd.DataFrame) -> pd.Series:
+    """Return the best confidence and allelic requirement for one gene.
+
+    Monoallelic entries are preferred; if none exist the best entry across all
+    allelic requirements is returned instead.
+    """
+    mono = group[group["allelic_requirement"].isin(MONOALLELIC_REQUIREMENTS)]
     candidates = mono if not mono.empty else group
-    return candidates.sort_values("_rank").iloc[0]["g2p_confidence"]
+    best = candidates.sort_values("_rank").iloc[0]
+    return pd.Series({
+        "g2p_confidence": best["g2p_confidence"],
+        "g2p_allelic_requirement": best["allelic_requirement"],
+    })
 
 
 def load_g2p(g2p_path: Path) -> pd.DataFrame:
@@ -159,7 +179,7 @@ def load_g2p(g2p_path: Path) -> pd.DataFrame:
         .apply(_best_confidence)
         .reset_index()
     )
-    result.columns = ["gene_symbol", "g2p_confidence"]
+    # result columns: gene_symbol, g2p_confidence, g2p_allelic_requirement
     return result
 
 
@@ -186,6 +206,7 @@ def merge_g2p(df: pd.DataFrame, g2p_df: pd.DataFrame) -> pd.DataFrame:
         )
     merged = df.merge(g2p_df, on="gene_symbol", how="left")
     merged["g2p_confidence"] = merged["g2p_confidence"].fillna("absent")
+    merged["g2p_allelic_requirement"] = merged["g2p_allelic_requirement"].fillna("absent")
     return merged
 
 
@@ -505,6 +526,7 @@ def _build_gene_records(
                 "base_id": base_id,
                 "gene_symbol": _safe_str(row.get("gene_symbol")),
                 "g2p_confidence": _safe_str(row.get("g2p_confidence")),
+                "g2p_allelic_requirement": _safe_str(row.get("g2p_allelic_requirement")),
                 "min_pval": _safe_float(row.get("min_pval")),
                 "combined_mis_pval": _safe_float(row.get("combined_mis_pval")),
                 "enrichment_all_pval": _safe_float(row.get("enrichment_all_pval")),
