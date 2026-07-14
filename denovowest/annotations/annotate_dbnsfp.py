@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 import logging
 import sys
-from itertools import count, groupby
 from typing import Optional
 
 import click
@@ -9,7 +8,6 @@ import pandas as pd
 import pysam
 
 from denovowest.utils.io_helpers import (
-    as_range,
     extract_ensembl_gene_id_without_version,
     fill_annotation_na,
     load_gff,
@@ -444,32 +442,27 @@ def annotate_dbnsfp(rates_dnm: str, dbnsfp: str, output: str, columns: str, colu
 
         chrom = str(gene_rates_df.chrom.values[0]).replace("chr", "")
 
-        # Split each gene in contiguous blocks (i.e. exons) and load dbNSFP scores
-        list_block_df = []
-        for _, block in groupby(sorted(set(gene_rates_df["pos"])), key=lambda n, c=count(): n - next(c)):
-            start, end = as_range(list(block))
-            try:
-                block_dbnsfp = load_dbnsfp(
-                    dbnsfp_df,
-                    chrom,
-                    start - 1,
-                    end,
-                    dbnsfp_columns_indices,
-                    gene_id,
-                    gff_db,
-                    ensembl_gene_id_map_version,
-                    ensembl_geneid_idx,
-                    ensembl_transcriptid_idx,
-                )
-                if not block_dbnsfp.empty:
-                    block_dbnsfp = remove_duplicates(block_dbnsfp)
-                    list_block_df.append(block_dbnsfp)
-            except ValueError:
-                continue
+        # Fetch all dbNSFP records for the gene in a single tabix query
+        positions = sorted(set(gene_rates_df["pos"]))
+        try:
+            gene_dbnsfp_df = load_dbnsfp(
+                dbnsfp_df,
+                chrom,
+                positions[0] - 1,
+                positions[-1],
+                dbnsfp_columns_indices,
+                gene_id,
+                gff_db,
+                ensembl_gene_id_map_version,
+                ensembl_geneid_idx,
+                ensembl_transcriptid_idx,
+            )
+        except ValueError:
+            gene_dbnsfp_df = pd.DataFrame()
 
-        # Merge annotations from several blocks together
-        if list_block_df:
-            gene_dbnsfp_df = pd.concat(list_block_df)
+        # Merge dbNSFP annotations
+        if not gene_dbnsfp_df.empty:
+            gene_dbnsfp_df = remove_duplicates(gene_dbnsfp_df)
             if add_chr:
                 gene_dbnsfp_df["chrom"] = "chr" + gene_dbnsfp_df["chrom"]
             merged_gene_df = gene_rates_df.merge(gene_dbnsfp_df, how="left", on=["chrom", "pos", "ref", "alt"])
