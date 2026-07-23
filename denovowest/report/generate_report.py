@@ -55,11 +55,13 @@ ALL_CONSEQUENCES = ["synonymous"] + FUNCTIONAL_CONSEQUENCES
 
 # Splice consequences only exist in multi-exon genes; single-exon genes legitimately
 # have zero rates/records for these and should not be flagged.
-SPLICE_CONSEQUENCES: frozenset[str] = frozenset({
-    "splice_region",
-    "splice_acceptor",
-    "splice_donor",
-})
+SPLICE_CONSEQUENCES: frozenset[str] = frozenset(
+    {
+        "splice_region",
+        "splice_acceptor",
+        "splice_donor",
+    }
+)
 
 # Fixed nominal threshold; the corrected threshold is supplied by the user at runtime.
 NOMINAL_THRESHOLD = 5e-2
@@ -77,15 +79,17 @@ CONFIDENCE_RANK: dict[str, int] = {
 
 # Allelic requirements that indicate dominant (heterozygous) disease — used to
 # prefer monoallelic entries when a gene appears in G2P under multiple modes.
-MONOALLELIC_REQUIREMENTS: frozenset[str] = frozenset({
-    # Current G2P format
-    "monoallelic_autosomal",
-    "monoallelic_X_hemizygous",
-    "monoallelic_X_heterozygous",
-    "monoallelic_PAR",
-    # Legacy G2P format
-    "monoallelic",
-})
+MONOALLELIC_REQUIREMENTS: frozenset[str] = frozenset(
+    {
+        # Current G2P format
+        "monoallelic_autosomal",
+        "monoallelic_X_hemizygous",
+        "monoallelic_X_heterozygous",
+        "monoallelic_PAR",
+        # Legacy G2P format
+        "monoallelic",
+    }
+)
 
 ####################
 # Data loading     #
@@ -139,10 +143,12 @@ def _best_confidence(group: pd.DataFrame) -> pd.Series:
     mono = group[group["allelic_requirement"].isin(MONOALLELIC_REQUIREMENTS)]
     candidates = mono if not mono.empty else group
     best = candidates.sort_values("_rank").iloc[0]
-    return pd.Series({
-        "g2p_confidence": best["g2p_confidence"],
-        "g2p_allelic_requirement": best["allelic_requirement"],
-    })
+    return pd.Series(
+        {
+            "g2p_confidence": best["g2p_confidence"],
+            "g2p_allelic_requirement": best["allelic_requirement"],
+        }
+    )
 
 
 def load_g2p(g2p_path: Path) -> pd.DataFrame:
@@ -164,21 +170,19 @@ def load_g2p(g2p_path: Path) -> pd.DataFrame:
         g2p_path,
         usecols=["gene symbol", "allelic requirement", "confidence"],
     )
-    df = df.rename(columns={
-        "gene symbol": "gene_symbol",
-        "allelic requirement": "allelic_requirement",
-        "confidence": "g2p_confidence",
-    })
+    df = df.rename(
+        columns={
+            "gene symbol": "gene_symbol",
+            "allelic requirement": "allelic_requirement",
+            "confidence": "g2p_confidence",
+        }
+    )
 
     # Drop rows with unrecognised confidence values (e.g. CSV parsing artefacts)
     df = df[df["g2p_confidence"].isin(CONFIDENCE_RANK)].copy()
     df["_rank"] = df["g2p_confidence"].map(CONFIDENCE_RANK)
 
-    result = (
-        df.groupby("gene_symbol", group_keys=False)
-        .apply(_best_confidence)
-        .reset_index()
-    )
+    result = df.groupby("gene_symbol", group_keys=False).apply(_best_confidence).reset_index()
     # result columns: gene_symbol, g2p_confidence, g2p_allelic_requirement
     return result
 
@@ -230,19 +234,36 @@ def load_gff_gene_coords(gff_path: Path) -> pd.DataFrame:
     for feature in gffutils.DataIterator(str(gff_path)):
         if feature.featuretype != "gene":
             continue
-        records.append({
-            "gene_id":   feature.attributes.get("gene_id",   [""])[0],
-            "gene_name": feature.attributes.get("gene_name", [""])[0],
-            "chrom":     feature.chrom,
-            "start":     feature.start,
-            "end":       feature.end,
-        })
+        records.append(
+            {
+                "gene_id": feature.attributes.get("gene_id", [""])[0],
+                "gene_name": feature.attributes.get("gene_name", [""])[0],
+                "chrom": feature.chrom,
+                "start": feature.start,
+                "end": feature.end,
+            }
+        )
 
     df = pd.DataFrame(records)
     # Store a version-stripped ID for fallback matching when the results file
     # uses unversioned Ensembl IDs.
     df["base_gene_id"] = df["gene_id"].str.split(".").str[0]
     return df
+
+
+def build_ambiguous_symbol_gene_ids(gene_coords_df: pd.DataFrame) -> dict[str, list[str]]:
+    """Return gene symbols that map to more than one gene ID in the GFF.
+
+    Args:
+        gene_coords_df: output of load_gff_gene_coords().
+
+    Returns:
+        Dict mapping gene_name to a sorted list of gene_ids, only for symbols
+        with two or more distinct gene IDs.
+    """
+
+    grouped = gene_coords_df.groupby("gene_name")["gene_id"].apply(lambda ids: sorted(ids.unique()))
+    return {name: list(ids) for name, ids in grouped.items() if len(ids) > 1}
 
 
 def load_gff_single_cds_genes(gff_path: Path) -> frozenset[str]:
@@ -320,10 +341,7 @@ def _check_zero_rates(
     base_id = gene_id.split(".")[0]
     skip = SPLICE_CONSEQUENCES if (single_cds_gene_ids and base_id in single_cds_gene_ids) else frozenset()
 
-    zero_csqs = [
-        csq for csq in FUNCTIONAL_CONSEQUENCES
-        if csq in row.index and row[csq] == 0.0 and csq not in skip
-    ]
+    zero_csqs = [csq for csq in FUNCTIONAL_CONSEQUENCES if csq in row.index and row[csq] == 0.0 and csq not in skip]
     if zero_csqs:
         return [f"Zero mutation rate for: {', '.join(zero_csqs)}"]
     return []
@@ -343,13 +361,44 @@ def _check_zero_records(
     base_id = gene_id.split(".")[0]
     skip = SPLICE_CONSEQUENCES if (single_cds_gene_ids and base_id in single_cds_gene_ids) else frozenset()
 
-    zero_csqs = [
-        csq for csq in FUNCTIONAL_CONSEQUENCES
-        if csq in row.index and row[csq] == 0 and csq not in skip
-    ]
+    zero_csqs = [csq for csq in FUNCTIONAL_CONSEQUENCES if csq in row.index and row[csq] == 0 and csq not in skip]
     if zero_csqs:
         return [f"No annotated records for: {', '.join(zero_csqs)}"]
     return []
+
+
+def _check_symbol_ambiguity(
+    gene_id: str,
+    gene_coords_df: pd.DataFrame,
+    ambiguous_symbol_gene_ids: dict[str, list[str]],
+) -> list[str]:
+    """Flag genes whose GFF symbol maps to more than one gene ID.
+
+    Args:
+        gene_id: versioned or unversioned Ensembl gene ID from the results file.
+        gene_coords_df: output of load_gff_gene_coords().
+        ambiguous_symbol_gene_ids: output of build_ambiguous_symbol_gene_ids().
+
+    Returns:
+        A one-element list with the warning message, or an empty list.
+    """
+
+    # Locate this gene in the GFF — try versioned ID first, then unversioned
+    match = gene_coords_df[gene_coords_df["gene_id"] == gene_id]
+    if match.empty:
+        base_id = gene_id.split(".")[0]
+        match = gene_coords_df[gene_coords_df["base_gene_id"] == base_id]
+    if match.empty:
+        return []
+
+    gene_name = match.iloc[0]["gene_name"]
+    if gene_name not in ambiguous_symbol_gene_ids:
+        return []
+
+    # Report the other IDs that share this symbol
+    all_ids = ambiguous_symbol_gene_ids[gene_name]
+    other_ids = [gid for gid in all_ids if gid != gene_id]
+    return [f"Gene symbol '{gene_name}' also assigned to: {', '.join(other_ids)}, DNN results may be affected."]
 
 
 def _check_g2p_overlap(
@@ -385,14 +434,10 @@ def _check_g2p_overlap(
     # Find all GFF genes on the same chromosome that overlap this locus
     same_chrom = gene_coords_df[gene_coords_df["chrom"] == chrom]
     overlapping = same_chrom[
-        (same_chrom["end"] >= start)
-        & (same_chrom["start"] <= end)
-        & (same_chrom["gene_id"] != gene_id)
+        (same_chrom["end"] >= start) & (same_chrom["start"] <= end) & (same_chrom["gene_id"] != gene_id)
     ]
 
-    g2p_hits = sorted(
-        overlapping.loc[overlapping["gene_name"].isin(g2p_gene_set), "gene_name"]
-    )
+    g2p_hits = sorted(overlapping.loc[overlapping["gene_name"].isin(g2p_gene_set), "gene_name"])
     if g2p_hits:
         return [f"Overlaps G2P gene(s): {', '.join(g2p_hits)}"]
     return []
@@ -406,6 +451,7 @@ def compute_caution_flags(
     gene_coords_df: Optional[pd.DataFrame] = None,
     g2p_gene_set: Optional[frozenset[str]] = None,
     single_cds_gene_ids: Optional[frozenset[str]] = None,
+    ambiguous_symbol_gene_ids: Optional[dict[str, list[str]]] = None,
 ) -> pd.DataFrame:
     """Add caution flag and reasons columns to the results dataframe.
 
@@ -418,12 +464,15 @@ def compute_caution_flags(
         g2p_gene_set: set of gene symbols present in G2P (optional).
         single_cds_gene_ids: unversioned gene IDs for single-exon genes; splice-site
             warnings are suppressed for these genes (optional).
+        ambiguous_symbol_gene_ids: output of build_ambiguous_symbol_gene_ids(); genes
+            whose GFF symbol resolves to multiple gene IDs are flagged (optional).
 
     Returns:
         Copy of df with added 'caution' (bool) and 'caution_reasons' (list[str]) columns.
     """
 
     do_overlap_check = gene_coords_df is not None and g2p_gene_set is not None
+    do_symbol_check = gene_coords_df is not None and ambiguous_symbol_gene_ids is not None
 
     reasons_list = []
     for _, row in df.iterrows():
@@ -433,6 +482,8 @@ def compute_caution_flags(
             + _check_zero_rates(gene_id, rates_df, single_cds_gene_ids)
             + _check_zero_records(gene_id, nb_records_df, single_cds_gene_ids)
         )
+        if do_symbol_check:
+            reasons += _check_symbol_ambiguity(gene_id, gene_coords_df, ambiguous_symbol_gene_ids)
         if do_overlap_check:
             reasons += _check_g2p_overlap(row, corrected_threshold, gene_coords_df, g2p_gene_set)
         reasons_list.append(reasons)
@@ -503,18 +554,10 @@ def _build_gene_records(
         csq_data = {}
         for csq in ALL_CONSEQUENCES:
             entry = {}
-            if (
-                nb_records_df is not None
-                and gene_id in nb_records_df.index
-                and csq in nb_records_df.columns
-            ):
+            if nb_records_df is not None and gene_id in nb_records_df.index and csq in nb_records_df.columns:
                 v = nb_records_df.loc[gene_id, csq]
                 entry["nb_records"] = _safe_int(v)
-            if (
-                rates_df is not None
-                and gene_id in rates_df.index
-                and csq in rates_df.columns
-            ):
+            if rates_df is not None and gene_id in rates_df.index and csq in rates_df.columns:
                 v = rates_df.loc[gene_id, csq]
                 entry["rate"] = _safe_float(v)
             if entry:
@@ -645,7 +688,9 @@ def build_html(
     default=None,
     help="Output HTML file. Defaults to <results_dir>/report.html.",
 )
-def report(results_dir: Path, threshold: float, g2p: Optional[Path], gff: Optional[Path], output: Optional[Path]) -> None:
+def report(
+    results_dir: Path, threshold: float, g2p: Optional[Path], gff: Optional[Path], output: Optional[Path]
+) -> None:
     """Generate an HTML report summarising DeNovoWEST pipeline results.
 
     RESULTS_DIR is the root output directory produced by the pipeline
@@ -685,14 +730,22 @@ def report(results_dir: Path, threshold: float, g2p: Optional[Path], gff: Option
 
     gene_coords_df = None
     single_cds_gene_ids = None
+    ambiguous_symbol_gene_ids = None
     if gff is not None:
         logger.info(f"Loading gene coordinates from {gff.name}")
         gene_coords_df = load_gff_gene_coords(gff)
         logger.info(f"Loaded coordinates for {len(gene_coords_df)} genes")
         single_cds_gene_ids = load_gff_single_cds_genes(gff)
-        logger.info(f"Identified {len(single_cds_gene_ids)} single-exon gene(s) — splice-site warnings suppressed for these")
+        logger.info(
+            f"Identified {len(single_cds_gene_ids)} single-exon gene(s) — splice-site warnings suppressed for these"
+        )
+        ambiguous_symbol_gene_ids = build_ambiguous_symbol_gene_ids(gene_coords_df)
+        if ambiguous_symbol_gene_ids:
+            logger.info(f"Found {len(ambiguous_symbol_gene_ids)} gene symbol(s) mapping to multiple gene IDs in GFF")
         if g2p_df is None:
-            logger.warning("--gff G2P overlap detection requires --g2p; only single-exon splice suppression will be applied")
+            logger.warning(
+                "--gff G2P overlap detection requires --g2p; only single-exon splice suppression will be applied"
+            )
 
     if nb_records_df is not None:
         logger.info(f"Loaded record counts for {len(nb_records_df)} genes")
@@ -708,7 +761,16 @@ def report(results_dir: Path, threshold: float, g2p: Optional[Path], gff: Option
     g2p_gene_set = frozenset(g2p_df["gene_symbol"]) if (g2p_df is not None and gene_coords_df is not None) else None
 
     # Compute caution flags and generate HTML
-    df = compute_caution_flags(df, nb_records_df, rates_df, threshold, gene_coords_df, g2p_gene_set, single_cds_gene_ids)
+    df = compute_caution_flags(
+        df,
+        nb_records_df,
+        rates_df,
+        threshold,
+        gene_coords_df,
+        g2p_gene_set,
+        single_cds_gene_ids,
+        ambiguous_symbol_gene_ids,
+    )
     n_caution = int(df["caution"].sum())
     logger.info(f"{n_caution} gene(s) flagged with caution")
 

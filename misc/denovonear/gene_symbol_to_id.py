@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 import click
-import pandas as pd
 import gffutils
+import pandas as pd
 
 
 @click.command()
@@ -9,7 +9,8 @@ import gffutils
 @click.argument("gff", type=click.Path(exists=True))
 @click.argument("out", type=str)
 def gene_symbol_to_id(dnn_results, gff, out):
-    """_summary_
+    """
+    Add ENSEMBL identifier to DNN results so we can merge it with DNW results.
 
     Args:
         dnn_results (_type_): _description_
@@ -29,14 +30,28 @@ def gene_symbol_to_id(dnn_results, gff, out):
 
     # DeNovoNear uses gene name rather than gene identifiers
     gene_dict = dict()
+    gene_duplicate_symbol = list()
     for gene in gff_db.features_of_type("gene", order_by="start"):
-        gene_dict[gene["Name"][0]] = gene["ID"][0]
+        gene_name = gene["Name"][0]
+        gene_id = gene["ID"][0]
+        if gene_name not in gene_dict:
+            gene_dict[gene_name] = gene_id
+        elif gene_name in list(dnn_df.gene_symbol):
+            gene_duplicate_symbol.append((gene_id, gene_name))
 
     # Get the gene identifier
     dnn_df["gene_id"] = dnn_df["gene_symbol"].map(gene_dict)
 
     # Export Denovonear with ensembl IDs
     dnn_df = dnn_df[["gene_id", "gene_symbol", "mutation_category", "events_n", "dist", "probability"]]
+
+    # Handle duplicated gene symbols
+    for gene_id, gene_symbol in gene_duplicate_symbol:
+        s = dnn_df.loc[(dnn_df["gene_symbol"] == gene_symbol) & (dnn_df.mutation_category == "missense")].iloc[0]
+        new_s = s.copy()
+        new_s["gene_id"] = gene_id
+        dnn_df.loc[len(dnn_df)] = new_s
+
     dnn_df.to_csv(out, sep="\t", index=False)
 
 
