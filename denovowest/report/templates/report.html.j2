@@ -12,7 +12,10 @@
     body { font-size: 0.9rem; }
     .gene-row { cursor: pointer; }
     .gene-row:hover td { background-color: #e9ecef; }
-    .detail-cell { padding: 1rem 1.5rem !important; background: #f8f9fa !important; }
+    .detail-cell { padding: 1rem 1.5rem !important; background: #f8f9fa !important; width: 100%; }
+    .detail-sections { display: flex; flex-wrap: wrap; gap: 1rem; margin-bottom: 1rem; }
+    .detail-section  { min-width: 180px; }
+    .detail-section-grow { flex: 1; min-width: 300px; }
     .expand-icon { display: inline-block; transition: transform 0.15s; margin-right: 4px; }
     tr.expanded .expand-icon { transform: rotate(90deg); }
     .pval-significant { color: #198754; font-weight: 600; }
@@ -163,70 +166,55 @@ function buildDetailHtml(gene) {
   const ensemblHref =
     `https://www.ensembl.org/Homo_sapiens/Gene/Summary?g=${gene.base_id}`;
 
+  // DNM counts per consequence from simulation log (sorted descending by expected count)
+  const simCsqHtml = gene.sim_expected_per_csq
+    ? (() => {
+        const hasObs = gene.obs_per_csq !== null;
+        const header = hasObs
+          ? '<tr><th>Consequence</th><th>Observed</th><th>Expected</th></tr>'
+          : '<tr><th>Consequence</th><th>Expected DNMs</th></tr>';
+        const rows = Object.entries(gene.sim_expected_per_csq)
+          .sort((a, b) => b[1] - a[1])
+          .map(([csq, exp]) => {
+            const obs = hasObs ? (gene.obs_per_csq[csq] ?? 0) : null;
+            const obsCell = hasObs ? `<td>${obs}</td>` : '';
+            return `<tr><td><code>${csq}</code></td>${obsCell}<td>${exp.toFixed(3)}</td></tr>`;
+          })
+          .join('');
+        return `
+          <div class="detail-section-grow">
+            <div class="fw-semibold small text-muted mb-1">DNM counts per consequence</div>
+            <table class="table table-sm table-bordered csq-table mb-0">
+              <thead class="table-light">${header}</thead>
+              <tbody>${rows}</tbody>
+            </table>
+          </div>`;
+      })()
+    : '';
+
   const statsHtml = `
-    <div class="row g-3 mb-3">
-      <div class="col-md-5">
-        <div class="fw-semibold small text-muted mb-1">Test p-values</div>
-        <table class="table table-sm table-bordered csq-table mb-0">
-          <thead class="table-light"><tr><th>Test</th><th>p-value</th></tr></thead>
-          <tbody>
-            <tr><td>Enrichment (all)</td>     <td>${fmtPval(gene.enrichment_all_pval)}</td></tr>
-            <tr><td>Enrichment (missense)</td> <td>${fmtPval(gene.enrichment_mis_pval)}</td></tr>
-            <tr><td>Combined missense</td>     <td>${fmtPval(gene.combined_mis_pval)}</td></tr>
-            <tr><td>Clustering</td>            <td>${fmtPval(gene.clustering_pval)}</td></tr>
-          </tbody>
-        </table>
-      </div>
-      <div class="col-md-4">
-        <div class="fw-semibold small text-muted mb-1">Counts</div>
+    <div class="detail-sections">
+      <div class="detail-section">
+        <div class="fw-semibold small text-muted mb-1">DNM counts</div>
         <table class="table table-sm table-bordered csq-table mb-0">
           <thead class="table-light"><tr><th>Metric</th><th>Value</th></tr></thead>
           <tbody>
-            <tr><td>Observed (all)</td>        <td>${fmtNum(gene.observed_all, 2)}</td></tr>
-            <tr><td>Expected (all)</td>         <td>${fmtNum(gene.expected_all, 2)}</td></tr>
-            <tr><td>Observed (mis)</td>         <td>${fmtNum(gene.observed_mis, 2)}</td></tr>
-            <tr><td>Expected (mis)</td>         <td>${fmtNum(gene.expected_mis, 2)}</td></tr>
-            <tr><td># missense variants</td>    <td>${gene.nb_mis_variants !== null ? gene.nb_mis_variants : '<span class="text-muted">N/A</span>'}</td></tr>
-            <tr><td>Clustering distance</td>    <td>${fmtNum(gene.clustering_dist, 1)}</td></tr>
+            <tr><td>Observed</td> <td>${gene.nb_observed_dnms !== null ? gene.nb_observed_dnms : '<span class="text-muted">N/A</span>'}</td></tr>
+            <tr><td>Expected</td> <td>${fmtNum(gene.nb_expected_dnms, 2)}</td></tr>
+          </tbody>
+        </table>
+      </div>
+      ${simCsqHtml}
+      <div class="detail-section">
+        <div class="fw-semibold small text-muted mb-1">Clustering</div>
+        <table class="table table-sm table-bordered csq-table mb-0">
+          <thead class="table-light"><tr><th>Metric</th><th>Value</th></tr></thead>
+          <tbody>
+            <tr><td>Distance</td> <td>${fmtNum(gene.clustering_dist, 1)}</td></tr>
           </tbody>
         </table>
       </div>
     </div>`;
-
-  let csqHtml = '';
-  if (gene.csq_data && Object.keys(gene.csq_data).length > 0) {
-    const csqs      = Object.keys(gene.csq_data);
-    const hasRecs   = csqs.some(c => 'nb_records' in gene.csq_data[c]);
-    const hasRates  = csqs.some(c => 'rate'       in gene.csq_data[c]);
-
-    const headers = ['<th>Consequence</th>']
-      .concat(hasRecs   ? ['<th>Records</th>']         : [])
-      .concat(hasRates  ? ['<th>Mut. rate (sum)</th>'] : [])
-      .join('');
-
-    const rows = csqs.map(csq => {
-      const d = gene.csq_data[csq];
-      let cells = `<td><code>${csq}</code></td>`;
-      if (hasRecs) {
-        const n   = d.nb_records;
-        const cls = n === 0 ? 'zero-val' : '';
-        cells += `<td class="${cls}">${n !== undefined && n !== null ? n : '<span class="text-muted">N/A</span>'}</td>`;
-      }
-      if (hasRates) {
-        const r   = d.rate;
-        const cls = r === 0 ? 'zero-val' : '';
-        cells += `<td class="${cls}">${r !== undefined && r !== null ? r.toExponential(3) : '<span class="text-muted">N/A</span>'}</td>`;
-      }
-      return `<tr>${cells}</tr>`;
-    }).join('');
-
-    csqHtml = `
-      <div class="fw-semibold small text-muted mb-1">Per-consequence breakdown</div>
-      <table class="table table-sm table-bordered csq-table mb-0" style="max-width:480px">
-        <thead class="table-light"><tr>${headers}</tr></thead>
-        <tbody>${rows}</tbody>
-      </table>`;
-  }
 
   const symbolHtml = gene.gene_symbol
     ? `<span class="text-muted fw-normal">(${gene.gene_symbol})</span>`
@@ -249,8 +237,7 @@ function buildDetailHtml(gene) {
       </a>
     </div>
     ${cautionHtml}
-    ${statsHtml}
-    ${csqHtml}`;
+    ${statsHtml}`;
 }
 
 // ── DataTables ────────────────────────────────────────────────────────────────
@@ -258,7 +245,7 @@ function buildDetailHtml(gene) {
 $(document).ready(function () {
   const table = $('#gene-table').DataTable({
     data: GENES,
-    order: [[2, 'asc']],
+    order: [[4, 'asc']],
     pageLength: 25,
     language: { search: 'Filter genes:' },
     columns: [

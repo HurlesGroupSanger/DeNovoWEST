@@ -134,6 +134,29 @@ def load_rates(results_dir: Path) -> Optional[pd.DataFrame]:
     return _load_wide_stats(results_dir / RATES_RELPATH)
 
 
+def load_simulation_log(results_dir: Path) -> Optional[dict]:
+    """Load enrichment simulation log JSON, auto-detected from results_dir.
+
+    Globs for ``simulation/*/simulation_logs.json`` and prefers the
+    ``all-coding`` runtype when multiple files are found.
+
+    Args:
+        results_dir: pipeline output directory.
+
+    Returns:
+        Dict mapping versioned gene_id to simulation stats, or None if absent.
+    """
+
+    candidates = sorted(results_dir.glob("simulation/*/simulation_logs.json"))
+    if not candidates:
+        return None
+    # Prefer the all-coding runtype (covers all functional consequences)
+    preferred = [p for p in candidates if p.parent.name == "all-coding"]
+    path = preferred[0] if preferred else candidates[0]
+    with path.open() as fh:
+        return json.load(fh)
+
+
 def _best_confidence(group: pd.DataFrame) -> pd.Series:
     """Return the best confidence and allelic requirement for one gene.
 
@@ -182,7 +205,7 @@ def load_g2p(g2p_path: Path) -> pd.DataFrame:
     df = df[df["g2p_confidence"].isin(CONFIDENCE_RANK)].copy()
     df["_rank"] = df["g2p_confidence"].map(CONFIDENCE_RANK)
 
-    result = df.groupby("gene_symbol", group_keys=False).apply(_best_confidence).reset_index()
+    result = df.groupby("gene_symbol", group_keys=False).apply(_best_confidence, include_groups=False).reset_index()
     # result columns: gene_symbol, g2p_confidence, g2p_allelic_requirement
     return result
 
@@ -531,37 +554,41 @@ def _safe_str(val) -> Optional[str]:
 
 def _build_gene_records(
     df: pd.DataFrame,
-    nb_records_df: Optional[pd.DataFrame],
-    rates_df: Optional[pd.DataFrame],
+    simulation_log: Optional[dict] = None,
 ) -> list[dict]:
     """Serialise the results dataframe into a JSON-friendly list of dicts.
 
     Args:
         df: combined tests results with caution columns.
-        nb_records_df: optional per-consequence record counts.
-        rates_df: optional per-consequence mutation rates.
+        simulation_log: optional dict from load_simulation_log(), keyed by gene_id.
 
     Returns:
         List of dicts, one per gene, ready for json.dumps().
     """
+
+    # Build a base-id index for unversioned ID fallback lookups
+    sim_base_idx: dict[str, dict] = {}
+    if simulation_log:
+        for gid, entry in simulation_log.items():
+            sim_base_idx[gid.split(".")[0]] = entry
 
     records = []
     for _, row in df.iterrows():
         gene_id = row["gene_id"]
         base_id = gene_id.split(".")[0]
 
-        # Build per-consequence breakdown for detail panel
-        csq_data = {}
-        for csq in ALL_CONSEQUENCES:
-            entry = {}
-            if nb_records_df is not None and gene_id in nb_records_df.index and csq in nb_records_df.columns:
-                v = nb_records_df.loc[gene_id, csq]
-                entry["nb_records"] = _safe_int(v)
-            if rates_df is not None and gene_id in rates_df.index and csq in rates_df.columns:
-                v = rates_df.loc[gene_id, csq]
-                entry["rate"] = _safe_float(v)
-            if entry:
-                csq_data[csq] = entry
+        # Pull simulation stats (versioned ID first, then unversioned fallback)
+        sim_entry = (simulation_log or {}).get(gene_id) or sim_base_idx.get(base_id)
+
+        # Count observed DNMs per consequence from the split-orient DataFrame stored in the log
+        obs_per_csq: Optional[dict[str, int]] = None
+        if sim_entry and "observed_dnms" in sim_entry:
+            raw = sim_entry["observed_dnms"]
+            try:
+                obs_df = pd.DataFrame(data=raw["data"], columns=raw["columns"])
+                obs_per_csq = obs_df["consequence"].value_counts().to_dict()
+            except (KeyError, ValueError):
+                pass
 
         records.append(
             {
@@ -581,9 +608,12 @@ def _build_gene_records(
                 "expected_mis": _safe_float(row.get("expected_mis")),
                 "nb_mis_variants": _safe_int(row.get("nb_mis_variants")),
                 "clustering_dist": _safe_float(row.get("clustering_dist")),
+                "nb_observed_dnms": _safe_int(sim_entry["nb_observed_dnms"]) if sim_entry else None,
+                "nb_expected_dnms": _safe_float(sim_entry["nb_expected_dnms"]) if sim_entry else None,
+                "sim_expected_per_csq": sim_entry.get("expected_prob_per_consequence") if sim_entry else None,
+                "obs_per_csq": obs_per_csq,
                 "caution": bool(row["caution"]),
                 "caution_reasons": row["caution_reasons"],
-                "csq_data": csq_data,
             }
         )
     return records
@@ -598,21 +628,19 @@ _TEMPLATE_DIR = Path(__file__).parent / "templates"
 
 def build_html(
     df: pd.DataFrame,
-    nb_records_df: Optional[pd.DataFrame],
-    rates_df: Optional[pd.DataFrame],
     results_dir: Path,
     run_date: str,
     corrected_threshold: float,
+    simulation_log: Optional[dict] = None,
 ) -> str:
     """Render the complete HTML report via the Jinja2 template.
 
     Args:
         df: combined tests results with caution columns.
-        nb_records_df: optional per-consequence record counts.
-        rates_df: optional per-consequence mutation rates.
         results_dir: pipeline output directory (used in the report title).
         run_date: ISO-format date string for the report header.
         corrected_threshold: multiple-testing corrected significance threshold.
+        simulation_log: optional dict from load_simulation_log().
 
     Returns:
         Self-contained HTML document as a string.
@@ -626,9 +654,9 @@ def build_html(
     n_significant = int((df["min_pval"].fillna(1.0) < corrected_threshold).sum())
     n_caution = int(df["caution"].sum())
 
-    gene_records = _build_gene_records(df, nb_records_df, rates_df)
+    gene_records = _build_gene_records(df, simulation_log)
     # Escape </ to prevent a premature </script> tag inside the JSON block
-    gene_json = json.dumps(gene_records, indent=2).replace("</", "<\\/")
+    gene_json = json.dumps(gene_records).replace("</", "<\\/")
 
     env = Environment(
         loader=FileSystemLoader(str(_TEMPLATE_DIR)),
@@ -757,6 +785,12 @@ def report(
     else:
         logger.warning("Mutation rate stats not found — caution flags will be limited")
 
+    simulation_log = load_simulation_log(results_dir)
+    if simulation_log is not None:
+        logger.info(f"Loaded simulation log for {len(simulation_log)} genes")
+    else:
+        logger.warning("Simulation log not found — observed/expected DNM counts will be unavailable")
+
     # Build G2P gene set for overlap detection (only when both --g2p and --gff were provided)
     g2p_gene_set = frozenset(g2p_df["gene_symbol"]) if (g2p_df is not None and gene_coords_df is not None) else None
 
@@ -774,7 +808,7 @@ def report(
     n_caution = int(df["caution"].sum())
     logger.info(f"{n_caution} gene(s) flagged with caution")
 
-    html = build_html(df, nb_records_df, rates_df, results_dir, run_date, threshold)
+    html = build_html(df, results_dir, run_date, threshold, simulation_log)
     output.write_text(html, encoding="utf-8")
     logger.info(f"Report written to {output}")
 
