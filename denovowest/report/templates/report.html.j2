@@ -215,7 +215,9 @@ function buildDetailHtml(gene) {
         <table class="table table-sm table-bordered csq-table mb-0">
           <thead class="table-light"><tr><th>Metric</th><th>Value</th></tr></thead>
           <tbody>
-            <tr><td>Distance</td> <td>${fmtNum(gene.clustering_dist, 1)}</td></tr>
+            <tr><td>Mode</td>       <td>${gene.clustering_mode ?? '—'}</td></tr>
+            <tr><td>Missense DNMs</td><td>${gene.clustering_nb_mis_variants ?? '—'}</td></tr>
+            <tr><td>Distance</td>  <td>${fmtNum(gene.clustering_dist, 1)}</td></tr>
           </tbody>
         </table>
       </div>
@@ -230,17 +232,23 @@ function buildDetailHtml(gene) {
           start_lost: '#d63384', stop_lost: '#d63384', synonymous: '#6c757d',
           stop_retained: '#6c757d',
         };
+        const hasMisScore = gene.observed_dnms.some(v => v.mis_score !== undefined && v.mis_score !== null);
         const rows = gene.observed_dnms.map(v => {
           const col = CSQ_COLOURS[v.consequence] ?? '#6c757d';
           const csqBadge = `<span style="color:${col};font-weight:600">${v.consequence}</span>`;
+          const misScoreCell = hasMisScore
+            ? `<td>${v.mis_score !== undefined && v.mis_score !== null ? v.mis_score.toFixed(3) : '—'}</td>`
+            : '';
           return `<tr>
             <td>${v.chrom}</td>
             <td>${v.pos.toLocaleString()}</td>
             <td><code>${v.ref}&gt;${v.alt}</code></td>
             <td>${csqBadge}</td>
-            <td>${v.score.toFixed(3)}</td>
+            <td>${v.score !== undefined && v.score !== null ? v.score.toFixed(3) : '—'}</td>
+            ${misScoreCell}
           </tr>`;
         }).join('');
+        const misScoreHeader = hasMisScore ? '<th>Mis. Score</th>' : '';
         return `
           <details class="mt-1">
             <summary class="dnm-toggle small fw-semibold text-muted">
@@ -249,7 +257,7 @@ function buildDetailHtml(gene) {
             <div class="mt-2">
               <table class="table table-sm table-bordered csq-table mb-0">
                 <thead class="table-light">
-                  <tr><th>Chrom</th><th>Pos</th><th>Allele</th><th>Consequence</th><th>Score</th></tr>
+                  <tr><th>Chrom</th><th>Pos</th><th>Allele</th><th>Consequence</th><th>Score</th>${misScoreHeader}</tr>
                 </thead>
                 <tbody>${rows}</tbody>
               </table>
