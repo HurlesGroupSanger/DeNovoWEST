@@ -67,6 +67,9 @@ SPLICE_CONSEQUENCES: frozenset[str] = frozenset(
 # Fixed nominal threshold; the corrected threshold is supplied by the user at runtime.
 NOMINAL_THRESHOLD = 5e-2
 
+# Report format version — bump when the HTML layout or metric definitions change.
+REPORT_VERSION = "0.1.0"
+
 # Columns always present in simulation log observed_dnms tables; anything else is a score.
 _FIXED_OBSERVED_COLS: frozenset[str] = frozenset({"chrom", "pos", "ref", "alt", "consequence"})
 
@@ -774,6 +777,7 @@ def build_html(
         n_caution=n_caution,
         corrected_threshold=corrected_threshold,
         nominal_threshold=NOMINAL_THRESHOLD,
+        report_version=REPORT_VERSION,
         gene_json=gene_json,
     )
 

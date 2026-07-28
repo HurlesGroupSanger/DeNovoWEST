@@ -37,6 +37,8 @@
     .g2p-absent     { background-color: #adb5bd; color: #fff; }
     /* Biallelic-only G2P entries get a dashed outline to distinguish them from monoallelic */
     .g2p-biallelic  { outline: 2px dashed #000; outline-offset: 2px; }
+    /* Column header abbreviations show a help cursor to hint at the tooltip */
+    th abbr { cursor: help; text-decoration: underline dotted #6c757d; }
     /* Collapsible DNM variant list (significant genes only) */
     .dnm-toggle { cursor: pointer; user-select: none; list-style: none; }
     .dnm-toggle::-webkit-details-marker { display: none; }
@@ -49,8 +51,8 @@
 <nav class="navbar navbar-dark bg-dark mb-4">
   <div class="container-fluid">
     <span class="navbar-brand fw-bold">DeNovoWEST &mdash; Results Report</span>
-    <span class="text-white-50 small text-truncate ms-2" style="max-width:55%">{{ results_dir }}</span>
-    <span class="text-white-50 small ms-auto text-nowrap">Generated: {{ run_date }}</span>
+    <span class="text-white-50 small text-truncate ms-2" style="max-width:45%">{{ results_dir }}</span>
+    <span class="text-white-50 small ms-auto text-nowrap">v{{ report_version }} &nbsp;&bull;&nbsp; Generated: {{ run_date }}</span>
   </div>
 </nav>
 
@@ -94,38 +96,31 @@
     </div>
     <div class="card-body p-0">
       <table id="gene-table" class="table table-sm table-hover mb-0" style="width:100%">
-        <thead class="table-light">
-          <tr>
-            <th></th>
-            <th>Gene ID</th>
-            <th>Symbol</th>
-            <th>G2P</th>
-            <th>min p-val</th>
-            <th>Enrich. all</th>
-            <th>Enrich. mis</th>
-            <th>Comb. mis</th>
-            <th>Clustering</th>
-            <th>Obs / Exp (all)</th>
-            <th>Obs / Exp (mis)</th>
-            <th>Caution</th>
-          </tr>
-        </thead>
+        <thead class="table-light"><tr></tr></thead>
         <tbody></tbody>
       </table>
     </div>
   </div>
 
-  <p class="text-muted small mb-2">
+  <p class="text-muted small mb-1">
     <strong>p-value colour scale:</strong>
     <span class="pval-significant">&#9632; &lt; {{ corrected_threshold }} (corrected)</span> &nbsp;
     <span class="pval-nominal">&#9632; &lt; {{ nominal_threshold }} (nominal)</span> &nbsp;
     <span class="pval-ns">&#9632; &ge; {{ nominal_threshold }}</span> &nbsp;
     <span class="pval-na">&#9632; N/A</span>
   </p>
-  <p class="text-muted small mb-4">
+  <p class="text-muted small mb-1">
     <strong>G2P badge:</strong>
     filled = monoallelic (dominant) entry present &nbsp;|&nbsp;
     <span style="outline:2px dashed #000;outline-offset:2px;padding:0 3px">dashed outline</span> = biallelic (recessive) only
+  </p>
+  <p class="text-muted small mb-1">
+    <strong>Obs / Exp columns</strong> show the sum of per-variant effect predictor scores, <em>not</em> raw DNM counts.
+    Each variant contributes according to its predicted pathogenicity; a single high-scoring variant can exceed the expected sum even without excess counts.
+    Raw observed / expected variant counts are shown in the per-gene detail panel.
+  </p>
+  <p class="text-muted small mb-4">
+    <strong>Column tooltips:</strong> hover over any underlined column header for a description of the metric.
   </p>
 
 </div>{# /container #}
@@ -312,7 +307,8 @@ $(document).ready(function () {
         render: d => d ?? '<span class="text-muted">—</span>',
       },
       {
-        data: 'g2p_confidence', title: 'G2P',
+        data: 'g2p_confidence',
+        title: '<abbr title="Gene2Phenotype confidence level. Filled badge = monoallelic (dominant) entry; dashed outline = biallelic (recessive) only.">G2P</abbr>',
         render: (d, type, row) => {
           const RANK = { definitive:0, strong:1, moderate:2, limited:3, disputed:4, refuted:5, absent:6 };
           if (type === 'sort') return d !== null ? (RANK[d] ?? 99) : 99;
@@ -327,31 +323,38 @@ $(document).ready(function () {
         },
       },
       {
-        data: 'min_pval', title: 'min p-val',
+        data: 'min_pval',
+        title: '<abbr title="Minimum p-value between all-coding and missense-only test.">min p-val</abbr>',
         render: (d, type) => type === 'sort' ? (d ?? 999) : fmtPval(d),
       },
       {
-        data: 'enrichment_all_pval', title: 'Enrich. all',
+        data: 'enrichment_all_pval',
+        title: '<abbr title="Enrichment test p-value — all coding variants. Compares the observed sum of per-variant effect scores against the null expectation. A score-weighted test: each DNM contributes according to its predicted pathogenicity, not as a plain count.">Enrich. all</abbr>',
         render: (d, type) => type === 'sort' ? (d ?? 999) : fmtPval(d),
       },
       {
-        data: 'enrichment_mis_pval', title: 'Enrich. mis',
+        data: 'enrichment_mis_pval',
+        title: '<abbr title="Enrichment test p-value — missense variants only. Same score-weighted approach as Enrich. all, but restricted to missense DNMs and using a missense-specific effect predictor (e.g. AlphaMissense).">Enrich. mis</abbr>',
         render: (d, type) => type === 'sort' ? (d ?? 999) : fmtPval(d),
       },
       {
-        data: 'combined_mis_pval', title: 'Comb. mis',
+        data: 'combined_mis_pval',
+        title: '<abbr title="Combined missense p-value. Integrates the missense enrichment and spatial clustering p-values (Fisher\'s method), capturing both excess burden and non-random positional clustering of missense DNMs.">Comb. mis</abbr>',
         render: (d, type) => type === 'sort' ? (d ?? 999) : fmtPval(d),
       },
       {
-        data: 'clustering_pval', title: 'Clustering',
+        data: 'clustering_pval',
+        title: '<abbr title="Spatial clustering test p-value. Detects non-random clustering of missense DNMs along the protein sequence. Requires ≥ 2 observed missense DNMs; N/A otherwise.">Clustering</abbr>',
         render: (d, type) => type === 'sort' ? (d ?? 999) : fmtPval(d),
       },
       {
         data: null, orderable: false,
+        title: '<abbr title="Observed vs expected sum of effect scores — all coding variants. These are score sums, not raw DNM counts: each variant is weighted by its predicted pathogenicity. Raw counts are shown in the per-gene detail panel.">Obs / Exp (all)</abbr>',
         render: d => fmtRatio(d.observed_all, d.expected_all),
       },
       {
         data: null, orderable: false,
+        title: '<abbr title="Observed vs expected sum of effect scores — missense variants only. Same score-weighted approach as Obs / Exp (all), restricted to missense DNMs.">Obs / Exp (mis)</abbr>',
         render: d => fmtRatio(d.observed_mis, d.expected_mis),
       },
       {
