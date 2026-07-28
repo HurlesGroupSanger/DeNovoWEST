@@ -37,6 +37,11 @@
     .g2p-absent     { background-color: #adb5bd; color: #fff; }
     /* Biallelic-only G2P entries get a dashed outline to distinguish them from monoallelic */
     .g2p-biallelic  { outline: 2px dashed #000; outline-offset: 2px; }
+    /* Collapsible DNM variant list (significant genes only) */
+    .dnm-toggle { cursor: pointer; user-select: none; list-style: none; }
+    .dnm-toggle::-webkit-details-marker { display: none; }
+    .dnm-toggle::before { content: '▶\00a0'; font-size: 0.7em; }
+    details[open] .dnm-toggle::before { content: '▼\00a0'; font-size: 0.7em; }
   </style>
 </head>
 <body>
@@ -216,6 +221,43 @@ function buildDetailHtml(gene) {
       </div>
     </div>`;
 
+  // Per-variant DNM table — only present for significant genes
+  const dnmListHtml = gene.observed_dnms
+    ? (() => {
+        const CSQ_COLOURS = {
+          missense: '#0d6efd', nonsense: '#dc3545', frameshift: '#dc3545',
+          splice_lof: '#fd7e14', splice_region: '#ffc107', inframe: '#6f42c1',
+          start_lost: '#d63384', stop_lost: '#d63384', synonymous: '#6c757d',
+          stop_retained: '#6c757d',
+        };
+        const rows = gene.observed_dnms.map(v => {
+          const col = CSQ_COLOURS[v.consequence] ?? '#6c757d';
+          const csqBadge = `<span style="color:${col};font-weight:600">${v.consequence}</span>`;
+          return `<tr>
+            <td>${v.chrom}</td>
+            <td>${v.pos.toLocaleString()}</td>
+            <td><code>${v.ref}&gt;${v.alt}</code></td>
+            <td>${csqBadge}</td>
+            <td>${v.score.toFixed(3)}</td>
+          </tr>`;
+        }).join('');
+        return `
+          <details class="mt-1">
+            <summary class="dnm-toggle small fw-semibold text-muted">
+              ${gene.observed_dnms.length} observed variant${gene.observed_dnms.length !== 1 ? 's' : ''}
+            </summary>
+            <div class="mt-2">
+              <table class="table table-sm table-bordered csq-table mb-0">
+                <thead class="table-light">
+                  <tr><th>Chrom</th><th>Pos</th><th>Allele</th><th>Consequence</th><th>Score</th></tr>
+                </thead>
+                <tbody>${rows}</tbody>
+              </table>
+            </div>
+          </details>`;
+      })()
+    : '';
+
   const symbolHtml = gene.gene_symbol
     ? `<span class="text-muted fw-normal">(${gene.gene_symbol})</span>`
     : '';
@@ -237,7 +279,8 @@ function buildDetailHtml(gene) {
       </a>
     </div>
     ${cautionHtml}
-    ${statsHtml}`;
+    ${statsHtml}
+    ${dnmListHtml}`;
 }
 
 // ── DataTables ────────────────────────────────────────────────────────────────

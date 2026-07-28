@@ -555,12 +555,16 @@ def _safe_str(val) -> Optional[str]:
 def _build_gene_records(
     df: pd.DataFrame,
     simulation_log: Optional[dict] = None,
+    corrected_threshold: float = NOMINAL_THRESHOLD,
 ) -> list[dict]:
     """Serialise the results dataframe into a JSON-friendly list of dicts.
 
     Args:
         df: combined tests results with caution columns.
         simulation_log: optional dict from load_simulation_log(), keyed by gene_id.
+        corrected_threshold: significance threshold; the full per-variant DNM list is
+            included only for significant genes that are not already strong/definitive
+            monoallelic in G2P, keeping the JSON compact for well-established genes.
 
     Returns:
         List of dicts, one per gene, ready for json.dumps().
@@ -577,16 +581,39 @@ def _build_gene_records(
         gene_id = row["gene_id"]
         base_id = gene_id.split(".")[0]
 
+        min_pval = _safe_float(row.get("min_pval"))
+        g2p_confidence = _safe_str(row.get("g2p_confidence")) or "absent"
+        g2p_allelic_req = _safe_str(row.get("g2p_allelic_requirement")) or "absent"
+        # Genes already well-established as dominant (strong/definitive monoallelic) are
+        # excluded — the variant list is most useful for novel or weakly supported candidates.
+        is_established_dominant = (
+            g2p_confidence in {"definitive", "strong"}
+            and g2p_allelic_req in MONOALLELIC_REQUIREMENTS
+        )
+        is_significant = (
+            min_pval is not None
+            and min_pval < corrected_threshold
+            and not is_established_dominant
+        )
+
         # Pull simulation stats (versioned ID first, then unversioned fallback)
         sim_entry = (simulation_log or {}).get(gene_id) or sim_base_idx.get(base_id)
 
         # Count observed DNMs per consequence from the split-orient DataFrame stored in the log
         obs_per_csq: Optional[dict[str, int]] = None
+        observed_dnms: Optional[list[dict]] = None
         if sim_entry and "observed_dnms" in sim_entry:
             raw = sim_entry["observed_dnms"]
             try:
                 obs_df = pd.DataFrame(data=raw["data"], columns=raw["columns"])
                 obs_per_csq = obs_df["consequence"].value_counts().to_dict()
+                # Full per-variant list only for significant genes, sorted by score descending
+                if is_significant:
+                    observed_dnms = (
+                        obs_df.sort_values("raw", ascending=False)
+                        .rename(columns={"raw": "score"})
+                        .to_dict(orient="records")
+                    )
             except (KeyError, ValueError):
                 pass
 
@@ -612,6 +639,7 @@ def _build_gene_records(
                 "nb_expected_dnms": _safe_float(sim_entry["nb_expected_dnms"]) if sim_entry else None,
                 "sim_expected_per_csq": sim_entry.get("expected_prob_per_consequence") if sim_entry else None,
                 "obs_per_csq": obs_per_csq,
+                "observed_dnms": observed_dnms,
                 "caution": bool(row["caution"]),
                 "caution_reasons": row["caution_reasons"],
             }
@@ -654,7 +682,7 @@ def build_html(
     n_significant = int((df["min_pval"].fillna(1.0) < corrected_threshold).sum())
     n_caution = int(df["caution"].sum())
 
-    gene_records = _build_gene_records(df, simulation_log)
+    gene_records = _build_gene_records(df, simulation_log, corrected_threshold)
     # Escape </ to prevent a premature </script> tag inside the JSON block
     gene_json = json.dumps(gene_records).replace("</", "<\\/")
 
