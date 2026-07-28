@@ -53,15 +53,19 @@ def combine_dne_dnn(dne_file_all, dne_file_mis, dnn_file, out_file):
     dnn = pd.read_csv(dnn_file, sep="\t")
     dnn = dnn[dnn["mutation_category"] == "missense"]
     dnn.rename(
-        {"probability": "clustering_pval", "events_n": "nb_mis_variants", "dist": "clustering_dist"},
+        {"probability": "clustering_pval", "events_n": "clustering_nb_mis_variants", "dist": "clustering_dist"},
         axis=1,
         inplace=True,
     )
-    dnn = dnn[["gene_id", "clustering_pval", "nb_mis_variants", "clustering_dist"]]
-
     # If the user combined 3D and linear clustering we want to keep track of the mode for each gene
+    # — must check before subsetting columns or the column will be dropped
     if "mode" in dnn.columns:
         dnn.rename({"mode": "clustering_mode"}, axis=1, inplace=True)
+
+    cols = ["gene_id", "clustering_pval", "clustering_nb_mis_variants", "clustering_dist"]
+    if "clustering_mode" in dnn.columns:
+        cols.append("clustering_mode")
+    dnn = dnn[cols]
 
     # Merge dataframes
     merged_data = pd.merge(dne_all, dnn, on="gene_id", how="left")
@@ -87,15 +91,15 @@ def combine_dne_dnn(dne_file_all, dne_file_mis, dnn_file, out_file):
         columns_to_keep.append("gene_symbol")
     columns_to_keep += [
         "min_pval",
-        "combined_mis_pval",
         "enrichment_all_pval",
+        "combined_mis_pval",
         "enrichment_mis_pval",
         "clustering_pval",
         "observed_all",
         "expected_all",
         "observed_mis",
         "expected_mis",
-        "nb_mis_variants",
+        "clustering_nb_mis_variants",
         "clustering_dist",
     ]
     if "clustering_mode" in merged_data.columns:
