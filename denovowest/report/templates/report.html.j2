@@ -162,7 +162,10 @@ function fmtRatio(obs, exp) {
 function buildDetailHtml(gene) {
   const cautionHtml = gene.caution_reasons.length > 0
     ? `<div class="alert alert-warning py-2 mb-3 small">
-         <strong>&#9888; Caution:</strong> ${gene.caution_reasons.join('; ')}
+         <strong>&#9888; Caution:</strong>
+         <ul class="mb-0 mt-1 ps-3">
+           ${gene.caution_reasons.map(r => `<li>${r}</li>`).join('')}
+         </ul>
        </div>`
     : '';
 
@@ -243,6 +246,29 @@ function buildDetailHtml(gene) {
       })()
     : '';
 
+  // QC section — missing-annotation rates and site-filtering percentage
+  const qcRows = [
+    gene.pct_missing_all !== null && gene.pct_missing_all !== undefined && SCORE_PREDICTOR
+      ? `<tr><td>Missing annotation (${SCORE_PREDICTOR})</td><td>${(gene.pct_missing_all * 100).toFixed(1)}%</td></tr>`
+      : '',
+    gene.pct_missing_mis !== null && gene.pct_missing_mis !== undefined && MIS_SCORE_PREDICTOR
+      ? `<tr><td>Missing annotation (${MIS_SCORE_PREDICTOR})</td><td>${(gene.pct_missing_mis * 100).toFixed(1)}%</td></tr>`
+      : '',
+    gene.pct_filtered !== null && gene.pct_filtered !== undefined
+      ? `<tr><td>Sites filtered (%)</td><td>${(gene.pct_filtered * 100).toFixed(1)}%</td></tr>`
+      : '',
+  ].filter(Boolean);
+  const qcHtml = qcRows.length > 0
+    ? `
+      <div class="mt-2">
+        <div class="fw-semibold small text-muted mb-1">QC</div>
+        <table class="table table-sm table-bordered csq-table mb-0">
+          <thead class="table-light"><tr><th>Metric</th><th>Value</th></tr></thead>
+          <tbody>${qcRows.join('')}</tbody>
+        </table>
+      </div>`
+    : '';
+
   const statsHtml = `
     <div class="detail-sections">
       <div class="detail-section">
@@ -269,7 +295,8 @@ function buildDetailHtml(gene) {
           </tbody>
         </table>
       </div>
-    </div>`;
+    </div>
+    ${qcHtml}`;
 
   // Per-variant DNM table — only present for significant genes
   const dnmListHtml = gene.observed_dnms
