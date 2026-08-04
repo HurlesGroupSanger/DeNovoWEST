@@ -182,7 +182,8 @@ process FILTER_RATES_REGION {
     ? "module load $params.tabixModule;module load $params.bedtoolsModule"
     : ""
   
-  publishDir "${params.outdir}/rates", mode: 'copy', overwrite: true
+  publishDir "${params.outdir}/rates", pattern: "!*.json", mode: 'copy', overwrite: true
+  publishDir "${params.outdir}/rates/stats", pattern: "*.json", mode: 'copy', overwrite: true
 
   input :
   tuple path(rates), path(index)
@@ -245,7 +246,7 @@ process FILTER_RATES_REGION {
   EOF
 
   jq -s '.[0] * .[1] * .[2]' infos.json nb_loci_before_filtering.json  nb_loci_filtered.json > filtered_rates_stats.json
-  #rm infos.json nb_loci_before_filtering.json  nb_loci_filtered.json
+  rm infos.json nb_loci_before_filtering.json  nb_loci_filtered.json
 
 
 
@@ -367,8 +368,12 @@ process OE_RATIOS {
  */
 process RATES_STATS {
 
+  publishDir "${params.outdir}/rates/stats/", mode: 'copy', overwrite: true
+
+  cpus 4
+
   input : 
-  path rates
+  tuple path(rates), path(rates_index)
 
   
   output : 
@@ -376,43 +381,8 @@ process RATES_STATS {
 
   script : 
   """
-  rates_stats.py $rates rates_stats.json
+  rates_stats.py $rates rates_stats.json --fullgenome --threads ${task.cpus}
   """
 
 }
 
-process MERGE_RATES_STATS {
-
-  publishDir "${params.outdir}/rates/", mode: 'copy', overwrite: true
-
-  input : 
-  path rates_stats, stageAs : "rates_stats_*.json"
-  
-  output : 
-  path "rates_stats.json"
-
-  script : 
-  """
-  jq -s 'reduce .[] as \$item ({}; . * \$item)' *.json > rates_stats.json
-  #echo "toto" > rates_stats.json
-  """
-
-}
-
-
-process SUMMARIZE_RATES_STATS {
-
-  publishDir "${params.outdir}/rates/", mode: 'copy', overwrite: true
-
-  input : 
-  path rates_stats
-  
-  output : 
-  path "summarized_stats"
-
-  script : 
-  """
-  summarize_stats.py $rates_stats summarized_stats
-  """
-
-}

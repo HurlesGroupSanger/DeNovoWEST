@@ -11,8 +11,6 @@ include { RATE_CREATION } from './modules/rates.nf'
 include { MERGE_RATES } from './modules/rates.nf'
 include { SPLIT_RATES } from './modules/rates.nf'
 include { RATES_STATS } from './modules/rates.nf'
-include { MERGE_RATES_STATS } from './modules/rates.nf'
-include { SUMMARIZE_RATES_STATS } from './modules/rates.nf'
 include { FILTER_RATES_REGION } from './modules/rates.nf'
 include {RATES_PER_GENE_PER_CSQ} from './modules/rates.nf'
 include {OE_RATIOS} from './modules/rates.nf'
@@ -221,27 +219,26 @@ workflow{
 
         // Filter rates in excluded regions (e.g. SSR, segmental duplications, ...)
         if (params.containsKey("excluded_regions")) {
+
+              rates_merged_ch = Channel.value([file(params.rates), file(params.rates + ".tbi")])
+
               excluded_regions_ch = Channel.fromPath(params.excluded_regions)
-              rates_merged_ch = FILTER_RATES_REGION(file(params.rates), file(params.rates + ".tbi") , excluded_regions_ch, file(params.genome_fasta))[0]
-              input_rates_ch = rates_merged_ch.first().map { it[0] }
+              rates_merged_ch = FILTER_RATES_REGION(rates_merged_ch, excluded_regions_ch, file(params.genome_fasta))[0]
 
 
         }
         else {
-          rates_merged_ch = Channel.value(file(params.rates))
-          input_rates_ch = rates_merged_ch
+          rates_merged_ch = Channel.value([file(params.rates), file(params.rates + ".tbi")])
         }
 
         // Adjust mutation rates to take into account positive selection in sperm
         if (params.containsKey("sperm_positive_selection_adjustment")){
-            rates_merged_ch = SPERM_POSITIVE_SELECTION_ADJUSTMENT(rates_merged_ch[0], rates_merged_ch[1]. file(params.sperm_positive_selection_adjustment))
-            input_rates_ch = rates_merged_ch.first().map { it[0] }
+            rates_merged_ch = SPERM_POSITIVE_SELECTION_ADJUSTMENT(rates_merged_ch, file(params.sperm_positive_selection_adjustment))
         }
 
-       
+      rates_stats_ch = RATES_STATS(rates_merged_ch)
 
-
-      rates_ch = SPLIT_RATES(split_gene_list_ch.toSortedList().flatten(), input_rates_ch)
+      rates_ch = SPLIT_RATES(split_gene_list_ch.toSortedList().flatten(), rates_merged_ch.first().map { it[0] })
     }
     // Otherwise we generate rates files from the GFF file
     else if (params.create_rates)
@@ -428,13 +425,13 @@ workflow{
       if (params.containsKey("sperm_positive_selection_adjustment")){
             rates_merged_ch = SPERM_POSITIVE_SELECTION_ADJUSTMENT(rates_merged_ch, file(params.sperm_positive_selection_adjustment))
       }
+      
+      // Create rates stats
+      rates_stats_ch = RATES_STATS(rates_merged_ch)
 
       rates_merged_ch = rates_merged_ch.first().map { it[0] }
 
-      // Create rates stats
-      // rates_stats_ch = RATES_STATS(rates_annotated_ch)
-      // rates_stats_merged_ch = MERGE_RATES_STATS(rates_stats_ch.collect())
-      // rates_stats_summary_ch = SUMMARIZE_RATES_STATS(rates_stats_merged_ch)
+  
 
     }
     // If the rates file is already annotated, nothing to do
