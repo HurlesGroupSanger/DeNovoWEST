@@ -158,6 +158,32 @@ def _detect_score_column(columns: list[str]) -> str | None:
     return extras[0] if extras else None
 
 
+def _detect_predictor_name(simulation_log: dict | None) -> str | None:
+    """Return the effect predictor column name from a simulation log.
+
+    Scans the first entry that contains an observed_dnms block and extracts
+    the non-fixed column name, which is the name of the computational effect
+    predictor used during the simulation (e.g. 'CADD', 'AlphaMissense').
+
+    Args:
+        simulation_log: dict mapping gene_id to simulation stats, as returned
+            by load_simulation_log() or load_mis_simulation_log().
+
+    Returns:
+        Predictor column name, or None if the log is absent or has no score column.
+    """
+
+    if not simulation_log:
+        return None
+    for entry in simulation_log.values():
+        raw = (entry or {}).get("observed_dnms")
+        if raw and "columns" in raw:
+            name = _detect_score_column(raw["columns"])
+            if name:
+                return name
+    return None
+
+
 def _load_simulation_log_by_runtype(results_dir: Path, runtype: str) -> dict | None:
     """Load a specific enrichment simulation log by runtype subfolder name.
 
@@ -653,17 +679,21 @@ def _build_gene_records(
         # Pull simulation stats (versioned ID first, then unversioned fallback)
         sim_entry = (simulation_log or {}).get(gene_id) or sim_base_idx.get(base_id)
 
-        # Count observed DNMs per consequence from the split-orient DataFrame stored in the log
+        # Count observed DNMs per consequence and sum scores, from the simulation log
         obs_per_csq: dict[str, int] | None = None
+        obs_score_per_csq: dict[str, float] | None = None
         observed_dnms: list[dict] | None = None
         if sim_entry and "observed_dnms" in sim_entry:
             raw = sim_entry["observed_dnms"]
             try:
                 obs_df = pd.DataFrame(data=raw["data"], columns=raw["columns"])
+                score_col = _detect_score_column(raw["columns"])
                 obs_per_csq = obs_df["consequence"].value_counts().to_dict()
+                # Observed score sum per consequence (available for all genes, not just significant)
+                if score_col:
+                    obs_score_per_csq = obs_df.groupby("consequence")[score_col].sum().to_dict()
                 # Full per-variant list only for significant genes, sorted by score descending
                 if is_significant:
-                    score_col = _detect_score_column(raw["columns"])
                     if score_col:
                         obs_df = obs_df.sort_values(score_col, ascending=False).rename(
                             columns={score_col: "score"}
@@ -672,24 +702,40 @@ def _build_gene_records(
             except (KeyError, ValueError):
                 pass
 
-        # Attach missense enrichment score from the mis simulation log
+        # Parse the missense simulation log entry for this gene
         mis_entry = (mis_simulation_log or {}).get(gene_id) or mis_base_idx.get(base_id)
-        if observed_dnms and mis_entry and "observed_dnms" in mis_entry:
+
+        # Parse the observed_dnms block from the mis simulation log (independent of
+        # whether the full per-variant list is included, so obs/exp scores are always available)
+        mis_df: pd.DataFrame | None = None
+        mis_score_col: str | None = None
+        if mis_entry and "observed_dnms" in mis_entry:
             mis_raw = mis_entry["observed_dnms"]
             try:
                 mis_df = pd.DataFrame(data=mis_raw["data"], columns=mis_raw["columns"])
                 mis_score_col = _detect_score_column(mis_raw["columns"])
-                if mis_score_col:
-                    # Build (chrom, pos, ref, alt) → score lookup
-                    mis_lookup: dict[tuple, float | None] = {
-                        (r["chrom"], r["pos"], r["ref"], r["alt"]): _safe_float(r[mis_score_col])
-                        for r in mis_df.to_dict(orient="records")
-                    }
-                    for v in observed_dnms:
-                        key = (v["chrom"], v["pos"], v["ref"], v["alt"])
-                        v["mis_score"] = mis_lookup.get(key)
             except (KeyError, ValueError):
                 pass
+
+        # Observed missense score = sum of predictor scores across all missense DNMs
+        obs_mis_score: float | None = None
+        if mis_df is not None and mis_score_col:
+            obs_mis_score = _safe_float(mis_df[mis_score_col].sum())
+
+        # Expected missense score from the mis simulation log
+        exp_mis_score: float | None = None
+        if mis_entry:
+            exp_mis_score = _safe_float((mis_entry.get("expected_score_per_consequence") or {}).get("missense"))
+
+        # Attach per-variant missense scores to the observed DNM list (significant genes only)
+        if observed_dnms and mis_df is not None and mis_score_col:
+            mis_lookup: dict[tuple, float | None] = {
+                (r["chrom"], r["pos"], r["ref"], r["alt"]): _safe_float(r[mis_score_col])
+                for r in mis_df.to_dict(orient="records")
+            }
+            for v in observed_dnms:
+                key = (v["chrom"], v["pos"], v["ref"], v["alt"])
+                v["mis_score"] = mis_lookup.get(key)
 
         records.append(
             {
@@ -713,7 +759,11 @@ def _build_gene_records(
                 "nb_observed_dnms": _safe_int(sim_entry["nb_observed_dnms"]) if sim_entry else None,
                 "nb_expected_dnms": _safe_float(sim_entry["nb_expected_dnms"]) if sim_entry else None,
                 "sim_expected_per_csq": sim_entry.get("expected_prob_per_consequence") if sim_entry else None,
+                "sim_expected_score_per_csq": sim_entry.get("expected_score_per_consequence") if sim_entry else None,
                 "obs_per_csq": obs_per_csq,
+                "obs_score_per_csq": obs_score_per_csq,
+                "obs_mis_score": obs_mis_score,
+                "exp_mis_score": exp_mis_score,
                 "observed_dnms": observed_dnms,
                 "caution": bool(row["caution"]),
                 "caution_reasons": row["caution_reasons"],
@@ -763,6 +813,10 @@ def build_html(
     # Escape </ to prevent a premature </script> tag inside the JSON block
     gene_json = json.dumps(gene_records).replace("</", "<\\/")
 
+    # Detect effect predictor names from the simulation logs
+    score_predictor = _detect_predictor_name(simulation_log)
+    mis_score_predictor = _detect_predictor_name(mis_simulation_log)
+
     env = Environment(
         loader=FileSystemLoader(str(_TEMPLATE_DIR)),
         autoescape=select_autoescape(["html"]),
@@ -779,6 +833,8 @@ def build_html(
         nominal_threshold=NOMINAL_THRESHOLD,
         report_version=REPORT_VERSION,
         gene_json=gene_json,
+        score_predictor=score_predictor,
+        mis_score_predictor=mis_score_predictor,
     )
 
 

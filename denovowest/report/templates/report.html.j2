@@ -130,8 +130,11 @@
 <script src="https://cdn.datatables.net/2.0.8/js/dataTables.bootstrap5.min.js"></script>
 <script>
 const GENES = {{ gene_json | safe }};
-const CORRECTED_THRESHOLD = {{ corrected_threshold }};
+const CORRECTED_THRESHOLD  = {{ corrected_threshold }};
 const NOMINAL_THRESHOLD    = {{ nominal_threshold }};
+// Effect predictor column names extracted from the simulation logs (null when unavailable)
+const SCORE_PREDICTOR      = {{ score_predictor | tojson }};
+const MIS_SCORE_PREDICTOR  = {{ mis_score_predictor | tojson }};
 
 // ── Formatting helpers ────────────────────────────────────────────────────────
 
@@ -192,6 +195,54 @@ function buildDetailHtml(gene) {
       })()
     : '';
 
+  // All-coding scores per consequence (observed = sum of scores per csq; expected = rate-weighted sum)
+  const simScoreHtml = gene.sim_expected_score_per_csq
+    ? (() => {
+        const predictorLabel = SCORE_PREDICTOR ?? 'Score';
+        const hasObs = gene.obs_score_per_csq !== null && gene.obs_score_per_csq !== undefined;
+        const rows = Object.entries(gene.sim_expected_score_per_csq)
+          .sort((a, b) => b[1] - a[1])
+          .map(([csq, exp]) => {
+            const obs = hasObs ? (gene.obs_score_per_csq[csq] ?? 0) : null;
+            const obsCell = hasObs ? `<td>${obs.toFixed(4)}</td>` : '';
+            return `<tr><td><code>${csq}</code></td>${obsCell}<td>${exp.toFixed(4)}</td></tr>`;
+          })
+          .join('');
+        const header = hasObs
+          ? '<tr><th>Consequence</th><th>Observed</th><th>Expected</th></tr>'
+          : `<tr><th>Consequence</th><th>Expected ${predictorLabel}</th></tr>`;
+        return `
+          <div class="detail-section-grow">
+            <div class="fw-semibold small text-muted mb-1">All scores (${predictorLabel})</div>
+            <table class="table table-sm table-bordered csq-table mb-0">
+              <thead class="table-light">${header}</thead>
+              <tbody>${rows}</tbody>
+            </table>
+          </div>`;
+      })()
+    : '';
+
+  // Missense predictor scores — single-row observed vs expected for missense consequence
+  const misScoreTableHtml = (gene.obs_mis_score !== null || gene.exp_mis_score !== null)
+    ? (() => {
+        const predictorLabel = MIS_SCORE_PREDICTOR ?? 'Mis. Score';
+        return `
+          <div class="detail-section">
+            <div class="fw-semibold small text-muted mb-1">Missense scores (${predictorLabel})</div>
+            <table class="table table-sm table-bordered csq-table mb-0">
+              <thead class="table-light"><tr><th>Consequence</th><th>Observed</th><th>Expected</th></tr></thead>
+              <tbody>
+                <tr>
+                  <td><code>missense</code></td>
+                  <td>${fmtNum(gene.obs_mis_score, 4)}</td>
+                  <td>${fmtNum(gene.exp_mis_score, 4)}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>`;
+      })()
+    : '';
+
   const statsHtml = `
     <div class="detail-sections">
       <div class="detail-section">
@@ -205,6 +256,8 @@ function buildDetailHtml(gene) {
         </table>
       </div>
       ${simCsqHtml}
+      ${simScoreHtml}
+      ${misScoreTableHtml}
       <div class="detail-section">
         <div class="fw-semibold small text-muted mb-1">Clustering</div>
         <table class="table table-sm table-bordered csq-table mb-0">
@@ -227,6 +280,8 @@ function buildDetailHtml(gene) {
           start_lost: '#d63384', stop_lost: '#d63384', synonymous: '#6c757d',
           stop_retained: '#6c757d',
         };
+        const scoreLabel    = SCORE_PREDICTOR    ?? 'Score';
+        const misScoreLabel = MIS_SCORE_PREDICTOR ?? 'Mis. Score';
         const hasMisScore = gene.observed_dnms.some(v => v.mis_score !== undefined && v.mis_score !== null);
         const rows = gene.observed_dnms.map(v => {
           const col = CSQ_COLOURS[v.consequence] ?? '#6c757d';
@@ -243,7 +298,7 @@ function buildDetailHtml(gene) {
             ${misScoreCell}
           </tr>`;
         }).join('');
-        const misScoreHeader = hasMisScore ? '<th>Mis. Score</th>' : '';
+        const misScoreHeader = hasMisScore ? `<th>${misScoreLabel}</th>` : '';
         return `
           <details class="mt-1">
             <summary class="dnm-toggle small fw-semibold text-muted">
@@ -252,7 +307,7 @@ function buildDetailHtml(gene) {
             <div class="mt-2">
               <table class="table table-sm table-bordered csq-table mb-0">
                 <thead class="table-light">
-                  <tr><th>Chrom</th><th>Pos</th><th>Allele</th><th>Consequence</th><th>Score</th>${misScoreHeader}</tr>
+                  <tr><th>Chrom</th><th>Pos</th><th>Allele</th><th>Consequence</th><th>${scoreLabel}</th>${misScoreHeader}</tr>
                 </thead>
                 <tbody>${rows}</tbody>
               </table>
@@ -333,13 +388,13 @@ $(document).ready(function () {
         render: (d, type) => type === 'sort' ? (d ?? 999) : fmtPval(d),
       },
       {
-        data: 'enrichment_mis_pval',
-        title: '<abbr title="Enrichment test p-value — missense variants only. Same score-weighted approach as Enrich. all, but restricted to missense DNMs and using a missense-specific effect predictor (e.g. AlphaMissense).">Enrich. mis</abbr>',
+        data: 'combined_mis_pval',
+        title: '<abbr title="Combined missense p-value. Integrates the missense enrichment and spatial clustering p-values (Fisher\'s method), capturing both excess burden and non-random positional clustering of missense DNMs.">Comb. mis</abbr>',
         render: (d, type) => type === 'sort' ? (d ?? 999) : fmtPval(d),
       },
       {
-        data: 'combined_mis_pval',
-        title: '<abbr title="Combined missense p-value. Integrates the missense enrichment and spatial clustering p-values (Fisher\'s method), capturing both excess burden and non-random positional clustering of missense DNMs.">Comb. mis</abbr>',
+        data: 'enrichment_mis_pval',
+        title: '<abbr title="Enrichment test p-value — missense variants only. Same score-weighted approach as Enrich. all, but restricted to missense DNMs and using a missense-specific effect predictor (e.g. AlphaMissense).">Enrich. mis</abbr>',
         render: (d, type) => type === 'sort' ? (d ?? 999) : fmtPval(d),
       },
       {
