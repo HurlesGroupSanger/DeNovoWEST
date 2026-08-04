@@ -53,40 +53,57 @@ def _load_adjustment_json(
     return d.get("genes", {}), d.get("sites", {})
 
 
-def _build_gene_version_mapping(
-    rates: Path,
-    adjustment_genes: dict[str, dict[str, float]],
-    chunk_size: int,
-) -> dict[str, str]:
-    """Scan the rates file to build an ENSEMBL version mapping for the genes.
-
-    Reads only the gene_id column to minimise memory use, then delegates to
-    ensembl_ids_map_version to resolve versioned/unversioned identifier mismatches.
-    Logs a warning for any gene that has no match in the rates file.
+def _update_gene_mutation_rates_before_after(
+    gene_mutation_rates_before_after: dict[str, dict[str, float]],
+    chunk: pd.DataFrame,
+    chunk_adjusted: pd.DataFrame,
+    adjusted_genes: list[str],
+) -> dict[str, dict[str, float]]:
+    """Update the gene mutation rates before/after adjustment.
 
     Args:
-        rates: Path to the mutation rates file.
-        adjustment_genes: Gene adjustment dict whose keys are the source gene IDs.
-        chunk_size: Number of rows to read per chunk during the scan.
+        gene_mutation_rates_before_after: Dictionary to update with mutation rates.
+        chunk: DataFrame chunk containing the mutation rates.
+        stage: Either "before" or "after" to indicate which stage of adjustment.
 
     Returns:
-        Dict mapping each source gene ID to the best-matching gene ID in the rates file.
-        Gene IDs with no match are absent from the result.
+        Updated gene_mutation_rates_before_after dictionary.
+    """
+    for gene_id in adjusted_genes:
+        total_prob_before = chunk.loc[chunk.gene_id == gene_id, "prob"].sum()
+        total_prob_after = chunk_adjusted.loc[chunk_adjusted.gene_id == gene_id, "prob"].sum()
+
+        entry = gene_mutation_rates_before_after.setdefault(gene_id, {})
+        entry["before"] = entry.get("before", 0.0) + total_prob_before
+        entry["after"] = entry.get("after", 0.0) + total_prob_after
+
+    return gene_mutation_rates_before_after
+
+
+def _export_adjustment_stats(gene_mutation_rates_before_after: dict, path: Path) -> None:
+    """Export per-gene mutation rates before and after adjustment to a JSON file.
+
+    Only genes whose total mutation rate changed are included in the output.
+
+    Args:
+        gene_mutation_rates_before_after: Mapping of gene_id to {"before": float, "after": float}.
+        path: Destination path for the JSON file.
     """
 
-    log = logging.getLogger("logger")
+    adjusted_genes = []
+    for gene_id, rates in gene_mutation_rates_before_after.items():
+        before = rates.get("before", 0.0)
+        after = rates.get("after", 0.0)
 
-    if not adjustment_genes:
-        return {}
+        if before != after:
+            adjusted_genes.append(gene_id)
 
-    # Collect all unique gene IDs from the rates file, reading only the gene_id column
-    gene_ids: set[str] = set()
-    for chunk in pd.read_csv(rates, sep="\t", usecols=["gene_id"], chunksize=chunk_size):
-        gene_ids.update(chunk["gene_id"].unique().tolist())
+    gene_mutation_rates_before_after = {
+        gene_id: rates for gene_id, rates in gene_mutation_rates_before_after.items() if gene_id in adjusted_genes
+    }
 
-    mapping = ensembl_ids_map_version(list(adjustment_genes.keys()), list(gene_ids))
-
-    return mapping
+    with open(path, "w") as f:
+        json.dump(gene_mutation_rates_before_after, f, indent=2)
 
 
 ##############################
@@ -99,7 +116,7 @@ def apply_sperm_selection_adjustment(
     adjustment_genes: dict[str, dict[str, float]],
     adjustment_sites: dict[str, dict[str, Any]],
     mapping_gene_ids: dict[str, str],
-) -> tuple[pd.DataFrame, set[str]]:
+) -> pd.DataFrame:
     """Apply per-gene-per-consequence and per-site multipliers to a DataFrame chunk.
 
     Args:
@@ -107,24 +124,26 @@ def apply_sperm_selection_adjustment(
             gene_id, consequence, prob, chrom, pos, ref, alt.
         adjustment_genes: Mapping of gene_id to {consequence: multiplier}.
         adjustment_sites: Mapping of site_id to {chrom, pos, ref, alt, multiplier}.
-        mapping_gene_ids: Pre-built ENSEMBL version mapping from adjustment gene IDs
-            to rates file gene IDs, as returned by _build_gene_version_mapping.
+        mapping_gene_ids: ENSEMBL version mapping from adjustment gene IDs to rates
+            file gene IDs, computed per chunk via ensembl_ids_map_version.
 
     Returns:
-        Tuple of (adjusted chunk, set of site IDs matched in this chunk).
+        Adjusted chunk.
     """
+
+    adjusted_genes = list()  # Track which genes were adjusted in this chunk
 
     # Apply per-gene adjustments
     for gene_id, gene_multipliers in adjustment_genes.items():
         if gene_id not in mapping_gene_ids:
             continue
         mapped_id = mapping_gene_ids[gene_id]
+        adjusted_genes.append(mapped_id)
         for consequence, multiplier in gene_multipliers.items():
             mask = (chunk["gene_id"] == mapped_id) & (chunk["consequence"] == consequence)
             chunk.loc[mask, "prob"] *= multiplier
 
     # Apply per-site adjustments, tracking which site IDs are matched in this chunk
-    matched_site_ids: set[str] = set()
     for site_id, site_info in adjustment_sites.items():
         mask = (
             (chunk["chrom"] == site_info["chrom"])
@@ -134,9 +153,9 @@ def apply_sperm_selection_adjustment(
         )
         if mask.any():
             chunk.loc[mask, "prob"] *= site_info["multiplier"]
-            matched_site_ids.add(site_id)
+            adjusted_genes += list(chunk.loc[mask, "gene_id"].unique())
 
-    return chunk, matched_site_ids
+    return chunk, list(set(adjusted_genes))
 
 
 ##############
@@ -167,7 +186,7 @@ def apply_sperm_selection_adjustment(
 @click.option(
     "--chunk-size",
     type=int,
-    default=100_000,
+    default=1_000_000,
     show_default=True,
     help="Number of rows to process at a time",
 )
@@ -187,24 +206,49 @@ def main(
 
     init_log()
     log = logging.getLogger("logger")
+    log.info(f"Adjusting mutation rates using sperm selection adjustment file: {sperm_selection_adjustment}")
 
     outdir.mkdir(parents=True, exist_ok=True)
 
+    # Load the adjustment JSON file and validate its structure
     adjustment_genes, adjustment_sites = _load_adjustment_json(sperm_selection_adjustment)
 
-    # Preliminary scan: read only the gene_id column to build the ENSEMBL version mapping
-    mapping_gene_ids = _build_gene_version_mapping(rates, adjustment_genes, chunk_size)
-
-    # Stream through the rates file, applying adjustments and writing output incrementally
+    nb_genes_seen = 0
     out_path = outdir / output
-    all_matched_site_ids: set[str] = set()
+    gene_mutation_rates_before_after = dict()
+    # Read the mutation rates file in chunks, apply adjustments, and write to output
+    for i, chunk in enumerate(
+        pd.read_csv(
+            rates,
+            sep="\t",
+            chunksize=chunk_size,
+            low_memory=False,
+            dtype={"chrom": str, "pos": int, "ref": str, "alt": str, "gene_id": str},
+        )
+    ):
 
-    for i, chunk in enumerate(pd.read_csv(rates, sep="\t", chunksize=chunk_size)):
-        chunk, matched = apply_sperm_selection_adjustment(chunk, adjustment_genes, adjustment_sites, mapping_gene_ids)
-        all_matched_site_ids.update(matched)
-        chunk.to_csv(out_path, sep="\t", index=False, mode="w" if i == 0 else "a", header=(i == 0))
+        log.info("Processing chunk %d (rows %d to %d)", i + 1, i * chunk_size + 1, (i + 1) * chunk_size)
+
+        # In case the gene IDs in the adjustment file are from a different ENSEMBL version than the rates file (or do not use the version)
+        mapping_gene_ids = ensembl_ids_map_version(list(adjustment_genes.keys()), chunk["gene_id"].unique().tolist())
+
+        # Adjustment
+        chunk_adjusted, adjusted_genes = apply_sperm_selection_adjustment(
+            chunk.copy(), adjustment_genes, adjustment_sites, mapping_gene_ids
+        )
+
+        # Write
+        chunk_adjusted.to_csv(out_path, sep="\t", index=False, mode="w" if i == 0 else "a", header=(i == 0))
+
+        # Log adjusted genes
+        if adjusted_genes:
+            gene_mutation_rates_before_after = _update_gene_mutation_rates_before_after(
+                gene_mutation_rates_before_after, chunk, chunk_adjusted, adjusted_genes
+            )
 
     log.info(f"Adjusted mutation rates file created here: {out_path}")
+
+    _export_adjustment_stats(gene_mutation_rates_before_after, outdir / "adjusted_rates.json")
 
 
 if __name__ == "__main__":
