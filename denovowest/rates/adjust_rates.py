@@ -213,38 +213,53 @@ def main(
     # Load the adjustment JSON file and validate its structure
     adjustment_genes, adjustment_sites = _load_adjustment_json(sperm_selection_adjustment)
 
-    nb_genes_seen = 0
+    # Pre-build lookup sets for the fast per-chunk skip check
+    target_gene_bases = {gid.split(".")[0] for gid in adjustment_genes}
+    target_sites = list(adjustment_sites.values())
+
     out_path = outdir / output
     gene_mutation_rates_before_after = dict()
     # Read the mutation rates file in chunks, apply adjustments, and write to output
-    for i, chunk in enumerate(
-        pd.read_csv(
-            rates,
-            sep="\t",
-            chunksize=chunk_size,
-            low_memory=False,
-            dtype={"chrom": str, "pos": int, "ref": str, "alt": str, "gene_id": str},
-        )
-    ):
-
-        log.info("Processing chunk %d (rows %d to %d)", i + 1, i * chunk_size + 1, (i + 1) * chunk_size)
-
-        # In case the gene IDs in the adjustment file are from a different ENSEMBL version than the rates file (or do not use the version)
-        mapping_gene_ids = ensembl_ids_map_version(list(adjustment_genes.keys()), chunk["gene_id"].unique().tolist())
-
-        # Adjustment
-        chunk_adjusted, adjusted_genes = apply_sperm_selection_adjustment(
-            chunk.copy(), adjustment_genes, adjustment_sites, mapping_gene_ids
-        )
-
-        # Write
-        chunk_adjusted.to_csv(out_path, sep="\t", index=False, mode="w" if i == 0 else "a", header=(i == 0))
-
-        # Log adjusted genes
-        if adjusted_genes:
-            gene_mutation_rates_before_after = _update_gene_mutation_rates_before_after(
-                gene_mutation_rates_before_after, chunk, chunk_adjusted, adjusted_genes
+    with open(out_path, "w") as fh:
+        for i, chunk in enumerate(
+            pd.read_csv(
+                rates,
+                sep="\t",
+                chunksize=chunk_size,
+                low_memory=False,
+                dtype={"chrom": str, "pos": int, "ref": str, "alt": str, "gene_id": str},
             )
+        ):
+            log.info("Processing chunk %d (rows %d to %d)", i + 1, i * chunk_size + 1, (i + 1) * chunk_size)
+
+            # Fast skip: check if this chunk contains any gene or site that needs adjustment
+            chunk_gene_bases = {gid.split(".")[0] for gid in chunk["gene_id"].unique()}
+            has_target_gene = bool(chunk_gene_bases & target_gene_bases)
+            has_target_site = any(
+                ((chunk["chrom"] == s["chrom"]) & (chunk["pos"] == s["pos"])).any()
+                for s in target_sites
+            )
+
+            if not has_target_gene and not has_target_site:
+                chunk.to_csv(fh, sep="\t", index=False, header=(i == 0))
+                continue
+
+            # In case the gene IDs in the adjustment file are from a different ENSEMBL version than the rates file (or do not use the version)
+            mapping_gene_ids = ensembl_ids_map_version(list(adjustment_genes.keys()), chunk["gene_id"].unique().tolist())
+
+            # Adjustment
+            chunk_adjusted, adjusted_genes = apply_sperm_selection_adjustment(
+                chunk.copy(), adjustment_genes, adjustment_sites, mapping_gene_ids
+            )
+
+            # Write
+            chunk_adjusted.to_csv(fh, sep="\t", index=False, header=(i == 0))
+
+            # Log adjusted genes
+            if adjusted_genes:
+                gene_mutation_rates_before_after = _update_gene_mutation_rates_before_after(
+                    gene_mutation_rates_before_after, chunk, chunk_adjusted, adjusted_genes
+                )
 
     log.info(f"Adjusted mutation rates file created here: {out_path}")
 
