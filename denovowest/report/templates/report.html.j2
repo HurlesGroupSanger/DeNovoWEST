@@ -44,6 +44,8 @@
     .dnm-toggle::-webkit-details-marker { display: none; }
     .dnm-toggle::before { content: '▶\00a0'; font-size: 0.7em; }
     details[open] .dnm-toggle::before { content: '▼\00a0'; font-size: 0.7em; }
+    /* Source-list panel badges — color applied per-badge via inline style */
+    .src-badge { font-size: 0.75em; }
   </style>
 </head>
 <body>
@@ -137,6 +139,17 @@ const SCORE_PREDICTOR      = {{ score_predictor | tojson }};
 const MIS_SCORE_PREDICTOR  = {{ mis_score_predictor | tojson }};
 
 // ── Formatting helpers ────────────────────────────────────────────────────────
+
+// Assign palette colors to panel names in sorted alphabetical order for consistent mapping
+const _SRC_PALETTE = ['#1565c0', '#c62828', '#6a1b9a', '#e65100'];
+const _srcColorMap = Object.fromEntries(
+  [...new Set(GENES.flatMap(g => g.source_lists || []))].sort()
+    .map((name, i) => [name, _SRC_PALETTE[i % _SRC_PALETTE.length]])
+);
+function srcBadgeHtml(name) {
+  const bg = _srcColorMap[name] ?? _SRC_PALETTE[0];
+  return `<span class="badge src-badge" style="background-color:${bg};color:#fff">${name}</span>`;
+}
 
 function fmtPval(v) {
   if (v === null || v === undefined) return '<span class="pval-na">N/A</span>';
@@ -354,11 +367,16 @@ function buildDetailHtml(gene) {
     ? `<span class="badge g2p-${conf}${isBiallelic ? ' g2p-biallelic' : ''}" title="${req}">${conf}${isBiallelic ? ' (biallelic)' : ''}</span>`
     : '';
 
+  const srcBadgesHtml = (gene.source_lists && gene.source_lists.length > 0)
+    ? gene.source_lists.map(srcBadgeHtml).join(' ')
+    : '';
+
   return `
-    <div class="d-flex align-items-center gap-2 mb-2">
+    <div class="d-flex align-items-center gap-2 mb-2 flex-wrap">
       <span class="fw-bold">${gene.gene_id}</span>
       ${symbolHtml}
       ${g2pBadge}
+      ${srcBadgesHtml}
       <a href="${ensemblHref}" target="_blank" class="small text-decoration-none">
         Ensembl &#8599;
       </a>
@@ -373,7 +391,7 @@ function buildDetailHtml(gene) {
 $(document).ready(function () {
   const table = $('#gene-table').DataTable({
     data: GENES,
-    order: [[4, 'asc']],
+    order: [[5, 'asc']],
     pageLength: 25,
     language: { search: 'Filter genes:' },
     columns: [
@@ -402,6 +420,15 @@ $(document).ready(function () {
             ? `<br><span style="font-size:0.7em;color:#6c757d">biallelic</span>`
             : '';
           return `<span class="${badgeCls}">${conf}</span>${label}`;
+        },
+      },
+      {
+        data: 'source_lists',
+        title: '<abbr title="Gene panels / source lists this gene belongs to.">Panels</abbr>',
+        render: (d, type) => {
+          if (type === 'sort') return d && d.length > 0 ? d.join(';') : '';
+          if (!d || d.length === 0) return '<span class="text-muted">—</span>';
+          return d.map(srcBadgeHtml).join(' ');
         },
       },
       {

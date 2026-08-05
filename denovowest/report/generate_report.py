@@ -23,6 +23,7 @@ import gffutils
 import pandas as pd
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 
+from denovowest.utils.helpers import ensembl_ids_map_version
 from denovowest.utils.log import init_log
 
 ####################
@@ -32,6 +33,7 @@ from denovowest.utils.log import init_log
 COMBINED_TESTS_RELPATH = "combined_tests/combined_tests_results.tsv"
 RATES_STATS_RELPATH = "rates/stats/rates_stats.json"
 FILTERED_RATES_STATS_RELPATH = "rates/stats/filtered_rates_stats.json"
+ADJUSTED_RATES_RELPATH = "rates/stats/adjusted_rates.json"
 
 PVAL_COLUMNS = [
     "min_pval",
@@ -276,6 +278,52 @@ def load_filtered_rates_stats(results_dir: Path) -> dict | None:
         return json.load(fh)
 
 
+def load_adjusted_rates(results_dir: Path) -> dict | None:
+    """Load the per-gene mutation rate adjustment statistics.
+
+    This file is produced by the adjust_rates process and maps each gene ID to
+    its total expected mutation rate before and after the scaling correction.
+
+    Args:
+        results_dir: pipeline output directory.
+
+    Returns:
+        Dict mapping gene_id to ``{"before": float, "after": float}``, or None if absent.
+    """
+
+    path = results_dir / ADJUSTED_RATES_RELPATH
+    if not path.exists():
+        return None
+    with path.open() as fh:
+        return json.load(fh)
+
+
+def _compute_rate_adjustment_ratio(adjusted_rates: dict, gene_id: str) -> float | None:
+    """Compute the ratio of expected mutation rate after vs before adjustment for a gene.
+
+    Args:
+        adjusted_rates: dict from load_adjusted_rates().
+        gene_id: versioned or unversioned Ensembl gene ID.
+
+    Returns:
+        Ratio after/before (e.g. 1.15 means 15% increase), or None if the gene is
+        absent or the before value is zero.
+    """
+
+    entry = adjusted_rates.get(gene_id)
+    if entry is None:
+        base_id = gene_id.split(".")[0]
+        entry = next((v for k, v in adjusted_rates.items() if k.split(".")[0] == base_id), None)
+    if entry is None:
+        return None
+
+    before = entry.get("before")
+    after = entry.get("after")
+    if not before:
+        return None
+    return after / before
+
+
 def _compute_filtered_pct(filtered_rates_stats: dict, gene_id: str) -> float | None:
     """Compute the fraction of sites removed by exclusion-region filtering for a gene.
 
@@ -383,6 +431,53 @@ def merge_g2p(df: pd.DataFrame, g2p_df: pd.DataFrame) -> pd.DataFrame:
     merged["g2p_confidence"] = merged["g2p_confidence"].fillna("absent")
     merged["g2p_allelic_requirement"] = merged["g2p_allelic_requirement"].fillna("absent")
     return merged
+
+
+def load_gene_source_lists(path: Path) -> pd.DataFrame:
+    """Load a gene source-list TSV.
+
+    The file must have at least two columns: ``gene_id`` and ``source_lists``.
+    Values in ``source_lists`` are semicolon-separated strings
+    (e.g. ``"ddg2p;gdx;gms"``).
+
+    Args:
+        path: path to the TSV file.
+
+    Returns:
+        DataFrame with columns [gene_id, source_lists].
+
+    Raises:
+        ValueError: if either required column is missing.
+    """
+
+    df = pd.read_csv(path, sep="\t", dtype=str)
+    missing = {"gene_id", "source_lists"} - set(df.columns)
+    if missing:
+        raise ValueError(f"Source-list file is missing required column(s): {', '.join(sorted(missing))}")
+    return df[["gene_id", "source_lists"]].copy()
+
+
+def merge_source_lists(df: pd.DataFrame, source_lists_df: pd.DataFrame) -> pd.DataFrame:
+    """Add a source_lists column to the results dataframe by merging on gene_id.
+
+    Uses :func:`ensembl_ids_map_version` for versioned/unversioned ID matching,
+    so ``ENSG….N`` in the results will match ``ENSG…`` in the source-list file
+    and vice versa.  Genes absent from the source-list file receive an empty string.
+
+    Args:
+        df: combined tests results.
+        source_lists_df: output of load_gene_source_lists().
+
+    Returns:
+        Copy of df with a new source_lists column (semicolon-separated string).
+    """
+
+    sl_lookup: dict[str, str] = dict(zip(source_lists_df["gene_id"], source_lists_df["source_lists"]))
+    id_map = ensembl_ids_map_version(list(df["gene_id"]), list(source_lists_df["gene_id"]))
+
+    result = df.copy()
+    result["source_lists"] = df["gene_id"].map(lambda gid: sl_lookup.get(id_map.get(gid, ""), ""))
+    return result
 
 
 ####################
@@ -500,6 +595,28 @@ def _check_filtered_sites(
     return []
 
 
+def _check_rate_adjustment(
+    gene_id: str,
+    adjusted_rates: dict,
+) -> list[str]:
+    """Flag genes whose expected mutation rate was adjusted.
+
+    Args:
+        gene_id: versioned or unversioned Ensembl gene ID.
+        adjusted_rates: dict from load_adjusted_rates().
+
+    Returns:
+        A one-element list with the warning message, or an empty list.
+    """
+
+    ratio = _compute_rate_adjustment_ratio(adjusted_rates, gene_id)
+    if ratio is None:
+        return []
+    change = ratio - 1.0
+    direction = "increased" if change > 0 else "decreased"
+    return [f"Expected mutation rate {direction} by {abs(change) * 100:.1f}% after rate adjustment"]
+
+
 def _check_symbol_ambiguity(
     gene_id: str,
     gene_coords_df: pd.DataFrame,
@@ -586,6 +703,7 @@ def compute_caution_flags(
     score_predictor: str | None = None,
     mis_score_predictor: str | None = None,
     filtered_rates_stats_log: dict | None = None,
+    adjusted_rates: dict | None = None,
 ) -> pd.DataFrame:
     """Add caution flag and reasons columns to the results dataframe.
 
@@ -600,6 +718,7 @@ def compute_caution_flags(
         score_predictor: all-coding predictor column name; used for the annotation check.
         mis_score_predictor: missense predictor column name; used for the annotation check.
         filtered_rates_stats_log: site-filtering stats from load_filtered_rates_stats() (optional).
+        adjusted_rates: rate adjustment stats from load_adjusted_rates() (optional).
 
     Returns:
         Copy of df with added 'caution' (bool) and 'caution_reasons' (list[str]) columns.
@@ -609,6 +728,7 @@ def compute_caution_flags(
     do_symbol_check = gene_coords_df is not None and ambiguous_symbol_gene_ids is not None
     do_annotation_check = rates_stats_log is not None
     do_filter_check = filtered_rates_stats_log is not None
+    do_adjustment_check = adjusted_rates is not None
 
     reasons_list = []
     for _, row in df.iterrows():
@@ -618,6 +738,8 @@ def compute_caution_flags(
             reasons += _check_missing_annotations(gene_id, rates_stats_log, score_predictor, mis_score_predictor)
         if do_filter_check:
             reasons += _check_filtered_sites(gene_id, filtered_rates_stats_log)
+        if do_adjustment_check:
+            reasons += _check_rate_adjustment(gene_id, adjusted_rates)
         if do_symbol_check:
             reasons += _check_symbol_ambiguity(gene_id, gene_coords_df, ambiguous_symbol_gene_ids)
         if do_overlap_check:
@@ -674,6 +796,7 @@ def _build_gene_records(
     score_predictor: str | None = None,
     mis_score_predictor: str | None = None,
     filtered_rates_stats_log: dict | None = None,
+    adjusted_rates: dict | None = None,
 ) -> list[dict]:
     """Serialise the results dataframe into a JSON-friendly list of dicts.
 
@@ -692,6 +815,8 @@ def _build_gene_records(
             (e.g. ``"AlphaMissense_score"``).
         filtered_rates_stats_log: optional dict from load_filtered_rates_stats(); used to
             compute the fraction of sites removed by exclusion-region filtering per gene.
+        adjusted_rates: optional dict from load_adjusted_rates(); used to compute the
+            before/after ratio of the expected mutation rate per gene.
 
     Returns:
         List of dicts, one per gene, ready for json.dumps().
@@ -798,6 +923,15 @@ def _build_gene_records(
         if filtered_rates_stats_log is not None:
             pct_filtered = _compute_filtered_pct(filtered_rates_stats_log, gene_id)
 
+        # Ratio of expected mutation rate after vs before adjustment (after/before)
+        rate_adjustment_ratio: float | None = None
+        if adjusted_rates is not None:
+            rate_adjustment_ratio = _compute_rate_adjustment_ratio(adjusted_rates, gene_id)
+
+        # Split semicolon-separated source list into a clean list of strings
+        raw_sources = row.get("source_lists") or ""
+        source_lists: list[str] = [s.strip() for s in str(raw_sources).split(";") if s.strip()]
+
         records.append(
             {
                 "gene_id": gene_id,
@@ -805,6 +939,7 @@ def _build_gene_records(
                 "gene_symbol": _safe_str(row.get("gene_symbol")),
                 "g2p_confidence": _safe_str(row.get("g2p_confidence")),
                 "g2p_allelic_requirement": _safe_str(row.get("g2p_allelic_requirement")),
+                "source_lists": source_lists,
                 "min_pval": _safe_float(row.get("min_pval")),
                 "combined_mis_pval": _safe_float(row.get("combined_mis_pval")),
                 "enrichment_all_pval": _safe_float(row.get("enrichment_all_pval")),
@@ -828,6 +963,7 @@ def _build_gene_records(
                 "pct_missing_all": pct_missing_all,
                 "pct_missing_mis": pct_missing_mis,
                 "pct_filtered": pct_filtered,
+                "rate_adjustment_ratio": rate_adjustment_ratio,
                 "observed_dnms": observed_dnms,
                 "caution": bool(row["caution"]),
                 "caution_reasons": row["caution_reasons"],
@@ -852,6 +988,7 @@ def build_html(
     mis_simulation_log: dict | None = None,
     rates_stats_log: dict | None = None,
     filtered_rates_stats_log: dict | None = None,
+    adjusted_rates: dict | None = None,
     score_predictor: str | None = None,
     mis_score_predictor: str | None = None,
 ) -> str:
@@ -868,6 +1005,8 @@ def build_html(
             per-gene missing-annotation percentages.
         filtered_rates_stats_log: optional dict from load_filtered_rates_stats(); used to
             compute the fraction of sites removed by exclusion-region filtering.
+        adjusted_rates: optional dict from load_adjusted_rates(); used to compute the
+            before/after ratio of expected mutation rate per gene.
         score_predictor: all-coding predictor name; detected from simulation_log when None.
         mis_score_predictor: missense predictor name; detected from mis_simulation_log when None.
 
@@ -898,6 +1037,7 @@ def build_html(
         score_predictor=score_predictor,
         mis_score_predictor=mis_score_predictor,
         filtered_rates_stats_log=filtered_rates_stats_log,
+        adjusted_rates=adjusted_rates,
     )
     # Escape </ to prevent a premature </script> tag inside the JSON block
     gene_json = json.dumps(gene_records).replace("</", "<\\/")
@@ -957,13 +1097,30 @@ def build_html(
     ),
 )
 @click.option(
+    "--source-lists",
+    "source_lists_path",
+    type=click.Path(exists=True, dir_okay=False, path_type=Path),
+    default=None,
+    help=(
+        "TSV with columns gene_id and source_lists (semicolon-separated panel/list names). "
+        "Displayed as badges next to the G2P column in the report."
+    ),
+)
+@click.option(
     "--output",
     "-o",
     type=click.Path(path_type=Path),
     default=None,
     help="Output HTML file. Defaults to <results_dir>/report.html.",
 )
-def report(results_dir: Path, threshold: float, g2p: Path | None, gff: Path | None, output: Path | None) -> None:
+def report(
+    results_dir: Path,
+    threshold: float,
+    g2p: Path | None,
+    gff: Path | None,
+    source_lists_path: Path | None,
+    output: Path | None,
+) -> None:
     """Generate an HTML report summarising DeNovoWEST pipeline results.
 
     RESULTS_DIR is the root output directory produced by the pipeline
@@ -974,6 +1131,7 @@ def report(results_dir: Path, threshold: float, g2p: Path | None, gff: Path | No
         threshold: multiple-testing corrected significance threshold.
         g2p: optional G2P CSV for confidence annotation.
         gff: optional GFF3 for G2P overlap detection.
+        source_lists_path: optional TSV of gene source lists for badge display.
         output: destination HTML file (default: <results_dir>/report.html).
     """
 
@@ -998,6 +1156,15 @@ def report(results_dir: Path, threshold: float, g2p: Path | None, gff: Path | No
             logger.info(f"Merged G2P annotations for {g2p_df['gene_symbol'].nunique()} genes from {g2p.name}")
         except ValueError as e:
             logger.warning(f"Skipping G2P annotation: {e}")
+
+    if source_lists_path is not None:
+        try:
+            source_lists_df = load_gene_source_lists(source_lists_path)
+            df = merge_source_lists(df, source_lists_df)
+            n_matched = (df["source_lists"] != "").sum()
+            logger.info(f"Merged source lists for {n_matched} gene(s) from {source_lists_path.name}")
+        except ValueError as e:
+            logger.warning(f"Skipping source-list annotation: {e}")
 
     gene_coords_df = None
     ambiguous_symbol_gene_ids = None
@@ -1039,6 +1206,12 @@ def report(results_dir: Path, threshold: float, g2p: Path | None, gff: Path | No
             "Filtering stats (filtered_rates_stats.json) not found — site-filtering percentages will be unavailable"
         )
 
+    adjusted_rates = load_adjusted_rates(results_dir)
+    if adjusted_rates is not None:
+        logger.info(f"Loaded rate adjustment stats for {len(adjusted_rates)} genes")
+    else:
+        logger.info("Rate adjustment stats (adjusted_rates.json) not found — rate adjustment ratios will be unavailable")
+
     # Detect predictor names early so they can inform both caution flags and the report
     score_predictor = _detect_predictor_name(simulation_log)
     mis_score_predictor = _detect_predictor_name(mis_simulation_log)
@@ -1057,6 +1230,7 @@ def report(results_dir: Path, threshold: float, g2p: Path | None, gff: Path | No
         score_predictor=score_predictor,
         mis_score_predictor=mis_score_predictor,
         filtered_rates_stats_log=filtered_rates_stats_log,
+        adjusted_rates=adjusted_rates,
     )
     n_caution = int(df["caution"].sum())
     logger.info(f"{n_caution} gene(s) flagged with caution")
@@ -1070,6 +1244,7 @@ def report(results_dir: Path, threshold: float, g2p: Path | None, gff: Path | No
         mis_simulation_log,
         rates_stats_log,
         filtered_rates_stats_log,
+        adjusted_rates=adjusted_rates,
         score_predictor=score_predictor,
         mis_score_predictor=mis_score_predictor,
     )
