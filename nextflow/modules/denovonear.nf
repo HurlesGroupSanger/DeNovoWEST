@@ -87,13 +87,18 @@ process DENOVONEAR_LINEAR {
     tuple path(dnm), val(id)
 	path gtf
     path fasta
+    path clustering_rates
+    path clustering_rates_index
 
     output :
     path "${id}_linear_clustering_results.tsv", emit :results
 
     script :
+
+    def rates = clustering_rates ? "--rates ${clustering_rates} --rates-format genome" : ""
+
     """
-    denovonear cluster --in $dnm --gencode $gtf --fasta $fasta --out ${id}_linear_clustering_results.tsv
+    denovonear cluster --in $dnm --gencode $gtf --fasta $fasta --out ${id}_linear_clustering_results.tsv ${rates}
     """
 }
 
@@ -140,11 +145,15 @@ process DENOVONEAR_3D {
     path fasta
 	path protein_structures
     path patch_done
+    path clustering_rates
+    path clustering_rates_index
+
 
     output :
     path "${id}_3d_clustering_results.tsv", emit :results
 
     script :
+    def rates = clustering_rates ? "--rates ${clustering_rates} --rates-format genome" : ""
     """
     denovonear cluster-structure \
 		--in $dnm \
@@ -152,7 +161,8 @@ process DENOVONEAR_3D {
 		--gencode $gtf \
 		--fasta $fasta \
         --genome-build grch38 \
-		--out ${id}_3d_clustering_results.tsv
+		--out ${id}_3d_clustering_results.tsv \
+        ${rates}
     """
 }
 

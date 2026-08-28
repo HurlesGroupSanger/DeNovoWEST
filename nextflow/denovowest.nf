@@ -155,6 +155,10 @@ workflow{
         params.clustering = params.clustering ?: [:]
         params.clustering.runtype = params.clustering.runtype ?: '3D'
 
+        // Optional genome-position mutation rates VCF (e.g. Roulette) passed through to denovonear
+        params.clustering.rates = params.clustering.rates ?: ""
+
+
         if ((params.clustering.runtype in ['3D', 'both']) && !params.clustering.containsKey("protein_structures")) {
 
           log.error "❌ A protein structure file is needed to run the 3D clustering test."
@@ -425,7 +429,7 @@ workflow{
       if (params.containsKey("sperm_positive_selection_adjustment")){
             rates_merged_ch = SPERM_POSITIVE_SELECTION_ADJUSTMENT(rates_merged_ch, file(params.sperm_positive_selection_adjustment))
       }
-      
+
       // Create rates stats
       rates_stats_ch = RATES_STATS(rates_merged_ch)
 
@@ -681,14 +685,18 @@ workflow{
 
       dnm_dnn_ch = PREPARE_DNM_DENOVONEAR(dnm_split_ch, gffutils_db_ch.first())
 
+      // No rates VCF provided -> pass an empty list so the DENOVONEAR_* processes treat it as absent
+      clustering_rates_ch = params.clustering.rates ? file(params.clustering.rates) : []
+      clustering_rates_index_ch = params.clustering.rates ? file(params.clustering.rates + ".tbi") : []
+
       if(params.clustering.runtype == "both") {
-        DENOVONEAR_LINEAR(dnm_dnn_ch, file(params.gff), file(params.genome_fasta))
+        DENOVONEAR_LINEAR(dnm_dnn_ch, file(params.gff), file(params.genome_fasta), clustering_rates_ch, clustering_rates_index_ch)
         MERGE_CLUSTERING_LINEAR(DENOVONEAR_LINEAR.out.results.collect(), "linear")
         ADD_GENE_ID_LINEAR(MERGE_CLUSTERING_LINEAR.out,  gffutils_db_ch.first(), "linear")
 
 
         PATCH_DENOVONEAR()
-        DENOVONEAR_3D(dnm_dnn_ch, file(params.gff), file(params.genome_fasta), file(params.clustering.protein_structures), PATCH_DENOVONEAR.out.done)
+        DENOVONEAR_3D(dnm_dnn_ch, file(params.gff), file(params.genome_fasta), file(params.clustering.protein_structures), PATCH_DENOVONEAR.out.done,  clustering_rates_ch, clustering_rates_index_ch)
         MERGE_CLUSTERING_3D(DENOVONEAR_3D.out.results.collect(), "3D")
         ADD_GENE_ID_3D(MERGE_CLUSTERING_3D.out,  gffutils_db_ch.first(), "3D")
 
@@ -705,7 +713,7 @@ workflow{
 
       if(params.clustering.runtype == "linear") {
 
-        DENOVONEAR_LINEAR(dnm_dnn_ch, file(params.gff), file(params.genome_fasta))
+        DENOVONEAR_LINEAR(dnm_dnn_ch, file(params.gff), file(params.genome_fasta),  clustering_rates_ch, clustering_rates_index_ch)
         MERGE_CLUSTERING_LINEAR(DENOVONEAR_LINEAR.out.results.collect(), "linear")
         ADD_GENE_ID_LINEAR(MERGE_CLUSTERING_LINEAR.out,  gffutils_db_ch.first(), "linear")
 
@@ -721,7 +729,7 @@ workflow{
       if(params.clustering.runtype == "3D") {
 
         PATCH_DENOVONEAR()
-        DENOVONEAR_3D(dnm_dnn_ch, file(params.gff), file(params.genome_fasta),  file(params.clustering.protein_structures), PATCH_DENOVONEAR.out.done)
+        DENOVONEAR_3D(dnm_dnn_ch, file(params.gff), file(params.genome_fasta),  file(params.clustering.protein_structures), PATCH_DENOVONEAR.out.done,  clustering_rates_ch, clustering_rates_index_ch)
         MERGE_CLUSTERING_3D(DENOVONEAR_3D.out.results.collect(), "3D")
         ADD_GENE_ID_3D(MERGE_CLUSTERING_3D.out,  gffutils_db_ch.first(), "3D")
 
