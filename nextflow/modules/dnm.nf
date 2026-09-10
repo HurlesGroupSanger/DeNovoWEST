@@ -8,6 +8,7 @@ process FILTER_DNM {
   input:
   path dnm
   path gene_list
+  val exclude_sex_chromosomes
 
 
   output:
@@ -17,8 +18,9 @@ process FILTER_DNM {
   beforeScript "[ -v NF_TEST ] && export PYTHONPATH=$baseDir/../../../../../denovowest/;"
 
   script :
+  def allosomes_arg = exclude_sex_chromosomes ? "--no-allosomes" : ""
   """
-  filter_dnm.py ${dnm} ${gene_list} --output_kept_dnm dnms_kept_after_gene_filtering.tsv  --output_discarded_dnm dnms_discarded_after_gene_filtering.tsv
+  filter_dnm.py ${dnm} ${gene_list} --output_kept_dnm dnms_kept_after_gene_filtering.tsv  --output_discarded_dnm dnms_discarded_after_gene_filtering.tsv ${allosomes_arg}
   """
 }
 
@@ -32,14 +34,16 @@ process FILTER_DNM_GFF {
   path dnm
   path gene_list
   path gff_db
+  val exclude_sex_chromosomes
 
 
   output:
   tuple path ("dnms_kept_after_cds_filtering.tsv"), path ("dnms_discarded_after_cds_filtering.tsv")
 
   script :
+  def allosomes_arg = exclude_sex_chromosomes ? "--no-allosomes" : ""
   """
-  filter_dnm.py ${dnm} ${gene_list} --output_kept_dnm dnms_kept_after_cds_filtering.tsv  --output_discarded_dnm dnms_discarded_after_cds_filtering.tsv --gff ${gff_db}
+  filter_dnm.py ${dnm} ${gene_list} --output_kept_dnm dnms_kept_after_cds_filtering.tsv  --output_discarded_dnm dnms_discarded_after_cds_filtering.tsv --gff ${gff_db} ${allosomes_arg}
   """
 }
 

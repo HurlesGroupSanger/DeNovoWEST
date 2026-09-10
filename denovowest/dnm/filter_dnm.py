@@ -13,6 +13,13 @@ from denovowest.utils.log import init_log
 from denovowest.utils.params import CDS_OFFSET
 
 #############################
+# Constants                 #
+#############################
+
+# Sex chromosome names, with and without the "chr" prefix depending on the assembly notation
+ALLOSOMES: frozenset[str] = frozenset({"X", "Y"})
+
+#############################
 # CLI                       #
 #############################
 
@@ -23,17 +30,26 @@ from denovowest.utils.params import CDS_OFFSET
 @click.option("--output_kept_dnm", type=click.Path(path_type=Path))
 @click.option("--output_discarded_dnm", type=click.Path(path_type=Path))
 @click.option("--gff", type=click.Path(exists=True, path_type=Path))
+@click.option(
+    "--no-allosomes",
+    "no_allosomes",
+    is_flag=True,
+    default=False,
+    help="Discard DNM located on the sex chromosomes (X and Y).",
+)
 def filter_dnm(
     dnm: Path,
     gene_list: Path,
     output_kept_dnm: Path,
     output_discarded_dnm: Path,
     gff: Path | None,
+    no_allosomes: bool,
 ) -> None:
     """Remove from the DNM table variants whose gene is absent from the gene list.
 
     The gene list is either user-provided or built from the rates file.
     If ``--gff`` is provided, variants outside CDS regions are also discarded.
+    If ``--no-allosomes`` is set, variants on chromosomes X and Y are also discarded.
 
     Args:
         dnm: Path to the DNM file.
@@ -41,6 +57,7 @@ def filter_dnm(
         output_kept_dnm: Destination path for retained variants.
         output_discarded_dnm: Destination path for discarded variants.
         gff: Path to a GFF file or gffutils database (enables CDS filtering).
+        no_allosomes: Whether to discard variants located on chromosomes X or Y.
     """
 
     init_log()
@@ -50,6 +67,11 @@ def filter_dnm(
 
     # Filter on gene list membership
     dnm_df, dnm_discarded_df = filter_on_gene_list(dnm_df, genes)
+
+    # Optionally filter out sex chromosomes
+    if no_allosomes:
+        dnm_df, dnm_discarded_allosomes_df = filter_on_allosomes(dnm_df)
+        dnm_discarded_df = pd.concat([dnm_discarded_df, dnm_discarded_allosomes_df])
 
     # Optionally filter on CDS regions
     if gff:
@@ -84,6 +106,42 @@ def filter_on_gene_list(
     discarded = dnm_df.loc[~dnm_df["gene_id"].isin(gene_list)].copy()
     discarded["reason"] = "not_in_gene_list"
     return kept, discarded
+
+
+def filter_on_allosomes(dnm_df: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """Remove rows located on the sex chromosomes (X and Y).
+
+    Args:
+        dnm_df: DNM table.
+
+    Returns:
+        Tuple of (kept DataFrame, discarded DataFrame).
+        The discarded DataFrame carries a ``reason`` column.
+
+    Note:
+        Chromosome names are normalised before comparison, so both the
+        ``chrX``/``chrY`` and ``X``/``Y`` notations are recognised.
+    """
+
+    is_allosome = normalise_chrom(dnm_df["chrom"]).isin(ALLOSOMES)
+
+    kept = dnm_df.loc[~is_allosome].copy()
+    discarded = dnm_df.loc[is_allosome].copy()
+    discarded["reason"] = "allosome"
+    return kept, discarded
+
+
+def normalise_chrom(chrom: pd.Series) -> pd.Series:
+    """Strip the ``chr`` prefix and upper-case chromosome names.
+
+    Args:
+        chrom: Chromosome column.
+
+    Returns:
+        Series of normalised chromosome names (e.g. ``chrX`` and ``x`` both become ``X``).
+    """
+
+    return chrom.astype("string").str.strip().str.upper().str.removeprefix("CHR")
 
 
 def filter_on_gff(

@@ -63,6 +63,8 @@ workflow{
     params.run_enrichment = params.run_enrichment ?: false
     params.run_clustering = params.run_clustering ?: false
     params.plot_oe_ratios = params.plot_oe_ratios ?: false
+    params.exclude_sex_chromosomes = params.exclude_sex_chromosomes ?: false
+
 
 
     if (!params.create_rates && !params.annotate_rates && !params.annotate_dnm && !params.run_enrichment && !params.run_clustering && !params.plot_oe_ratios) {
@@ -459,10 +461,10 @@ workflow{
       dnm_ch = Channel.fromPath(params.dnm)
 
       if ((params.containsKey("gff_db") || params.containsKey("gff"))) {
-          dnm_ch = FILTER_DNM_GFF(dnm_ch, gene_list_ch, gffutils_db_ch)
+          dnm_ch = FILTER_DNM_GFF(dnm_ch, gene_list_ch, gffutils_db_ch, params.exclude_sex_chromosomes)
       }
       else {
-          dnm_ch = FILTER_DNM(dnm_ch, gene_list_ch)
+          dnm_ch = FILTER_DNM(dnm_ch, gene_list_ch, params.exclude_sex_chromosomes)
       }
 
       // Filter DNMs in excluded regions (e.g. SSR, segmental duplications, ...)
