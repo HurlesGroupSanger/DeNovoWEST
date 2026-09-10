@@ -15,6 +15,7 @@ include { FILTER_RATES_REGION } from './modules/rates.nf'
 include {RATES_PER_GENE_PER_CSQ} from './modules/rates.nf'
 include {OE_RATIOS} from './modules/rates.nf'
 include {SPERM_POSITIVE_SELECTION_ADJUSTMENT} from './modules/rates.nf'
+include {TSV_TO_VCF} from './modules/rates.nf'
 
 
 include { FILTER_DNM } from './modules/dnm.nf'
@@ -429,6 +430,10 @@ workflow{
       if (params.containsKey("sperm_positive_selection_adjustment")){
             rates_merged_ch = SPERM_POSITIVE_SELECTION_ADJUSTMENT(rates_merged_ch, file(params.sperm_positive_selection_adjustment))
       }
+
+
+      // Create the VCF file from the annotated, filtered and adjusted rates file
+      rates_vcf_ch = TSV_TO_VCF(rates_merged_ch)
 
       // Create rates stats
       rates_stats_ch = RATES_STATS(rates_merged_ch)

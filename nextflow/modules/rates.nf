@@ -281,6 +281,26 @@ process SPERM_POSITIVE_SELECTION_ADJUSTMENT {
 }
 
 
+process TSV_TO_VCF {
+
+    beforeScript = params.useModules
+      ? "module load $params.tabixModule"
+      : ""
+  
+    publishDir "${params.outdir}/rates", mode: 'copy', overwrite: true
+
+    input :
+    tuple path(rates), path(rates_index)
+
+    output :
+    tuple (path "rates_adjusted.vcf.gz"), path ("rates_adjusted.vcf.gz.tbi")
+
+    script:
+    """
+    roulette_tsv_to_vcf.sh $rates rates_adjusted.vcf
+    """
+}
+
 
 
 /*
