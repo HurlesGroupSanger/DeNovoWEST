@@ -240,7 +240,7 @@ workflow{
 
         // Adjust mutation rates to take into account positive selection in sperm
         if (params.containsKey("sperm_positive_selection_adjustment")){
-            rates_merged_ch = SPERM_POSITIVE_SELECTION_ADJUSTMENT(rates_merged_ch, file(params.sperm_positive_selection_adjustment))
+            rates_merged_ch = SPERM_POSITIVE_SELECTION_ADJUSTMENT(rates_merged_ch, file(params.sperm_positive_selection_adjustment))[0]
         }
 
       rates_stats_ch = RATES_STATS(rates_merged_ch)
@@ -430,7 +430,7 @@ workflow{
 
       // Adjust mutation rates to take into account positive selection in sperm
       if (params.containsKey("sperm_positive_selection_adjustment")){
-            rates_merged_ch = SPERM_POSITIVE_SELECTION_ADJUSTMENT(rates_merged_ch, file(params.sperm_positive_selection_adjustment))
+            rates_merged_ch = SPERM_POSITIVE_SELECTION_ADJUSTMENT(rates_merged_ch, file(params.sperm_positive_selection_adjustment))[0]
       }
 
 

@@ -260,14 +260,16 @@ process SPERM_POSITIVE_SELECTION_ADJUSTMENT {
       ? "module load $params.tabixModule;module load $params.bedtoolsModule"
       : ""
   
-    publishDir "${params.outdir}/rates", mode: 'copy', overwrite: true
+    publishDir "${params.outdir}/rates", pattern: "rates_adjusted.tsv.gz*", mode: 'copy', overwrite: true
+    publishDir "${params.outdir}/rates/stats", pattern: "*.json", mode: 'copy', overwrite: true
 
     input :
     tuple path(rates), path(rates_index)
     path sperm_positive_selection_adjustment_json
 
     output :
-    tuple (path "rates_adjusted.tsv.gz"), path ("rates_adjusted.tsv.gz.tbi")
+    tuple path("rates_adjusted.tsv.gz"), path("rates_adjusted.tsv.gz.tbi")
+    path "adjusted_rates.json"
 
     script:
     """
@@ -387,6 +389,9 @@ process OE_RATIOS {
  * Generate a JSON file containing statistics about the rates 
  */
 process RATES_STATS {
+
+
+  label "intensive"
 
   publishDir "${params.outdir}/rates/stats/", mode: 'copy', overwrite: true
 
