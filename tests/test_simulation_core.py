@@ -6,11 +6,10 @@ from denovowest.simulation.config import Config
 from denovowest.simulation.probabilities import calc_pn, get_pvalue, sim_score
 from denovowest.simulation.simulation import (
     assign_meta_consequences,
-    compute_expected_number_of_mutations,
-    compute_x_factor_correction,
     extract_worst_consequence,
     filter_on_consequences,
 )
+from denovowest.utils.helpers import compute_expected_number_of_mutations, compute_x_factor_correction
 from denovowest.utils.params import RunType
 
 
@@ -148,7 +147,7 @@ def test_sim_score_uses_explicit_nsim_for_chunking(monkeypatch):
     assert calls == [(2, 100), (2, 100), (2, 50)]
 
 
-def test_calc_pn_executes_the_adaptive_simulation_count(monkeypatch):
+def test_calc_pn_runs_user_nsim_and_applies_pseudocount(monkeypatch):
     simulated_nsim = []
 
     def fake_sim_score(mu, obs_sum_scores, rates, nb_mutation_poisson, score_column, nsim, cfg):
@@ -178,7 +177,8 @@ def test_calc_pn_executes_the_adaptive_simulation_count(monkeypatch):
         cfg=cfg,
     )
 
-    assert nsim == 10**7
+    assert nsim == cfg.nsim
     assert simulated_nsim == [nsim]
     assert s == 0
-    assert pn >= 0
+    # pmf(n) * (s + 1) / (nsim + 1)
+    assert pn == pytest.approx(0.5 * 1 / (cfg.nsim + 1))

@@ -103,7 +103,7 @@ def test_combine_dne_dnn_merges_sources_and_computes_min_pval_with_mode(tmp_path
     expected_g1_combined = combine_pvalues([0.01, 0.1], method="fisher")[1]
 
     assert by_gene.loc["G1", "clustering_mode"] == "3D"
-    assert by_gene.loc["G1", "nb_mis_variants"] == 11
+    assert by_gene.loc["G1", "clustering_nb_mis_variants"] == 11
     assert by_gene.loc["G1", "clustering_dist"] == 1.1
     assert by_gene.loc["G1", "combined_mis_pval"] == pytest.approx(expected_g1_combined)
     assert by_gene.loc["G1", "min_pval"] == pytest.approx(min(expected_g1_combined, 0.2))

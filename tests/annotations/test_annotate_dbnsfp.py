@@ -3,6 +3,8 @@
 from pathlib import Path
 from unittest.mock import MagicMock
 
+import shutil
+
 import pandas as pd
 import pytest
 from click.testing import CliRunner
@@ -30,13 +32,21 @@ GFF = _INPUT / "OR4F5.gff"
 DBNSFP_EXPECTED = _OUTPUT / "OR4F5_dbnsfp.tsv"
 
 
+@pytest.fixture
+def gff(tmp_path):
+    """Copy of the GFF in a temporary directory: the gffutils database is created next to the GFF."""
+    path = tmp_path / "OR4F5.gff"
+    shutil.copy(GFF, path)
+    return path
+
+
 #############################
 # Smoke tests               #
 #############################
 
 
 @pytest.mark.smoke
-def test_annotate_dbnsfp_smoke(tmp_path):
+def test_annotate_dbnsfp_smoke(tmp_path, gff):
     """CLI exits cleanly and appends the AlphaMissense_score column."""
     output = tmp_path / "out.tsv"
     runner = CliRunner()
@@ -44,7 +54,7 @@ def test_annotate_dbnsfp_smoke(tmp_path):
     result = runner.invoke(
         main,
         ["annotate-dbnsfp", str(VARIANTS), str(DBNSFP), str(output),
-         "-c", "AlphaMissense_score", "--gff", str(GFF)],
+         "-c", "AlphaMissense_score", "--gff", str(gff)],
     )
 
     assert result.exit_code == 0, result.output
@@ -78,14 +88,14 @@ def test_annotate_dbnsfp_smoke_no_gff(tmp_path):
 
 
 @pytest.mark.regression
-def test_annotate_dbnsfp_regression(tmp_path):
+def test_annotate_dbnsfp_regression(tmp_path, gff):
     """Output matches the known-good reference."""
     output = tmp_path / "out.tsv"
     runner = CliRunner()
     runner.invoke(
         main,
         ["annotate-dbnsfp", str(VARIANTS), str(DBNSFP), str(output),
-         "-c", "AlphaMissense_score", "--gff", str(GFF)],
+         "-c", "AlphaMissense_score", "--gff", str(gff)],
     )
 
     actual = pd.read_csv(output, sep="\t", dtype=str)

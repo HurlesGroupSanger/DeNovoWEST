@@ -10,10 +10,10 @@ from click.testing import CliRunner
 
 from denovowest.rates.adjust_rates import (
     apply_sperm_selection_adjustment,
-    _build_gene_version_mapping,
     _load_adjustment_json,
     main,
 )
+from denovowest.utils.helpers import ensembl_ids_map_version
 
 #############################
 # Paths to fixtures         #
@@ -123,21 +123,24 @@ def test_load_adjustment_json_site_missing_field_raises(tmp_path):
 ######################################
 
 
+def _rates_gene_ids() -> list[str]:
+    return pd.read_csv(RATES, sep="\t", usecols=["gene_id"]).gene_id.unique().tolist()
+
+
 @pytest.mark.unit
-def test_build_gene_version_mapping_resolves_unversioned_to_versioned():
+def test_version_mapping_resolves_unversioned_to_versioned():
     """JSON has unversioned ENSG00000117139; rates file has ENSG00000117139.19."""
     genes, _ = _load_adjustment_json(JSON)
-    mapping = _build_gene_version_mapping(RATES, genes, chunk_size=10_000)
+    mapping = ensembl_ids_map_version(list(genes), _rates_gene_ids())
 
-    assert GENE_IN_JSON in mapping
     assert mapping[GENE_IN_JSON] == GENE_IN_RATES
 
 
 @pytest.mark.unit
-def test_build_gene_version_mapping_absent_gene_not_in_result():
+def test_version_mapping_absent_gene_not_in_result():
     """Genes that have no match in the rates file must be absent from the mapping."""
     genes, _ = _load_adjustment_json(JSON)
-    mapping = _build_gene_version_mapping(RATES, genes, chunk_size=10_000)
+    mapping = ensembl_ids_map_version(list(genes), _rates_gene_ids())
 
     # All JSON genes except ENSG00000117139 are absent from the tiny rates fixture
     absent_genes = [g for g in genes if g != GENE_IN_JSON]
@@ -146,11 +149,17 @@ def test_build_gene_version_mapping_absent_gene_not_in_result():
 
 
 @pytest.mark.unit
-def test_build_gene_version_mapping_absent_gene_returns_empty():
-    genes = {"ENSG99999999": {"missense": 1.5}}
-    mapping = _build_gene_version_mapping(RATES, genes, chunk_size=10_000)
+def test_version_mapping_handles_versioned_and_mismatched_versions():
+    mapping = ensembl_ids_map_version(
+        ["ENSG00000117139.19", "ENSG00000117139.5", "ENSG00000179295"],
+        ["ENSG00000117139", "ENSG00000179295.20"],
+    )
 
-    assert mapping == {}
+    assert mapping == {
+        "ENSG00000117139.19": "ENSG00000117139",
+        "ENSG00000117139.5": "ENSG00000117139",
+        "ENSG00000179295": "ENSG00000179295.20",
+    }
 
 
 #############################################
@@ -269,14 +278,14 @@ def test_apply_site_multiplier():
             }
         ]
     )
-    result, matched = apply_sperm_selection_adjustment(chunk, {}, {SITE_ID: SITE_INFO}, {})
+    result, adjusted_genes = apply_sperm_selection_adjustment(chunk, {}, {SITE_ID: SITE_INFO}, {})
 
     assert pytest.approx(result.iloc[0]["prob"]) == 486.82
-    assert SITE_ID in matched
+    assert adjusted_genes == [GENE_CONTROL]
 
 
 @pytest.mark.unit
-def test_apply_site_returns_unmatched_site_absent_from_matched_set():
+def test_apply_unmatched_site_adjusts_no_gene():
     chunk = _make_chunk(
         [
             {
@@ -290,9 +299,10 @@ def test_apply_site_returns_unmatched_site_absent_from_matched_set():
             }
         ]
     )
-    _, matched = apply_sperm_selection_adjustment(chunk, {}, {SITE_ID: SITE_INFO}, {})
+    result, adjusted_genes = apply_sperm_selection_adjustment(chunk, {}, {SITE_ID: SITE_INFO}, {})
 
-    assert SITE_ID not in matched
+    assert result.iloc[0]["prob"] == 1.0
+    assert adjusted_genes == []
 
 
 ######################################
@@ -309,7 +319,7 @@ def test_cli_output_matches_expected(tmp_path):
             "--rates", str(RATES),
             "--sperm-selection-adjustment", str(JSON),
             "--outdir", str(tmp_path),
-            "--output-rates", "out.tsv",
+            "--output", "out.tsv",
         ],
     )
 

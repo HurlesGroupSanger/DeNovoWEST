@@ -2,6 +2,8 @@
 
 from pathlib import Path
 
+import shutil
+
 import pandas as pd
 import pytest
 from click.testing import CliRunner
@@ -25,6 +27,14 @@ VARIANTS = _INPUT / "OR4F5_dnms.tsv"
 VCF = _INPUT / "OR4F5_popevemap.vcf.gz"
 GFF = _INPUT / "OR4F5.gff"
 VCF_EXPECTED = _OUTPUT / "OR4F5_vcf.tsv"
+
+@pytest.fixture
+def gff(tmp_path):
+    """Copy of the GFF in a temporary directory: the gffutils database is created next to the GFF."""
+    path = tmp_path / "OR4F5.gff"
+    shutil.copy(GFF, path)
+    return path
+
 
 _COLUMNS = "-c popEVE,EVE,ESM1v".split()
 _EXPECTED_COLUMNS = ["gene_id", "chrom", "pos", "ref", "alt", "region_type", "varid", "gene_symbol", "popEVE", "EVE", "ESM1v"]
@@ -50,7 +60,7 @@ def test_annotate_vcf_smoke(tmp_path):
 
 
 @pytest.mark.smoke
-def test_annotate_vcf_match_gene_smoke(tmp_path):
+def test_annotate_vcf_match_gene_smoke(tmp_path, gff):
     """--match-gene with a GFF exits cleanly and resolves versioned gene IDs to symbols."""
     output = tmp_path / "out.tsv"
     runner = CliRunner()
@@ -59,7 +69,7 @@ def test_annotate_vcf_match_gene_smoke(tmp_path):
         main,
         ["annotate-vcf", str(VARIANTS), str(VCF), str(output)]
         + _COLUMNS
-        + ["--match-gene", "--gff", str(GFF)],
+        + ["--match-gene", "--gff", str(gff)],
     )
 
     assert result.exit_code == 0, result.output
