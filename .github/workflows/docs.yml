@@ -1,0 +1,73 @@
+name: docs
+
+# Builds the documentation with MkDocs and publishes it to the gh-pages branch
+# with mike, so that several versions of the docs can be served side by side:
+#   - pushes to develop update the "dev" version
+#   - version tags (v2.0.0, v2.1.0b1, ...) publish "<major>.<minor>" and, for
+#     final releases, move the "latest" alias to it
+# Pull requests only build the site (strict mode) to catch broken links.
+
+on:
+  push:
+    branches: [develop]
+    tags: ["v*"]
+    paths:
+      - "docs/**"
+      - "mkdocs.yml"
+      - "README.md"
+      - "nextflow/nextflow.config.*"
+      - ".github/workflows/docs.yml"
+  pull_request:
+    paths:
+      - "docs/**"
+      - "mkdocs.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: docs-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r docs/requirements.txt
+      - run: mkdocs build --strict
+
+  deploy:
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r docs/requirements.txt
+      - name: Configure git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+      - name: Deploy development docs
+        if: github.ref == 'refs/heads/develop' || github.event_name == 'workflow_dispatch'
+        run: mike deploy --push dev
+      - name: Deploy release docs
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          tag="${GITHUB_REF_NAME#v}"
+          minor="$(echo "$tag" | cut -d. -f1,2)"
+          if echo "$tag" | grep -qE '(a|b|rc)[0-9]+$'; then
+            mike deploy --push --update-aliases "$minor"
+          else
+            mike deploy --push --update-aliases "$minor" latest
+            mike set-default --push latest
+          fi

@@ -1,0 +1,93 @@
+site_name: DeNovoWEST
+site_description: Gene-level enrichment and clustering tests for de novo mutations
+site_url: https://hurlesgroupsanger.github.io/DeNovoWEST/
+repo_url: https://github.com/HurlesGroupSanger/DeNovoWEST
+repo_name: HurlesGroupSanger/DeNovoWEST
+edit_uri: edit/develop/docs/
+copyright: Copyright &copy; Genome Research Ltd. Released under the MIT licence.
+
+theme:
+  name: material
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.top
+    - navigation.footer
+    - navigation.indexes
+    - search.highlight
+    - search.suggest
+    - content.code.copy
+    - content.tabs.link
+    - content.action.edit
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: indigo
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: indigo
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+
+extra:
+  version:
+    provider: mike
+    default: dev
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - def_list
+  - footnotes
+  - md_in_html
+  - tables
+  - toc:
+      permalink: true
+  - pymdownx.details
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets:
+      base_path: ["."]
+      check_paths: true
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.tabbed:
+      alternate_style: true
+
+plugins:
+  - search
+
+nav:
+  - Home: index.md
+  - Getting started:
+      - Installation: getting-started/installation.md
+      - Quick start: getting-started/quickstart.md
+      - What's new in v2: getting-started/whats-new.md
+  - User guide:
+      - Workflow overview: user-guide/overview.md
+      - Configuration reference: user-guide/configuration.md
+      - Input files: user-guide/inputs.md
+      - Output files: user-guide/outputs.md
+      - HTML report: user-guide/report.md
+      - Running on a cluster: user-guide/hpc.md
+      - Recipes: user-guide/recipes.md
+  - Method:
+      - Concepts: method/concepts.md
+      - Enrichment test: method/enrichment.md
+      - Clustering test: method/clustering.md
+      - Mutation rates: method/rates.md
+  - Reference:
+      - Command-line interface: reference/cli.md
+      - Resources: reference/resources.md
+      - Glossary: reference/glossary.md
+  - FAQ: faq.md
+  - Development: development.md
+  - Citation: citation.md
