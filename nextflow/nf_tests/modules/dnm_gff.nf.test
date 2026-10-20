@@ -21,6 +21,7 @@ nextflow_process {
                 input[0] = file("$baseDir/../examples/dnm/filter_dnm/input/DNM_b38_MANE.tsv")
                 input[1] = file("$baseDir/../examples/dnm/filter_dnm/input/gene_list.tsv")
                 input[2] = file("$baseDir/../examples/rates/create_rates_kmer/input/OR4F5.gff")
+                input[3] = false
                 """
             }
         }
@@ -44,6 +45,7 @@ nextflow_process {
                 input[0] = file("$baseDir/nf_tests/test_data/dnm/filter_dnm_gff/input/dnm.tsv")
                 input[1] = file("$baseDir/nf_tests/test_data/dnm/filter_dnm_gff/input/gene_list.tsv")
                 input[2] = file("$baseDir/nf_tests/test_data/dnm/filter_dnm_gff/input/test.gff")
+                input[3] = false
                 """
             }
         }

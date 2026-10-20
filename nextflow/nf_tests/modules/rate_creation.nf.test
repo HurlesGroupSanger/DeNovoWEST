@@ -29,7 +29,7 @@ nextflow_process {
 
             with(process.out) {
                 def lines = path(get(0)[0][0]).readLines()
-                assert lines[0] == "gene_id\tchrom\tpos\tref\talt\tprob"
+                assert lines[0] == "gene_id\tchrom\tpos\tref\talt\tprob\tgene_symbol"
                 assert lines.size() > 1000
                 assert lines.tail().every { it.startsWith("ENSG00000186092.7\tchr1\t") }
             }
@@ -89,7 +89,7 @@ nextflow_process {
 
             with(process.out) {
                 def lines = path(get(0)[0][0]).readLines()
-                assert lines[0] == "gene_id\tchrom\tpos\tref\talt\tprob"
+                assert lines[0] == "gene_id\tchrom\tpos\tref\talt\tprob\tgene_symbol"
                 assert lines.size() > 1000
                 assert lines.tail().every { it.startsWith("ENSG00000186092.7\tchr1\t") }
             }
