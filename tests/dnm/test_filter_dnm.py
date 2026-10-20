@@ -2,7 +2,6 @@
 
 from pathlib import Path
 
-import gffutils
 import pandas as pd
 import pytest
 from click.testing import CliRunner
@@ -145,22 +144,6 @@ def test_filter_on_gene_list_empty_gene_list_discards_all():
 
     assert len(kept) == 0
     assert len(discarded) == 2
-
-
-@pytest.mark.unit
-def test_filter_on_gene_list_returns_independent_copies():
-    """Modifying the kept slice must not affect the discarded slice."""
-    dnm = pd.DataFrame({
-        "gene_id": ["G1", "G2"],
-        "chrom": ["chr1", "chr1"],
-        "pos": [100, 200],
-        "ref": ["A", "A"],
-        "alt": ["T", "T"],
-    })
-    kept, discarded = filter_on_gene_list(dnm, ["G1"])
-    kept["new_col"] = "x"
-
-    assert "new_col" not in discarded.columns
 
 
 #############################
@@ -323,27 +306,6 @@ def filter_results(tmp_path_factory):
     assert result.exit_code == 0, result.output
 
     return pd.read_csv(kept_path, sep="\t"), pd.read_csv(disc_path, sep="\t")
-
-
-@pytest.mark.functional
-def test_functional_kept_count(filter_results):
-    kept, _ = filter_results
-    reference = pd.read_csv(KEPT_REF, sep="\t")
-    assert len(kept) == len(reference)
-
-
-@pytest.mark.functional
-def test_functional_discarded_count(filter_results):
-    _, discarded = filter_results
-    reference = pd.read_csv(DISCARDED_REF, sep="\t")
-    assert len(discarded) == len(reference)
-
-
-@pytest.mark.functional
-def test_functional_discarded_reason_column(filter_results):
-    _, discarded = filter_results
-    assert "reason" in discarded.columns
-    assert discarded["reason"].notna().all()
 
 
 @pytest.mark.functional

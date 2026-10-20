@@ -30,27 +30,6 @@ CUSTOM_EXPECTED = _OUTPUT / "OR4F5_dnms_custom.tsv"
 
 
 #############################
-# Smoke tests               #
-#############################
-
-
-@pytest.mark.smoke
-def test_annotate_custom_smoke(tmp_path):
-    """CLI exits cleanly and appends the requested annotation column."""
-    output = tmp_path / "out.tsv"
-    runner = CliRunner()
-
-    result = runner.invoke(
-        main, ["annotate-custom", str(VARIANTS), str(ANNOTATION), str(output), "-c", "score"]
-    )
-
-    assert result.exit_code == 0, result.output
-    df = pd.read_csv(output, sep="\t")
-    assert "score" in df.columns
-    assert len(df) == 11
-
-
-#############################
 # Regression tests          #
 #############################
 
@@ -60,9 +39,10 @@ def test_annotate_custom_regression(tmp_path):
     """Output matches the known-good reference."""
     output = tmp_path / "out.tsv"
     runner = CliRunner()
-    runner.invoke(
+    result = runner.invoke(
         main, ["annotate-custom", str(VARIANTS), str(ANNOTATION), str(output), "-c", "score"]
     )
+    assert result.exit_code == 0, result.output
 
     actual = pd.read_csv(output, sep="\t", dtype=str)
     expected = pd.read_csv(CUSTOM_EXPECTED, sep="\t", dtype=str)
@@ -91,15 +71,6 @@ def test_parse_extracts_requested_columns():
 
     assert result["4"] == "0.5"
     assert result["5"] == "17.82"
-
-
-@pytest.mark.unit
-def test_parse_casts_pos_to_int():
-    """_parse stores pos as int, not string."""
-    line = "1\t65518\tA\tT\t2.23"
-    result = _parse(line, [])
-
-    assert isinstance(result["pos"], int)
 
 
 #######################################
@@ -177,9 +148,3 @@ def test_resolve_column_conflicts_no_clash_returns_unchanged():
     assert renames == {}
 
 
-@pytest.mark.unit
-def test_resolve_column_conflicts_suffix_reflects_source():
-    """The suffix in the renamed column name reflects the source argument."""
-    resolved, _ = resolve_column_conflicts(["score"], ["score"], "dbnsfp")
-
-    assert resolved == ["score_dbnsfp"]

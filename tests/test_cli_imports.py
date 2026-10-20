@@ -3,16 +3,6 @@ import importlib
 from click.testing import CliRunner
 
 
-def test_package_import_smoke():
-    module = importlib.import_module("denovowest")
-    assert module is not None
-
-
-def test_simulation_module_import_smoke():
-    module = importlib.import_module("denovowest.simulation.simulation")
-    assert module is not None
-
-
 def test_cli_help_smoke():
     cli_module = importlib.import_module("denovowest.cli")
     runner = CliRunner()
@@ -25,6 +15,7 @@ def test_cli_help_smoke():
     assert "annotate-custom" in result.output
     assert "annotate-dbnsfp" in result.output
     assert "annotate-vcf" in result.output
+    assert "report" in result.output
 
 
 def test_subcommand_help_smoke():
@@ -37,6 +28,7 @@ def test_subcommand_help_smoke():
         "annotate-custom",
         "annotate-dbnsfp",
         "annotate-vcf",
+        "report",
     ]:
         result = runner.invoke(cli_module.main, [command_name, "--help"])
 

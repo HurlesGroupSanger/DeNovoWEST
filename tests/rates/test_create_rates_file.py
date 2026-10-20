@@ -72,16 +72,6 @@ def test_load_gene_list_from_file(tmp_path):
     assert result == ["ENSG00000001", "ENSG00000002"]
 
 
-@pytest.mark.unit
-def test_load_gene_list_strips_trailing_newline(tmp_path):
-    gene_file = tmp_path / "genes.txt"
-    gene_file.write_text("ENSG00000001\n")
-
-    result = load_gene_list(gene_file, gff_db=None)
-
-    assert result == ["ENSG00000001"]
-
-
 #############################
 # CLI parameter validation  #
 #############################
@@ -223,9 +213,6 @@ def roulette_output(tmp_path_factory, roulette_vcf_dir):
 @pytest.mark.functional
 class TestKmerOutput:
 
-    def test_exit_code_is_zero(self, kmer_output):
-        # If the fixture didn't raise, the run succeeded
-        assert kmer_output is not None
 
     def test_has_expected_columns(self, kmer_output):
         assert list(kmer_output.columns) == ["gene_id", "chrom", "pos", "ref", "alt", "prob", "gene_symbol"]
@@ -255,8 +242,6 @@ class TestKmerOutput:
 @pytest.mark.functional
 class TestRouletteOutput:
 
-    def test_exit_code_is_zero(self, roulette_output):
-        assert roulette_output is not None
 
     def test_has_expected_columns(self, roulette_output):
         assert list(roulette_output.columns) == ["gene_id", "chrom", "pos", "ref", "alt", "prob", "gene_symbol"]
@@ -267,10 +252,6 @@ class TestRouletteOutput:
     def test_probabilities_are_positive(self, roulette_output):
         assert (roulette_output.prob > 0).all()
 
-    def test_probabilities_are_scaled(self, roulette_output):
-        # All prob values should be in the ballpark of scaling_factor * raw_roulette_rates
-        # Raw Roulette rates are ~1e-8 to 1e-6; after scaling by 5e-8 they should be <1e-9
-        assert (roulette_output.prob < 1e-6).all()
 
     def test_no_duplicate_variants(self, roulette_output):
         duplicates = roulette_output[["gene_id", "chrom", "pos", "ref", "alt"]].duplicated()

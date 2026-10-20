@@ -46,25 +46,6 @@ def gff(tmp_path):
 
 
 @pytest.mark.smoke
-def test_annotate_dbnsfp_smoke(tmp_path, gff):
-    """CLI exits cleanly and appends the AlphaMissense_score column."""
-    output = tmp_path / "out.tsv"
-    runner = CliRunner()
-
-    result = runner.invoke(
-        main,
-        ["annotate-dbnsfp", str(VARIANTS), str(DBNSFP), str(output),
-         "-c", "AlphaMissense_score", "--gff", str(gff)],
-    )
-
-    assert result.exit_code == 0, result.output
-    df = pd.read_csv(output, sep="\t")
-    assert "AlphaMissense_score" in df.columns
-    assert "transcript_in_dbnsfp" in df.columns
-    assert len(df) == 11
-
-
-@pytest.mark.smoke
 def test_annotate_dbnsfp_smoke_no_gff(tmp_path):
     """CLI exits cleanly without a GFF (coordinate + gene match only, no transcript filtering)."""
     output = tmp_path / "out.tsv"
@@ -92,11 +73,12 @@ def test_annotate_dbnsfp_regression(tmp_path, gff):
     """Output matches the known-good reference."""
     output = tmp_path / "out.tsv"
     runner = CliRunner()
-    runner.invoke(
+    result = runner.invoke(
         main,
         ["annotate-dbnsfp", str(VARIANTS), str(DBNSFP), str(output),
          "-c", "AlphaMissense_score", "--gff", str(gff)],
     )
+    assert result.exit_code == 0, result.output
 
     actual = pd.read_csv(output, sep="\t", dtype=str)
     expected = pd.read_csv(DBNSFP_EXPECTED, sep="\t", dtype=str)

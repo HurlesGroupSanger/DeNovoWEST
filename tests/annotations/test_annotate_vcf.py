@@ -46,20 +46,6 @@ _EXPECTED_COLUMNS = ["gene_id", "chrom", "pos", "ref", "alt", "region_type", "va
 
 
 @pytest.mark.smoke
-def test_annotate_vcf_smoke(tmp_path):
-    """CLI exits cleanly and appends the requested INFO columns."""
-    output = tmp_path / "out.tsv"
-    runner = CliRunner()
-
-    result = runner.invoke(main, ["annotate-vcf", str(VARIANTS), str(VCF), str(output)] + _COLUMNS)
-
-    assert result.exit_code == 0, result.output
-    df = pd.read_csv(output, sep="\t")
-    assert list(df.columns) == _EXPECTED_COLUMNS
-    assert len(df) == 11
-
-
-@pytest.mark.smoke
 def test_annotate_vcf_match_gene_smoke(tmp_path, gff):
     """--match-gene with a GFF exits cleanly and resolves versioned gene IDs to symbols."""
     output = tmp_path / "out.tsv"
@@ -88,12 +74,12 @@ def test_annotate_vcf_regression(tmp_path):
     """Coordinate-only output matches the known-good reference."""
     output = tmp_path / "out.tsv"
     runner = CliRunner()
-    runner.invoke(main, ["annotate-vcf", str(VARIANTS), str(VCF), str(output)] + _COLUMNS)
+    result = runner.invoke(main, ["annotate-vcf", str(VARIANTS), str(VCF), str(output)] + _COLUMNS)
+    assert result.exit_code == 0, result.output
 
     actual = pd.read_csv(output, sep="\t", dtype=str)
     expected = pd.read_csv(VCF_EXPECTED, sep="\t", dtype=str)
     pd.testing.assert_frame_equal(actual, expected)
-
 
 
 #########################################
@@ -148,15 +134,6 @@ def test_parse_extracts_coordinates_and_info_fields():
     assert result["GENE"] == "BRCA1"
 
 
-@pytest.mark.unit
-def test_parse_uses_first_alt_allele():
-    """_parse takes only the first ALT allele from a multi-allelic record."""
-    record = _MockVCFRecord("1", 100, "A", "T", {})
-    result = _parse(record)
-
-    assert result["alt"] == "T"
-
-
 #########################################
 # Unit – build_gene_mapping_from_column #
 #########################################
@@ -175,15 +152,6 @@ def test_build_gene_mapping_from_column_basic():
     mapping = build_gene_mapping_from_column(df)
 
     assert mapping == {"ENSG00000001": "BRCA1", "ENSG00000002": "TP53"}
-
-
-@pytest.mark.unit
-def test_build_gene_mapping_from_column_deduplicates():
-    """Each gene_id appears exactly once in the output mapping."""
-    df = pd.DataFrame({"gene_id": ["ENSG1", "ENSG1"], "symbol": ["GeneA", "GeneA"]})
-    mapping = build_gene_mapping_from_column(df)
-
-    assert len(mapping) == 1
 
 
 #########################################

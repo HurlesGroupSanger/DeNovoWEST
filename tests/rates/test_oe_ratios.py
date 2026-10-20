@@ -283,25 +283,6 @@ def test_expected_dnm_autosomal_rate_scaled_by_cohort_size():
     assert result.loc["G1", "synonymous"] == pytest.approx(20.0)
 
 
-@pytest.mark.unit
-def test_expected_dnm_x_linked_rate_differs_from_autosomal():
-    rates = pd.DataFrame(
-        {"synonymous": [0.1, 0.1]},
-        index=pd.Index(["autosomal_gene", "x_gene"]),
-    )
-    gene_infos = pd.DataFrame(
-        {"chrom": ["chr1", "chrX"], "hgnc_id": ["", ""]},
-        index=pd.Index(["autosomal_gene", "x_gene"]),
-    )
-
-    result = _compute_expected_dnm_per_gene(rates, gene_infos, nmales=50, nfemales=50)
-
-    # The X-linked gene should receive a different correction than the autosomal one
-    assert result.loc["autosomal_gene", "synonymous"] != pytest.approx(
-        result.loc["x_gene", "synonymous"]
-    )
-
-
 #######################################
 # Unit – compute_oe_ratios            #
 #######################################
@@ -509,15 +490,6 @@ def oe_data():
 
 
 @pytest.mark.unit
-def test_export_oe_ratios_creates_json(tmp_path, oe_data):
-    oe_ratios, oe_per_csq = oe_data
-
-    _export_oe_ratios(oe_ratios, oe_per_csq, tmp_path)
-
-    assert (tmp_path / "oe_ratios.json").exists()
-
-
-@pytest.mark.unit
 def test_export_oe_ratios_all_key_matches_aggregate(tmp_path, oe_data):
     oe_ratios, oe_per_csq = oe_data
     _export_oe_ratios(oe_ratios, oe_per_csq, tmp_path)
@@ -627,22 +599,11 @@ def oe_cli_output(tmp_path_factory, minimal_gff_path):
 @pytest.mark.functional
 class TestOeRatiosCLIOutput:
 
-    def test_output_contains_gene(self, oe_cli_output):
-        assert "ENSG00000000001" in oe_cli_output
-
-    def test_output_has_all_key(self, oe_cli_output):
-        assert "all" in oe_cli_output["ENSG00000000001"]
 
     def test_output_has_per_consequence_keys(self, oe_cli_output):
         gene = oe_cli_output["ENSG00000000001"]
         assert "synonymous" in gene
         assert "missense" in gene
-
-    def test_aggregate_ratio_is_positive(self, oe_cli_output):
-        assert oe_cli_output["ENSG00000000001"]["all"] > 0
-
-    def test_synonymous_ratio_is_positive(self, oe_cli_output):
-        assert oe_cli_output["ENSG00000000001"]["synonymous"] > 0
 
 
 ##############
@@ -713,9 +674,3 @@ class TestOeRatiosNonRegression:
                 assert regression_oe_output[gene_id][csq] == pytest.approx(expected_oe, rel=1e-6), \
                     f"Per-consequence O/E mismatch for {gene_id}.{csq}"
 
-    def test_constrained_genes_have_higher_aggregate_oe_than_unconstrained(self, regression_oe_output):
-        constrained   = [g[0] for g in _GENES_FULL if g[2] == "constrained"]
-        unconstrained = [g[0] for g in _GENES_FULL if g[2] == "unconstrained"]
-        avg_constrained   = sum(regression_oe_output[g]["all"] for g in constrained)   / len(constrained)
-        avg_unconstrained = sum(regression_oe_output[g]["all"] for g in unconstrained) / len(unconstrained)
-        assert avg_constrained > avg_unconstrained

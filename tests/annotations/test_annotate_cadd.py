@@ -26,25 +26,6 @@ _EXPECTED_COLUMNS = ["gene_id", "chrom", "pos", "ref", "alt", "region_type", "va
 
 
 #############################
-# Smoke tests               #
-#############################
-
-
-@pytest.mark.smoke
-def test_annotate_cadd_smoke(tmp_path):
-    """CLI exits cleanly and produces the expected columns and row count."""
-    output = tmp_path / "out.tsv"
-    runner = CliRunner()
-
-    result = runner.invoke(main, ["annotate-cadd", str(VARIANTS), str(CADD), str(output)])
-
-    assert result.exit_code == 0, result.output
-    df = pd.read_csv(output, sep="\t")
-    assert list(df.columns) == _EXPECTED_COLUMNS
-    assert len(df) == 11
-
-
-#############################
 # Regression tests          #
 #############################
 
@@ -54,7 +35,8 @@ def test_annotate_cadd_regression(tmp_path):
     """Output matches the known-good reference."""
     output = tmp_path / "out.tsv"
     runner = CliRunner()
-    runner.invoke(main, ["annotate-cadd", str(VARIANTS), str(CADD), str(output)])
+    result = runner.invoke(main, ["annotate-cadd", str(VARIANTS), str(CADD), str(output)])
+    assert result.exit_code == 0, result.output
 
     actual = pd.read_csv(output, sep="\t")
     expected = pd.read_csv(CADD_EXPECTED, sep="\t")
