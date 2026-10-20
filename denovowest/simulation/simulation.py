@@ -505,10 +505,11 @@ def log_configuration(conf):
 )
 @click.option(
     "--runtype",
-    type=click.Choice(RunType),
-    default=Config().runtype,
+    type=click.Choice([r.value for r in RunType]),
+    default=Config().runtype.value,
     show_default=True,
-    help="Run type: 'all-coding' for coding and splicing variants, 'mis' for missense, 'syn' for synonymous",
+    help="Run type: 'all-coding' for coding and splicing variants, 'mis' for missense, 'syn' for synonymous, "
+    "'ptv' for protein-truncating variants, 'protein-altering' for protein-altering variants",
 )
 
 # Inframe scoring
@@ -599,7 +600,7 @@ def main(
         nfemales=nfemales,
         gene_list=gene_list,
         impute_missing_scores=impute_missing_scores,
-        runtype=runtype,
+        runtype=RunType(runtype),
         inframe_missense_ratio=inframe_missense_ratio,
         inframe_score_quantile=inframe_score_quantile,
         frameshift_nonsense_ratio=frameshift_nonsense_ratio,
