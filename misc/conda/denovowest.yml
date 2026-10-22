@@ -15,5 +15,6 @@ dependencies:
 - seaborn
 - jinja2
 - pip:
+  - gencodegenes==1.1.6
   - denovonear
   - denovowest
