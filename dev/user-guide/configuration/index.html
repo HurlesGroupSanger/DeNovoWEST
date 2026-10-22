@@ -1,0 +1,2259 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Gene-level enrichment and clustering tests for de novo mutations">
+      
+      
+      
+        <link rel="canonical" href="https://hurlesgroupsanger.github.io/DeNovoWEST/dev/user-guide/configuration/">
+      
+      
+        <link rel="prev" href="../overview/">
+      
+      
+        <link rel="next" href="../inputs/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
+    
+    
+      
+        <title>Configuration reference - DeNovoWEST</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.ec1eaa64.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../../stylesheets/extra.css">
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#configuration-reference" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+      <div data-md-color-scheme="default" data-md-component="outdated" hidden>
+        
+      </div>
+    
+    
+      
+
+<header class="md-header" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="DeNovoWEST" class="md-header__button md-logo" aria-label="DeNovoWEST" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            DeNovoWEST
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Configuration reference
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/HurlesGroupSanger/DeNovoWEST" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    HurlesGroupSanger/DeNovoWEST
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+            
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../.." class="md-tabs__link">
+        
+  
+  
+    
+  
+  Home
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../getting-started/installation/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Getting started
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+  
+  
+    
+    
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="../overview/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  User guide
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../method/concepts/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Method
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../reference/cli/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Reference
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../faq/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  FAQ
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../development/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Development
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../citation/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Citation
+
+      </a>
+    </li>
+  
+
+      
+    </ul>
+  </div>
+</nav>
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="DeNovoWEST" class="md-nav__button md-logo" aria-label="DeNovoWEST" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    DeNovoWEST
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/HurlesGroupSanger/DeNovoWEST" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    HurlesGroupSanger/DeNovoWEST
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting started
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Getting started
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../getting-started/installation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Installation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../getting-started/quickstart/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Quick start
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../getting-started/whats-new/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    What's new in v2
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    User guide
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    User guide
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../overview/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Workflow overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Configuration reference
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Configuration reference
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#structure-of-a-configuration-file" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Structure of a configuration file
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#modes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Modes
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#shared-parameters" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Shared parameters
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Shared parameters">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#tools-from-environment-modules" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Tools from environment modules
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#rates-file-creation-rates_creation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Rates file creation (rates_creation)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#annotation-annotation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Annotation (annotation)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Annotation (annotation)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#dbnsfp-custom-and-vcf-sources" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        dbNSFP, custom and VCF sources
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#enrichment-test-enrichment" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Enrichment test (enrichment)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#clustering-test-clustering" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Clustering test (clustering)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#observed-expected-ratios-oe_ratios" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Observed / expected ratios (oe_ratios)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#nextflow-settings" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Nextflow settings
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../inputs/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Input files
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../outputs/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Output files
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../hpc/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Running on a cluster
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../recipes/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Recipes
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Method
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Method
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../method/concepts/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Concepts
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../method/enrichment/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Enrichment test
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../method/clustering/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Clustering test
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../method/rates/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Mutation rates
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/cli/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Command-line interface
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/resources/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Resources
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/glossary/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Glossary
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../faq/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    FAQ
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../development/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Development
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../citation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Citation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#structure-of-a-configuration-file" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Structure of a configuration file
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#modes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Modes
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#shared-parameters" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Shared parameters
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Shared parameters">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#tools-from-environment-modules" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Tools from environment modules
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#rates-file-creation-rates_creation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Rates file creation (rates_creation)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#annotation-annotation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Annotation (annotation)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Annotation (annotation)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#dbnsfp-custom-and-vcf-sources" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        dbNSFP, custom and VCF sources
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#enrichment-test-enrichment" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Enrichment test (enrichment)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#clustering-test-clustering" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Clustering test (clustering)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#observed-expected-ratios-oe_ratios" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Observed / expected ratios (oe_ratios)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#nextflow-settings" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Nextflow settings
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+    <a href="https://github.com/HurlesGroupSanger/DeNovoWEST/edit/develop/docs/user-guide/configuration.md" title="Edit this page" class="md-content__button md-icon" rel="edit">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M10 20H6V4h7v5h5v3.1l2-2V8l-6-6H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h4zm10.2-7c.1 0 .3.1.4.2l1.3 1.3c.2.2.2.6 0 .8l-1 1-2.1-2.1 1-1c.1-.1.2-.2.4-.2m0 3.9L14.1 23H12v-2.1l6.1-6.1z"/></svg>
+    </a>
+  
+  
+
+
+<h1 id="configuration-reference">Configuration reference<a class="headerlink" href="#configuration-reference" title="Permanent link">&para;</a></h1>
+<p>The workflow is configured with a <a href="https://www.nextflow.io/docs/latest/config.html">Nextflow configuration file</a>
+passed with <code>-c</code>:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>nextflow<span class="w"> </span>run<span class="w"> </span>denovowest.nf<span class="w"> </span>-c<span class="w"> </span>my_analysis.config
+</code></pre></div>
+<p>Start from one of the example files in <code>nextflow/</code> (see <a href="../../getting-started/quickstart/#other-example-configurations">Quick start</a>).
+The workflow prints all the parameters it received when it starts, and saves a copy
+of the configuration file in the output directory at the end of the run.</p>
+<h2 id="structure-of-a-configuration-file">Structure of a configuration file<a class="headerlink" href="#structure-of-a-configuration-file" title="Permanent link">&para;</a></h2>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="n">includeConfig</span><span class="w"> </span><span class="s1">'conf/local.conf'</span><span class="w">     </span><span class="c1">// or conf/lsf.conf, see "Running on a cluster"</span>
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="n">includeConfig</span><span class="w"> </span><span class="s1">'conf/default.conf'</span>
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>
+<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="n">conda</span><span class="o">.</span><span class="na">enabled</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">true</span>
+<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>
+<a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a><span class="n">params</span><span class="o">.</span><span class="na">basedir</span><span class="w">  </span><span class="o">=</span><span class="w"> </span><span class="s2">"/path/to/analyses"</span>
+<a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a><span class="n">params</span><span class="o">.</span><span class="na">run_name</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"kmer_cadd"</span>
+<a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a>
+<a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a><span class="n">workDir</span><span class="w">       </span><span class="o">=</span><span class="w"> </span><span class="s2">"${params.basedir}/work/${params.run_name}"</span>
+<a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a><span class="n">params</span><span class="o">.</span><span class="na">outdir</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"${params.basedir}/out/${params.run_name}"</span>
+<a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a>
+<a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a><span class="n">params</span><span class="w"> </span><span class="o">{</span>
+<a id="__codelineno-1-13" name="__codelineno-1-13" href="#__codelineno-1-13"></a><span class="w">  </span><span class="c1">// 1. modes: which steps to run</span>
+<a id="__codelineno-1-14" name="__codelineno-1-14" href="#__codelineno-1-14"></a><span class="w">  </span><span class="c1">// 2. shared parameters: input files used by several steps</span>
+<a id="__codelineno-1-15" name="__codelineno-1-15" href="#__codelineno-1-15"></a><span class="w">  </span><span class="c1">// 3. one block per step: rates_creation { }, annotation { }, enrichment { }, clustering { }</span>
+<a id="__codelineno-1-16" name="__codelineno-1-16" href="#__codelineno-1-16"></a><span class="o">}</span>
+</code></pre></div>
+<div class="admonition tip">
+<p class="admonition-title">Tip</p>
+<p>Keep the same <code>basedir</code> for a project and change only <code>run_name</code> between
+analyses (e.g. <code>kmer</code> vs <code>roulette</code> mutation rate model). Each run then gets its own
+output and work directory.</p>
+</div>
+<h2 id="modes">Modes<a class="headerlink" href="#modes" title="Permanent link">&para;</a></h2>
+<p>Steps are switched on with boolean flags in <code>params</code>. They are all <code>false</code> by default,
+and at least one must be set.</p>
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Runs</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>create_rates</code></td>
+<td><a href="#rates-file-creation-rates_creation">Rates file creation</a> from the GFF and a mutation rate model</td>
+</tr>
+<tr>
+<td><code>annotate_rates</code></td>
+<td><a href="#annotation-annotation">Annotation</a> of the rates file</td>
+</tr>
+<tr>
+<td><code>annotate_dnm</code></td>
+<td><a href="#annotation-annotation">Annotation</a> of the DNM file</td>
+</tr>
+<tr>
+<td><code>run_enrichment</code></td>
+<td><a href="#enrichment-test-enrichment">Enrichment test</a></td>
+</tr>
+<tr>
+<td><code>run_clustering</code></td>
+<td><a href="#clustering-test-clustering">Clustering test</a></td>
+</tr>
+<tr>
+<td><code>plot_oe_ratios</code></td>
+<td><a href="#observed-expected-ratios-oe_ratios">Observed / expected ratio QC</a></td>
+</tr>
+</tbody>
+</table>
+<p>Steps can be combined in a single run (e.g. <code>nextflow.config.full</code>) or run separately,
+feeding the outputs of one run to the next (e.g. annotate once, then try several
+enrichment settings).</p>
+<p>When both enrichment (with <code>runtype = "both"</code>) and clustering are switched on, the
+workflow also combines their p-values (see <a href="../outputs/#combined_tests">Output files</a>).</p>
+<h2 id="shared-parameters">Shared parameters<a class="headerlink" href="#shared-parameters" title="Permanent link">&para;</a></h2>
+<p>Set at the top level of <code>params</code>.</p>
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>dnm</code></td>
+<td>path</td>
+<td>—</td>
+<td>Observed DNM file. See <a href="../inputs/#dnm-file">Input files</a>.</td>
+</tr>
+<tr>
+<td><code>rates</code></td>
+<td>path</td>
+<td>—</td>
+<td>An existing rates file (bgzipped, with a <code>.tbi</code> index). When set, <code>create_rates</code> is skipped.</td>
+</tr>
+<tr>
+<td><code>gff</code></td>
+<td>path</td>
+<td>—</td>
+<td>Gene annotation in GFF3 format. Required to create or annotate rates, annotate DNMs, and for clustering.</td>
+</tr>
+<tr>
+<td><code>genome_fasta</code></td>
+<td>path</td>
+<td>—</td>
+<td>Reference genome FASTA, with a <code>.fai</code> index next to it.</td>
+</tr>
+<tr>
+<td><code>gene_list</code></td>
+<td>path</td>
+<td>—</td>
+<td>Restrict the analysis to these genes (one <code>gene_id</code> per line, as in the GFF, version included). If not set, the list is taken from the rates file, or from the GFF.</td>
+</tr>
+<tr>
+<td><code>excluded_regions</code></td>
+<td>path</td>
+<td>—</td>
+<td>BED file of regions to remove from both the rates and the DNM files (e.g. low-complexity regions, segmental duplications).</td>
+</tr>
+<tr>
+<td><code>exclude_sex_chromosomes</code></td>
+<td>bool</td>
+<td><code>false</code></td>
+<td>Discard DNMs on chromosomes X and Y.</td>
+</tr>
+<tr>
+<td><code>sperm_positive_selection_adjustment</code></td>
+<td>path</td>
+<td>—</td>
+<td>JSON file of factors used to scale mutation rates for genes or sites under positive selection in the male germline. See <a href="../../method/rates/#adjusting-for-positive-selection-in-sperm">Mutation rates</a>.</td>
+</tr>
+<tr>
+<td><code>split_step</code></td>
+<td>int</td>
+<td><code>100</code></td>
+<td>Number of genes per batch. Each batch is processed as a separate job.</td>
+</tr>
+<tr>
+<td><code>gff_db</code></td>
+<td>path</td>
+<td>—</td>
+<td>A gffutils database already built from <code>gff</code>, to skip rebuilding it. Mostly useful for development and tests.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="tools-from-environment-modules">Tools from environment modules<a class="headerlink" href="#tools-from-environment-modules" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>useModules</code></td>
+<td>bool</td>
+<td><code>false</code></td>
+<td>Load tools with <code>module load</code> before the processes that need them.</td>
+</tr>
+<tr>
+<td><code>bcftoolsModule</code></td>
+<td>str</td>
+<td>—</td>
+<td>Module providing bcftools ≥ 1.19.</td>
+</tr>
+<tr>
+<td><code>tabixModule</code></td>
+<td>str</td>
+<td>—</td>
+<td>Module providing tabix and bgzip.</td>
+</tr>
+<tr>
+<td><code>bedtoolsModule</code></td>
+<td>str</td>
+<td>—</td>
+<td>Module providing bedtools (only needed with <code>excluded_regions</code>).</td>
+</tr>
+</tbody>
+</table>
+<h2 id="rates-file-creation-rates_creation">Rates file creation (<code>rates_creation</code>)<a class="headerlink" href="#rates-file-creation-rates_creation" title="Permanent link">&para;</a></h2>
+<p>Used when <code>create_rates = true</code> and no <code>rates</code> file is given. A rates file lists every
+possible single-nucleotide substitution in the coding sequence and splice regions of each
+gene, with its expected mutation rate. See <a href="../../method/rates/">Mutation rates</a>.</p>
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+<th>Allowed values</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>model</code></td>
+<td>str</td>
+<td><code>kmer</code>, <code>roulette</code>, <code>carlson</code></td>
+<td><code>kmer</code></td>
+<td>Mutation rate model.</td>
+</tr>
+<tr>
+<td><code>path</code></td>
+<td>path</td>
+<td>—</td>
+<td>—</td>
+<td>Model data: a trinucleotide rates table for <code>kmer</code> (e.g. <code>resources/rates_model_dnn.tsv</code>), or the directory of per-chromosome VCFs for <code>roulette</code> and <code>carlson</code>.</td>
+</tr>
+<tr>
+<td><code>scaling_factor</code></td>
+<td>float</td>
+<td>—</td>
+<td>—</td>
+<td>Factor by which <code>roulette</code> and <code>carlson</code> rates are multiplied to obtain per-generation, per-haploid-genome probabilities. <strong>Required</strong> for these two models. See <a href="../../method/rates/#scaling-factor">Mutation rates</a>.</td>
+</tr>
+</tbody>
+</table>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="n">rates_creation</span><span class="w"> </span><span class="o">{</span>
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="w">  </span><span class="n">model</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"roulette"</span>
+<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="w">  </span><span class="n">path</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"/data/roulette/"</span>
+<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="w">  </span><span class="n">scaling_factor</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">5.075</span><span class="n">e</span><span class="o">-</span><span class="mi">8</span><span class="w">   </span><span class="c1">// Roulette default, see Mutation rates</span>
+<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a><span class="o">}</span>
+</code></pre></div>
+<h2 id="annotation-annotation">Annotation (<code>annotation</code>)<a class="headerlink" href="#annotation-annotation" title="Permanent link">&para;</a></h2>
+<p>Used when <code>annotate_rates</code> and/or <code>annotate_dnm</code> is set. The rates file and the DNM
+file are annotated with the same sources, so that any annotation can later be used as
+the score in the enrichment test. Each source is optional.</p>
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>annotate_bcftoolscsq</code></td>
+<td>bool</td>
+<td><code>true</code></td>
+<td>Annotate the consequence of each variant (e.g. <code>missense_variant</code>, <code>stop_gained</code>) with <code>bcftools csq</code> and the <code>gff</code> file. The enrichment test needs a consequence column.</td>
+</tr>
+<tr>
+<td><code>cadd_file</code></td>
+<td>path</td>
+<td>—</td>
+<td>CADD scores (tabix-indexed TSV). Adds the columns <code>raw</code> and <code>score</code> (PHRED-scaled).</td>
+</tr>
+<tr>
+<td><code>dbnsfp</code></td>
+<td>map</td>
+<td>—</td>
+<td>Scores from <a href="https://www.dbnsfp.org/">dbNSFP</a>, see below.</td>
+</tr>
+<tr>
+<td><code>custom</code></td>
+<td>map</td>
+<td>—</td>
+<td>Columns from up to three tab-separated, tabix-indexed files, see below.</td>
+</tr>
+<tr>
+<td><code>vcf</code></td>
+<td>map</td>
+<td>—</td>
+<td>Fields from the INFO column of up to three VCF files, see below.</td>
+</tr>
+</tbody>
+</table>
+<p>The formats of these files are described in <a href="../inputs/#annotation-sources">Input files</a>.</p>
+<div class="admonition warning">
+<p class="admonition-title">Contig names</p>
+<p>CADD, dbNSFP, custom and VCF annotation files must name chromosomes <strong>without</strong> the
+<code>chr</code> prefix (<code>1</code>, not <code>chr1</code>), as distributed by CADD and dbNSFP. The prefix of the
+rates and DNM files does not matter.</p>
+</div>
+<h3 id="dbnsfp-custom-and-vcf-sources">dbNSFP, custom and VCF sources<a class="headerlink" href="#dbnsfp-custom-and-vcf-sources" title="Permanent link">&para;</a></h3>
+<p>These sources accept a list of columns to extract. Give it either inline (<code>columns</code>,
+comma-separated) or in a file with one column name per line (<code>columns_file</code>). If neither
+is given, all columns are extracted.</p>
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>dbnsfp.database</code></td>
+<td>Path to the genome-wide dbNSFP file (bgzipped, with <code>.tbi</code>).</td>
+</tr>
+<tr>
+<td><code>dbnsfp.columns</code> / <code>dbnsfp.columns_file</code></td>
+<td>dbNSFP columns to extract.</td>
+</tr>
+<tr>
+<td><code>custom.&lt;name&gt;.path</code></td>
+<td>Path to a tabix-indexed TSV whose first columns are <code>chrom</code>, <code>pos</code>, <code>ref</code>, <code>alt</code>.</td>
+</tr>
+<tr>
+<td><code>custom.&lt;name&gt;.columns</code> / <code>custom.&lt;name&gt;.columns_file</code></td>
+<td>Columns to extract.</td>
+</tr>
+<tr>
+<td><code>vcf.&lt;name&gt;.path</code></td>
+<td>Path to a bgzipped, tabix-indexed VCF.</td>
+</tr>
+<tr>
+<td><code>vcf.&lt;name&gt;.columns</code> / <code>vcf.&lt;name&gt;.columns_file</code></td>
+<td>INFO fields to extract.</td>
+</tr>
+</tbody>
+</table>
+<p><code>&lt;name&gt;</code> is a label of your choice. At most <strong>three</strong> <code>custom</code> and three <code>vcf</code> sources can
+be used in one run.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="n">annotation</span><span class="w"> </span><span class="o">{</span>
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="w">  </span><span class="n">cadd_file</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"/data/cadd/whole_genome_SNVs.tsv.gz"</span>
+<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>
+<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="w">  </span><span class="n">dbnsfp</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="o">[</span>
+<a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a><span class="w">    </span><span class="nl">database:</span><span class="w"> </span><span class="s2">"/data/dbNSFP5.3.1a_grch38.gz"</span><span class="o">,</span>
+<a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a><span class="w">    </span><span class="nl">columns:</span><span class="w"> </span><span class="s2">"AlphaMissense_score,REVEL_score"</span>
+<a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a><span class="w">  </span><span class="o">]</span>
+<a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a>
+<a id="__codelineno-3-9" name="__codelineno-3-9" href="#__codelineno-3-9"></a><span class="w">  </span><span class="n">custom</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="o">[</span>
+<a id="__codelineno-3-10" name="__codelineno-3-10" href="#__codelineno-3-10"></a><span class="w">    </span><span class="s2">"itan"</span><span class="o">:</span><span class="w"> </span><span class="o">[</span>
+<a id="__codelineno-3-11" name="__codelineno-3-11" href="#__codelineno-3-11"></a><span class="w">      </span><span class="s2">"path"</span><span class="o">:</span><span class="w"> </span><span class="s2">"Itan_missense_full_annotations.tsv.gz"</span><span class="o">,</span>
+<a id="__codelineno-3-12" name="__codelineno-3-12" href="#__codelineno-3-12"></a><span class="w">      </span><span class="s2">"columns_file"</span><span class="o">:</span><span class="w"> </span><span class="s2">"Itan_annotations_to_keep.csv"</span>
+<a id="__codelineno-3-13" name="__codelineno-3-13" href="#__codelineno-3-13"></a><span class="w">    </span><span class="o">]</span>
+<a id="__codelineno-3-14" name="__codelineno-3-14" href="#__codelineno-3-14"></a><span class="w">  </span><span class="o">]</span>
+<a id="__codelineno-3-15" name="__codelineno-3-15" href="#__codelineno-3-15"></a>
+<a id="__codelineno-3-16" name="__codelineno-3-16" href="#__codelineno-3-16"></a><span class="w">  </span><span class="n">vcf</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="o">[</span>
+<a id="__codelineno-3-17" name="__codelineno-3-17" href="#__codelineno-3-17"></a><span class="w">    </span><span class="s2">"cosmic"</span><span class="o">:</span><span class="w"> </span><span class="o">[</span>
+<a id="__codelineno-3-18" name="__codelineno-3-18" href="#__codelineno-3-18"></a><span class="w">      </span><span class="s2">"path"</span><span class="o">:</span><span class="w"> </span><span class="s2">"Cosmic_GenomeScreensMutant_Normal_v101_GRCh38.vcf.gz"</span><span class="o">,</span>
+<a id="__codelineno-3-19" name="__codelineno-3-19" href="#__codelineno-3-19"></a><span class="w">      </span><span class="s2">"columns"</span><span class="o">:</span><span class="w"> </span><span class="s2">"GENOME_SCREEN_SAMPLE_COUNT"</span>
+<a id="__codelineno-3-20" name="__codelineno-3-20" href="#__codelineno-3-20"></a><span class="w">    </span><span class="o">],</span>
+<a id="__codelineno-3-21" name="__codelineno-3-21" href="#__codelineno-3-21"></a><span class="w">    </span><span class="s2">"popeve"</span><span class="o">:</span><span class="w"> </span><span class="o">[</span>
+<a id="__codelineno-3-22" name="__codelineno-3-22" href="#__codelineno-3-22"></a><span class="w">      </span><span class="s2">"path"</span><span class="o">:</span><span class="w"> </span><span class="s2">"popevemap.vcf.gz"</span><span class="o">,</span>
+<a id="__codelineno-3-23" name="__codelineno-3-23" href="#__codelineno-3-23"></a><span class="w">      </span><span class="s2">"columns"</span><span class="o">:</span><span class="w"> </span><span class="s2">"popEVE,EVE,ESM1v"</span>
+<a id="__codelineno-3-24" name="__codelineno-3-24" href="#__codelineno-3-24"></a><span class="w">    </span><span class="o">]</span>
+<a id="__codelineno-3-25" name="__codelineno-3-25" href="#__codelineno-3-25"></a><span class="w">  </span><span class="o">]</span>
+<a id="__codelineno-3-26" name="__codelineno-3-26" href="#__codelineno-3-26"></a><span class="o">}</span>
+</code></pre></div>
+<h2 id="enrichment-test-enrichment">Enrichment test (<code>enrichment</code>)<a class="headerlink" href="#enrichment-test-enrichment" title="Permanent link">&para;</a></h2>
+<p>Used when <code>run_enrichment = true</code>. Requires an annotated rates file and DNM file, either
+produced in the same run or given with <code>rates</code> and <code>dnm</code>. See
+<a href="../../method/enrichment/">Enrichment test</a>.</p>
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+<th>Allowed values</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>nmales</code></td>
+<td>int</td>
+<td>—</td>
+<td><strong>required</strong></td>
+<td>Number of male individuals in the cohort.</td>
+</tr>
+<tr>
+<td><code>nfemales</code></td>
+<td>int</td>
+<td>—</td>
+<td><strong>required</strong></td>
+<td>Number of female individuals in the cohort.</td>
+</tr>
+<tr>
+<td><code>score</code></td>
+<td>str or list</td>
+<td>—</td>
+<td><strong>required</strong></td>
+<td>Column of the rates and DNM files holding the variant severity score. With <code>runtype = "both"</code>, a list of two columns <code>[all_coding_score, missense_score]</code> uses a different score for each test.</td>
+</tr>
+<tr>
+<td><code>runtype</code></td>
+<td>str</td>
+<td><code>all-coding</code>, <code>mis</code>, <code>both</code></td>
+<td><code>all-coding</code></td>
+<td>Test all coding and splice variants, missense variants only, or run both tests. See <a href="../../method/enrichment/#run-types">Run types</a>.</td>
+</tr>
+<tr>
+<td><code>nsim</code></td>
+<td>int</td>
+<td>—</td>
+<td><code>10000000</code></td>
+<td>Number of simulations for each number of DNMs considered in a gene (see <a href="../../method/enrichment/#how-the-p-value-is-computed">Enrichment test</a>).</td>
+</tr>
+<tr>
+<td><code>impute_missing_scores</code></td>
+<td>bool</td>
+<td>—</td>
+<td><code>false</code></td>
+<td>Replace missing scores by the median score of the possible variants with the same consequence in the same gene, instead of discarding them. See <a href="../../method/enrichment/#missing-scores">Missing scores</a>.</td>
+</tr>
+<tr>
+<td><code>cpus</code></td>
+<td>int</td>
+<td>—</td>
+<td><code>1</code></td>
+<td>Number of CPUs used by each enrichment job.</td>
+</tr>
+<tr>
+<td><code>debug</code></td>
+<td>bool</td>
+<td>—</td>
+<td><code>false</code></td>
+<td>Write detailed per-gene logs and use a fixed random seed, so that results are reproducible (with <code>cpus = 1</code>).</td>
+</tr>
+</tbody>
+</table>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="n">enrichment</span><span class="w"> </span><span class="o">{</span>
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="w">  </span><span class="n">nmales</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">17422</span>
+<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="w">  </span><span class="n">nfemales</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">13636</span>
+<a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="w">  </span><span class="n">score</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="o">[</span><span class="s2">"CADD_phred"</span><span class="o">,</span><span class="w"> </span><span class="s2">"AlphaMissense_score"</span><span class="o">]</span>
+<a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a><span class="w">  </span><span class="n">runtype</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"both"</span>
+<a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a><span class="o">}</span>
+</code></pre></div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>The CLI also offers <code>syn</code>, <code>ptv</code> and <code>protein-altering</code> run types and lets you tune
+how indels are scored. These options are not yet exposed in the workflow; use
+<a href="../../reference/cli/#simulation"><code>denovowest simulation</code></a> directly.</p>
+</div>
+<h2 id="clustering-test-clustering">Clustering test (<code>clustering</code>)<a class="headerlink" href="#clustering-test-clustering" title="Permanent link">&para;</a></h2>
+<p>Used when <code>run_clustering = true</code>. Requires a DNM file and <code>gff</code>. See
+<a href="../../method/clustering/">Clustering test</a>.</p>
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+<th>Allowed values</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>runtype</code></td>
+<td>str</td>
+<td><code>linear</code>, <code>3D</code>, <code>both</code></td>
+<td><code>3D</code></td>
+<td>Test clustering along the protein sequence, in the 3D protein structure, or both.</td>
+</tr>
+<tr>
+<td><code>protein_structures</code></td>
+<td>path</td>
+<td>—</td>
+<td>—</td>
+<td>Archive of AlphaFold predicted structures. <strong>Required</strong> for <code>3D</code> and <code>both</code>.</td>
+</tr>
+<tr>
+<td><code>rates</code></td>
+<td>path</td>
+<td>—</td>
+<td>—</td>
+<td>Genome-wide mutation rates VCF (with <code>.tbi</code>) used by denovonear instead of its built-in model, e.g. Roulette rates, or the <code>rates/rates_adjusted.vcf.gz</code> file produced by the workflow.</td>
+</tr>
+</tbody>
+</table>
+<h2 id="observed-expected-ratios-oe_ratios">Observed / expected ratios (<code>oe_ratios</code>)<a class="headerlink" href="#observed-expected-ratios-oe_ratios" title="Permanent link">&para;</a></h2>
+<p>Used when <code>plot_oe_ratios = true</code>. Compares the number of observed DNMs with the number
+expected from the rates file, per consequence, as a quality check of the mutation rate
+model. Uses <code>enrichment.nmales</code> and <code>enrichment.nfemales</code>.</p>
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>gene_categories</code></td>
+<td>path</td>
+<td>—</td>
+<td>Optional table assigning genes to categories; ratios are also computed per category.</td>
+</tr>
+<tr>
+<td><code>gnomad_constraints</code></td>
+<td>path</td>
+<td>—</td>
+<td>Optional gnomAD constraint table; ratios are also computed per LOEUF and missense constraint bin.</td>
+</tr>
+</tbody>
+</table>
+<h2 id="nextflow-settings">Nextflow settings<a class="headerlink" href="#nextflow-settings" title="Permanent link">&para;</a></h2>
+<p>The example configuration files also set:</p>
+<ul>
+<li><code>workDir</code>: where Nextflow keeps intermediate files. Use a scratch file system and
+  delete it once a run is finished.</li>
+<li><code>timeline</code> and <code>report</code>: Nextflow execution reports, written to
+  <code>${basedir}/trace/${run_name}/</code>.</li>
+</ul>
+<p>Use <code>-resume</code> to restart a run without recomputing completed steps:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>nextflow<span class="w"> </span>run<span class="w"> </span>denovowest.nf<span class="w"> </span>-c<span class="w"> </span>my_analysis.config<span class="w"> </span>-resume
+</code></pre></div>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+  <script>var tabs=__md_get("__tabs");if(Array.isArray(tabs))e:for(var set of document.querySelectorAll(".tabbed-set")){var labels=set.querySelector(".tabbed-labels");for(var tab of tabs)for(var label of labels.getElementsByTagName("label"))if(label.innerText.trim()===tab){var input=document.getElementById(label.htmlFor);input.checked=!0;continue e}}</script>
+
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+    
+      
+      <nav class="md-footer__inner md-grid" aria-label="Footer" >
+        
+          
+          <a href="../overview/" class="md-footer__link md-footer__link--prev" aria-label="Previous: Workflow overview">
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+            </div>
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Previous
+              </span>
+              <div class="md-ellipsis">
+                Workflow overview
+              </div>
+            </div>
+          </a>
+        
+        
+          
+          <a href="../inputs/" class="md-footer__link md-footer__link--next" aria-label="Next: Input files">
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Next
+              </span>
+              <div class="md-ellipsis">
+                Input files
+              </div>
+            </div>
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M4 11v2h12l-5.5 5.5 1.42 1.42L19.84 12l-7.92-7.92L10.5 5.5 16 11z"/></svg>
+            </div>
+          </a>
+        
+      </nav>
+    
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+    <div class="md-copyright__highlight">
+      Copyright &copy; Genome Research Ltd. Released under the MIT licence.
+    </div>
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.tabs", "navigation.sections", "navigation.top", "navigation.footer", "navigation.indexes", "search.highlight", "search.suggest", "content.code.copy", "content.tabs.link", "content.action.edit"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"default": "dev", "provider": "mike"}}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.d7400e89.min.js"></script>
+      
+    
+  </body>
+</html>
