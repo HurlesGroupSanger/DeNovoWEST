@@ -20,7 +20,9 @@ The 2020 code remains available on the
 - **Integrated clustering test**, in linear or 3D protein space.
 - **New options**: excluded regions, adjustment for positive selection in sperm, imputation
   of missing scores, new run types (`syn`, `ptv`, `protein-altering`).
-- **Quality control and reporting**: mutation rate statistics, O/E ratios, HTML report.
+- **Quality control**: mutation rate statistics, O/E ratios<!--, HTML report-->.
+
+<!-- Hidden until finalised: detailed v1/v2 comparison and migration notes
 
 ## Detailed differences
 
@@ -53,3 +55,5 @@ The 2020 code remains available on the
 - **Results.** Expect differences from v1 results, due to the new scores, consequences,
   gene definitions and simulation settings. Genes that were significant with a large
   margin should remain so.
+
+-->

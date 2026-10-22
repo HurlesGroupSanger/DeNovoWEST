@@ -59,7 +59,12 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
       - name: Deploy development docs
         if: github.ref == 'refs/heads/develop' || github.event_name == 'workflow_dispatch'
-        run: mike deploy --push dev
+        run: |
+          mike deploy --push dev
+          # Until a final release exists, make the root URL redirect to the development docs
+          if ! mike list --json | grep -q '"latest"'; then
+            mike set-default --push dev
+          fi
       - name: Deploy release docs
         if: startsWith(github.ref, 'refs/tags/v')
         run: |

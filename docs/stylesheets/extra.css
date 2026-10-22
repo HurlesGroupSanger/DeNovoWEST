@@ -1,0 +1,4 @@
+/* Hide the latest tag next to the repository link (the only tag is v1.0.0 until the v2 release) */
+.md-source__fact--version {
+  display: none;
+}

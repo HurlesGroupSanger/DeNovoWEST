@@ -4,6 +4,9 @@ The Nextflow workflow chains the steps of a DeNovoWEST analysis. Each step is sw
 with a [mode flag](configuration.md#modes), so you can run everything at once or one
 step at a time, reusing earlier outputs.
 
+<!-- Diagram hidden until finalised: remove the div below to show it again -->
+<div hidden markdown>
+
 ```mermaid
 flowchart TD
     subgraph rates [Rates]
@@ -25,6 +28,8 @@ flowchart TD
     FR --> OE[plot_oe_ratios]
     AD --> OE
 ```
+
+</div>
 
 ## Steps
 

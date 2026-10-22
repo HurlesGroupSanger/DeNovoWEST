@@ -4,8 +4,8 @@
     This documentation describes **DeNovoWEST 2.0.0-beta**, developed on the
     [`develop`](https://github.com/HurlesGroupSanger/DeNovoWEST/tree/develop) branch.
     Options and output formats may still change before the 2.0.0 release.
-    The method as published in 2020 is available on the
-    [`v1.0.0`](https://github.com/HurlesGroupSanger/DeNovoWEST/tree/v1.0.0) branch.
+    The method as published in 2020 is still available on the
+    [`master`](https://github.com/HurlesGroupSanger/DeNovoWEST/tree/master) branch for now.
 
 **DeNovoWEST** (*De Novo* Weighted Enrichment Simulation Test) tests whether genes carry
 more damaging *de novo* mutations (DNMs) than expected by chance in a cohort of
@@ -30,7 +30,7 @@ DeNovoWEST 2 is distributed as:
 - a **Nextflow workflow** (`nextflow/`) that runs the full analysis, from building a
   mutation rates file to producing gene-level p-values;
 - a **Python package and command-line tool** (`denovowest`) exposing the individual
-  steps (annotation, enrichment simulation, report).
+  steps (annotation, enrichment simulation<!--, report-->).
 
 ```mermaid
 flowchart LR
@@ -44,14 +44,14 @@ flowchart LR
     AD --> C
     E --> CMB[Combined p-values]
     C --> CMB
-    CMB --> REP[HTML report]
+    %% CMB --> REP[HTML report]
 ```
 
 ## Where to go next
 
 <div class="grid cards" markdown>
 
-- **[Installation](getting-started/installation.md)**: set up the conda environment, a container or the Python package.
+- **[Installation](getting-started/installation.md)**: set up the conda environment or the Python package.
 - **[Quick start](getting-started/quickstart.md)**: run the whole workflow on the bundled toy dataset in a few minutes.
 - **[What's new in v2](getting-started/whats-new.md)**: what changed since the 2020 publication.
 - **[Configuration reference](user-guide/configuration.md)**: every workflow parameter.

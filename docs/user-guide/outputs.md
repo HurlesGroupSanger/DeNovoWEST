@@ -142,7 +142,10 @@ The example configuration files write Nextflow's execution timeline and resource
 to `${basedir}/trace/${run_name}/`. Intermediate files are in `workDir` and can be deleted
 once you no longer need to `-resume` the run.
 
+<!-- Hidden until the HTML report is integrated in the workflow
+
 ## HTML report
 
 Once the workflow has finished, summarise the results in an HTML report with
 `denovowest report`. See [HTML report](report.md).
+-->

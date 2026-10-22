@@ -17,7 +17,7 @@ of the configuration file in the output directory at the end of the run.
 includeConfig 'conf/local.conf'     // or conf/lsf.conf, see "Running on a cluster"
 includeConfig 'conf/default.conf'
 
-conda.enabled = true                // see Installation for containers
+conda.enabled = true
 
 params.basedir  = "/path/to/analyses"
 params.run_name = "kmer_cadd"

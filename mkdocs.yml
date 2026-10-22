@@ -38,6 +38,14 @@ extra:
     provider: mike
     default: dev
 
+# Pages shown by `mkdocs serve` but not published
+draft_docs: |
+  user-guide/report.md
+  *.draft.md
+
+extra_css:
+  - stylesheets/extra.css
+
 markdown_extensions:
   - admonition
   - attr_list
@@ -76,7 +84,7 @@ nav:
       - Configuration reference: user-guide/configuration.md
       - Input files: user-guide/inputs.md
       - Output files: user-guide/outputs.md
-      - HTML report: user-guide/report.md
+      # - HTML report: user-guide/report.md   # hidden until the report is integrated in the workflow
       - Running on a cluster: user-guide/hpc.md
       - Recipes: user-guide/recipes.md
   - Method:

@@ -22,7 +22,7 @@ git checkout develop   # DeNovoWEST 2 is currently developed on this branch
 | Tool | Version | Notes |
 |------|---------|-------|
 | [Nextflow](https://www.nextflow.io/docs/latest/install.html) | ≥ 23.10 | |
-| conda, Singularity/Apptainer **or** Docker | | provides the Python environment for each process |
+| conda | | provides the Python environment for each process |
 | [bcftools](https://samtools.github.io/bcftools/) | ≥ 1.19 | used for consequence annotation (`bcftools csq`) |
 | tabix / bgzip ([htslib](https://www.htslib.org/)) | | sorting and indexing rates files |
 | [bedtools](https://bedtools.readthedocs.io/) | | only when filtering [excluded regions](../user-guide/configuration.md#shared-parameters) |
@@ -33,37 +33,17 @@ environment modules (see [Using environment modules](#using-environment-modules)
 
 ### Software environment
 
-Choose one of the following and set it in your Nextflow configuration file.
+Nextflow builds the conda environment from `misc/conda/denovowest.yml` the first time the
+workflow runs; `conf/local.conf` already points to it. Enable conda in your
+configuration file:
 
-=== "Conda"
+```groovy
+conda.enabled = true
+```
 
-    Nextflow builds the environment from `misc/conda/denovowest.yml` the first time the
-    workflow runs; `conf/local.conf` already points to it. Enable conda in your
-    configuration file:
-
-    ```groovy
-    conda.enabled = true
-    ```
-
-    !!! tip
-        On a cluster, set `conda.cacheDir` (or the `NXF_CONDA_CACHEDIR` environment
-        variable) to a shared location so the environment is only built once.
-
-=== "Singularity / Apptainer"
-
-    ```groovy
-    conda.enabled = false
-    singularity.enabled = true
-    process.container = 'docker://delagee/denovowest:4'
-    ```
-
-=== "Docker"
-
-    ```groovy
-    conda.enabled = false
-    docker.enabled = true
-    process.container = 'delagee/denovowest:4'
-    ```
+!!! tip
+    On a cluster, set `conda.cacheDir` (or the `NXF_CONDA_CACHEDIR` environment
+    variable) to a shared location so the environment is only built once.
 
 ### Using environment modules
 

@@ -23,12 +23,12 @@ with a **clustering test** of missense DNMs along the protein sequence or in its
 - **Enrichment tests** on all coding variants and on missense variants.
 - **Clustering tests** in linear or 3D protein space, through [denovonear](https://github.com/jeremymcrae/denovonear).
 - Optional filtering of excluded regions and adjustment of rates for positive selection in sperm.
-- An **HTML report** summarising significant genes.
+<!-- - An **HTML report** summarising significant genes. -->
 - A **Python command-line tool** to run each step on its own.
 
 ## Installation
 
-The workflow needs [Nextflow](https://www.nextflow.io/) ≥ 23.10, conda (or Singularity / Docker),
+The workflow needs [Nextflow](https://www.nextflow.io/) ≥ 23.10, conda,
 and bcftools ≥ 1.19, tabix and jq.
 
 ```bash
@@ -44,7 +44,7 @@ pip install denovowest
 ```
 
 See the [installation guide](https://hurlesgroupsanger.github.io/DeNovoWEST/dev/getting-started/installation/)
-for containers and HPC setups.
+for HPC setups.
 
 ## Quick start
 
